@@ -9,8 +9,10 @@ import {
   getConversionReport,
   getConversionApprovalQueue,
   setConversionApproval,
+  getConversionApprovalNotifyInfo,
 } from '@line-crm/db';
 import { IDENTITY_KEY_SQL } from '../lib/identity-key.js';
+import { notifyAffiliateApproval } from '../services/affiliate-notifier.js';
 import type { Env } from '../index.js';
 
 const conversions = new Hono<Env>();
@@ -223,7 +225,7 @@ conversions.patch('/api/conversions/events/:id/approval', async (c) => {
       c.req.param('id'),
       body.status,
     );
-    if (!updated) {
+    if (updated === false) {
       // Missing event OR non-attributed CV (approval flow only applies to
       // affiliate-attributed rows) — both surface as 404.
       return c.json(
@@ -231,6 +233,35 @@ conversions.patch('/api/conversions/events/:id/approval', async (c) => {
         404,
       );
     }
+    if (updated === 'already_set') {
+      // Idempotent re-click: the status is already set to the requested value.
+      // Return 200 so the UI does not show an error to the operator.
+      return c.json({
+        success: true,
+        data: { id: c.req.param('id'), approvalStatus: body.status },
+      });
+    }
+
+    // ASP: notify the attributed affiliate on approval only (never on reject).
+    // Best-effort — notifyAffiliateApproval swallows its own errors, but guard
+    // the info lookup too so a push failure can never fail the approval request.
+    if (body.status === 'approved') {
+      try {
+        const info = await getConversionApprovalNotifyInfo(c.env.DB, c.req.param('id'));
+        if (info) {
+          await notifyAffiliateApproval(
+            c.env.DB,
+            c.env,
+            info.affiliateId,
+            info.offerName,
+            info.rewardAmount,
+          );
+        }
+      } catch (err) {
+        console.error('Affiliate approval notify failed (non-blocking):', err);
+      }
+    }
+
     return c.json({ success: true, data: { id: c.req.param('id'), approvalStatus: body.status } });
   } catch (err) {
     console.error('PATCH /api/conversions/events/:id/approval error:', err);

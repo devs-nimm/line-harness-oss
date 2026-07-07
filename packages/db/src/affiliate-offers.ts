@@ -198,21 +198,84 @@ async function findOfferLink(
  * UPDATE is guarded on that so non-attributed rows never gain a status. Stamps
  * approved_at with the decision time (for both approve and reject).
  *
- * @returns true if a row was updated, false otherwise (missing or non-attributed).
+ * The WHERE clause includes `approval_status IS NULL OR approval_status != ?`
+ * so re-setting the same status is a no-op (changes = 0) — this prevents
+ * double-approval notifications when an admin double-clicks.
+ *
+ * @returns
+ *   - `true`          — row was updated (status changed)
+ *   - `'already_set'` — row exists and attributed but status was already this value
+ *   - `false`         — row not found or not affiliate-attributed
  */
 export async function setConversionApproval(
   db: D1Database,
   eventId: string,
   status: 'approved' | 'rejected',
-): Promise<boolean> {
+): Promise<boolean | 'already_set'> {
   const now = jstNow();
   const result = await db
     .prepare(
       `UPDATE conversion_events
           SET approval_status = ?, approved_at = ?
-        WHERE id = ? AND affiliate_id IS NOT NULL`,
+        WHERE id = ? AND affiliate_id IS NOT NULL
+          AND (approval_status IS NULL OR approval_status != ?)`,
     )
-    .bind(status, now, eventId)
+    .bind(status, now, eventId, status)
     .run();
-  return (result.meta?.changes ?? 0) > 0;
+  if ((result.meta?.changes ?? 0) > 0) return true;
+
+  // Distinguish no-op (same status already set) from truly missing/non-attributed.
+  const existing = await db
+    .prepare(
+      `SELECT 1 FROM conversion_events WHERE id = ? AND affiliate_id IS NOT NULL AND approval_status = ?`,
+    )
+    .bind(eventId, status)
+    .first<{ 1: number }>();
+  return existing ? 'already_set' : false;
+}
+
+/** Resolved attribution detail for an affiliate-attributed conversion event. */
+export interface ConversionApprovalNotifyInfo {
+  affiliateId: string;
+  /** Offer name resolved via attributed_ref_code → link.offer_id, or null. */
+  offerName: string | null;
+  /** Fixed reward for the offer (0 when offer-less). */
+  rewardAmount: number;
+}
+
+/**
+ * Fetch the info needed to push an approval notification to the attributed
+ * affiliate: the affiliate id, and (via attributed_ref_code → affiliate_link →
+ * offer) the offer name + fixed reward amount.
+ *
+ * Returns null when the event is missing or not affiliate-attributed. When the
+ * attribution is offer-less (generic link), `offerName` is null and
+ * `rewardAmount` is 0.
+ */
+export async function getConversionApprovalNotifyInfo(
+  db: D1Database,
+  eventId: string,
+): Promise<ConversionApprovalNotifyInfo | null> {
+  const row = await db
+    .prepare(
+      `SELECT ce.affiliate_id AS affiliate_id,
+              off.name AS offer_name,
+              off.reward_amount AS reward_amount
+         FROM conversion_events ce
+         LEFT JOIN affiliate_links al ON al.ref_code = ce.attributed_ref_code
+         LEFT JOIN affiliate_offers off ON off.id = al.offer_id
+        WHERE ce.id = ? AND ce.affiliate_id IS NOT NULL`,
+    )
+    .bind(eventId)
+    .first<{
+      affiliate_id: string;
+      offer_name: string | null;
+      reward_amount: number | null;
+    }>();
+  if (!row) return null;
+  return {
+    affiliateId: row.affiliate_id,
+    offerName: row.offer_name,
+    rewardAmount: row.reward_amount ?? 0,
+  };
 }

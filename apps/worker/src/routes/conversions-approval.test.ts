@@ -21,8 +21,14 @@ const dbMocks = {
   getConversionReport: vi.fn(),
   getConversionApprovalQueue: vi.fn(),
   setConversionApproval: vi.fn(),
+  getConversionApprovalNotifyInfo: vi.fn(),
 };
 vi.mock('@line-crm/db', () => dbMocks);
+
+// Mock the affiliate notifier so the approval route's push is observable
+// without touching LINE / the DB resolution chain.
+const notifyAffiliateApproval = vi.fn().mockResolvedValue(undefined);
+vi.mock('../services/affiliate-notifier.js', () => ({ notifyAffiliateApproval }));
 
 const worker = (await import('../index.js')).default;
 
@@ -119,6 +125,11 @@ describe('GET /api/conversions/approvals', () => {
 describe('PATCH /api/conversions/events/:id/approval', () => {
   it('approves an attributed event', async () => {
     dbMocks.setConversionApproval.mockResolvedValue(true);
+    dbMocks.getConversionApprovalNotifyInfo.mockResolvedValue({
+      affiliateId: 'aff-1',
+      offerName: '案件X',
+      rewardAmount: 5000,
+    });
     const res = await req('PATCH', '/api/conversions/events/ev-1/approval', {
       status: 'approved',
     });
@@ -130,6 +141,43 @@ describe('PATCH /api/conversions/events/:id/approval', () => {
       'ev-1',
       'approved',
     );
+  });
+
+  it('notifies the affiliate on approval', async () => {
+    dbMocks.setConversionApproval.mockResolvedValue(true);
+    dbMocks.getConversionApprovalNotifyInfo.mockResolvedValue({
+      affiliateId: 'aff-1',
+      offerName: '案件X',
+      rewardAmount: 5000,
+    });
+    await req('PATCH', '/api/conversions/events/ev-1/approval', { status: 'approved' });
+    expect(notifyAffiliateApproval).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      'aff-1',
+      '案件X',
+      5000,
+    );
+  });
+
+  it('does NOT notify the affiliate on rejection', async () => {
+    dbMocks.setConversionApproval.mockResolvedValue(true);
+    const res = await req('PATCH', '/api/conversions/events/ev-1/approval', {
+      status: 'rejected',
+    });
+    expect(res.status).toBe(200);
+    expect(dbMocks.getConversionApprovalNotifyInfo).not.toHaveBeenCalled();
+    expect(notifyAffiliateApproval).not.toHaveBeenCalled();
+  });
+
+  it('still returns 200 when the notify lookup finds nothing', async () => {
+    dbMocks.setConversionApproval.mockResolvedValue(true);
+    dbMocks.getConversionApprovalNotifyInfo.mockResolvedValue(null);
+    const res = await req('PATCH', '/api/conversions/events/ev-1/approval', {
+      status: 'approved',
+    });
+    expect(res.status).toBe(200);
+    expect(notifyAffiliateApproval).not.toHaveBeenCalled();
   });
 
   it('rejects an unknown status with 400', async () => {
@@ -151,5 +199,18 @@ describe('PATCH /api/conversions/events/:id/approval', () => {
       status: 'rejected',
     });
     expect(res.status).toBe(404);
+  });
+
+  it('returns 200 without calling notifyAffiliate when status is already_set (double-click guard)', async () => {
+    dbMocks.setConversionApproval.mockResolvedValue('already_set');
+    const res = await req('PATCH', '/api/conversions/events/ev-dup/approval', {
+      status: 'approved',
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { approvalStatus: string } };
+    expect(body.data.approvalStatus).toBe('approved');
+    // Critical: notify must NOT be called for an idempotent no-op
+    expect(notifyAffiliateApproval).not.toHaveBeenCalled();
+    expect(dbMocks.getConversionApprovalNotifyInfo).not.toHaveBeenCalled();
   });
 });

@@ -19,9 +19,11 @@ import {
   getMessageTemplateById,
   getAffiliateLinkByRefCode,
   getAffiliateOfferById,
+  getAffiliateById,
   jstNow,
 } from '@line-crm/db';
 import { buildIntroMessage } from '../services/intro-message.js';
+import { notifyAffiliateFriendAdd } from '../services/affiliate-notifier.js';
 import { safeRedirectTarget } from '../lib/safe-redirect.js';
 import type { Env } from '../index.js';
 
@@ -164,7 +166,7 @@ async function applyRefAttribution(
   ref: string,
   friend: { id: string; line_account_id?: string | null },
   lineUserId: string,
-  options?: { accountChannelId?: string | null },
+  options?: { accountChannelId?: string | null; isNewFriend?: boolean },
 ): Promise<void> {
   if (!ref || ref.startsWith('xh:')) return;
   const db = c.env.DB;
@@ -184,14 +186,37 @@ async function applyRefAttribution(
   let offer: Awaited<ReturnType<typeof getAffiliateOfferById>> = null;
   if (!route && !trackedLink) {
     const affiliateLink = await getAffiliateLinkByRefCode(db, ref);
-    if (affiliateLink?.offer_id) {
-      const fetchedOffer = await getAffiliateOfferById(db, affiliateLink.offer_id);
-      // Inactive offers (is_active = 0) are treated as null: stop the automatic
-      // flow (tag / scenario) so a paused campaign does not enroll new friends.
-      // Attribution recording (ref_tracking / ref_code on the friend row) is
-      // unaffected — it runs before this function and always persists the click.
-      if (fetchedOffer?.is_active) {
-        offer = fetchedOffer;
+    if (affiliateLink) {
+      // ASP friend-add notification: only for a brand-new friend arriving via an
+      // affiliate link (existing-friend re-touches would spam the affiliate).
+      // Self-clicks (the affiliate adding their own bot) are suppressed. Runs
+      // even for a 汎用リンク (offer_id NULL) — offerName is then null.
+      // Wrapped so a notify failure can never break attribution.
+      if (options?.isNewFriend) {
+        try {
+          const affiliate = await getAffiliateById(db, affiliateLink.affiliate_id);
+          if (affiliate && affiliate.friend_id !== friend.id) {
+            let offerName: string | null = null;
+            if (affiliateLink.offer_id) {
+              const linkOffer = await getAffiliateOfferById(db, affiliateLink.offer_id);
+              offerName = linkOffer?.name ?? null;
+            }
+            await notifyAffiliateFriendAdd(db, c.env, affiliate.id, offerName);
+          }
+        } catch (err) {
+          console.error('Affiliate friend-add notify failed (non-blocking):', err);
+        }
+      }
+
+      if (affiliateLink.offer_id) {
+        const fetchedOffer = await getAffiliateOfferById(db, affiliateLink.offer_id);
+        // Inactive offers (is_active = 0) are treated as null: stop the automatic
+        // flow (tag / scenario) so a paused campaign does not enroll new friends.
+        // Attribution recording (ref_tracking / ref_code on the friend row) is
+        // unaffected — it runs before this function and always persists the click.
+        if (fetchedOffer?.is_active) {
+          offer = fetchedOffer;
+        }
       }
     }
   }
@@ -799,6 +824,12 @@ liffRoutes.get('/auth/callback', async (c) => {
     const db = c.env.DB;
     const lineUserId = verified.sub;
 
+    // Detect a brand-new friend BEFORE upsertFriend creates the row, so the ASP
+    // affiliate friend-add notification fires once per genuinely-new add (a
+    // re-touch of an existing friend must not re-notify the affiliate).
+    const preExistingFriend = await getFriendByLineUserId(db, lineUserId);
+    const isNewFriend = !preExistingFriend;
+
     // Upsert friend (may not exist yet if webhook hasn't fired)
     const friend = await upsertFriend(db, {
       lineUserId,
@@ -876,6 +907,7 @@ liffRoutes.get('/auth/callback', async (c) => {
 
       await applyRefAttribution(c, ref, friend, lineUserId, {
         accountChannelId: accountParam || null,
+        isNewFriend,
       });
     }
 

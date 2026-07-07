@@ -11,6 +11,7 @@ import {
   getAffiliateOfferById,
   enrollAffiliateInOffer,
   setConversionApproval,
+  getConversionApprovalNotifyInfo,
 } from '../src/affiliate-offers.js';
 import { trackConversion } from '../src/conversions.js';
 
@@ -301,6 +302,55 @@ describe('setConversionApproval', () => {
     expect(row.approved_at).toBeTruthy();
   });
 
+  test('returns already_set when setting the same status again (approved → approved)', async () => {
+    sqlite
+      .prepare(
+        `INSERT INTO affiliates (id, name, code, is_active, created_at)
+         VALUES ('aff-idem', 'A', 'CIDEM', 1, '2024-01-01T00:00:00.000')`,
+      )
+      .run();
+    sqlite
+      .prepare(
+        `INSERT INTO conversion_events (id, conversion_point_id, friend_id, created_at, affiliate_id, approval_status)
+         VALUES ('ce-idem', 'cp-1', 'f-1', '2024-01-01T00:00:00.000', 'aff-idem', 'pending')`,
+      )
+      .run();
+    // First approval — changes row
+    const first = await setConversionApproval(db, 'ce-idem', 'approved');
+    expect(first).toBe(true);
+    // Second approval with same status — no-op
+    const second = await setConversionApproval(db, 'ce-idem', 'approved');
+    expect(second).toBe('already_set');
+    // Verify DB row is unchanged (still approved, approved_at set by first call)
+    const row = sqlite
+      .prepare(`SELECT approval_status FROM conversion_events WHERE id = 'ce-idem'`)
+      .get() as { approval_status: string };
+    expect(row.approval_status).toBe('approved');
+  });
+
+  test('approved → rejected returns true (status change still works)', async () => {
+    sqlite
+      .prepare(
+        `INSERT INTO affiliates (id, name, code, is_active, created_at)
+         VALUES ('aff-chg', 'A', 'CCHG', 1, '2024-01-01T00:00:00.000')`,
+      )
+      .run();
+    sqlite
+      .prepare(
+        `INSERT INTO conversion_events (id, conversion_point_id, friend_id, created_at, affiliate_id, approval_status)
+         VALUES ('ce-chg', 'cp-1', 'f-1', '2024-01-01T00:00:00.000', 'aff-chg', 'pending')`,
+      )
+      .run();
+    const first = await setConversionApproval(db, 'ce-chg', 'approved');
+    expect(first).toBe(true);
+    const second = await setConversionApproval(db, 'ce-chg', 'rejected');
+    expect(second).toBe(true);
+    const row = sqlite
+      .prepare(`SELECT approval_status FROM conversion_events WHERE id = 'ce-chg'`)
+      .get() as { approval_status: string };
+    expect(row.approval_status).toBe('rejected');
+  });
+
   test('returns false for a non-attributed (affiliate_id NULL) event', async () => {
     sqlite
       .prepare(
@@ -318,6 +368,77 @@ describe('setConversionApproval', () => {
 
   test('returns false for a missing event', async () => {
     expect(await setConversionApproval(db, 'nope', 'approved')).toBe(false);
+  });
+});
+
+// ── getConversionApprovalNotifyInfo ─────────────────────────────────────────
+
+describe('getConversionApprovalNotifyInfo', () => {
+  let sqlite: Database.Database;
+  let db: D1Database;
+
+  beforeEach(() => {
+    sqlite = setupDb();
+    db = asD1(sqlite);
+    insertFriend(sqlite, 'f-1', 'U0000000000000000000000000000001');
+    insertConversionPoint(sqlite, 'cp-1');
+    insertAffiliate(sqlite, 'aff-1');
+  });
+
+  test('resolves affiliate + offer name + reward via attributed_ref_code', async () => {
+    sqlite
+      .prepare(
+        `INSERT INTO affiliate_offers (id, name, reward_amount, is_active, created_at)
+         VALUES ('off-1', '案件A', 5000, 1, '2024-01-01T00:00:00.000')`,
+      )
+      .run();
+    sqlite
+      .prepare(
+        `INSERT INTO affiliate_links (id, affiliate_id, ref_code, offer_id, is_active, created_at)
+         VALUES ('al-1', 'aff-1', 'ref-1', 'off-1', 1, '2024-01-01T00:00:00.000')`,
+      )
+      .run();
+    sqlite
+      .prepare(
+        `INSERT INTO conversion_events (id, conversion_point_id, friend_id, created_at, affiliate_id, attributed_ref_code, approval_status)
+         VALUES ('ce-1', 'cp-1', 'f-1', '2024-01-01T00:00:00.000', 'aff-1', 'ref-1', 'approved')`,
+      )
+      .run();
+
+    const info = await getConversionApprovalNotifyInfo(db, 'ce-1');
+    expect(info).toEqual({ affiliateId: 'aff-1', offerName: '案件A', rewardAmount: 5000 });
+  });
+
+  test('offer-less (generic link) attribution → null offer name, 0 reward', async () => {
+    sqlite
+      .prepare(
+        `INSERT INTO affiliate_links (id, affiliate_id, ref_code, offer_id, is_active, created_at)
+         VALUES ('al-2', 'aff-1', 'ref-2', NULL, 1, '2024-01-01T00:00:00.000')`,
+      )
+      .run();
+    sqlite
+      .prepare(
+        `INSERT INTO conversion_events (id, conversion_point_id, friend_id, created_at, affiliate_id, attributed_ref_code, approval_status)
+         VALUES ('ce-2', 'cp-1', 'f-1', '2024-01-01T00:00:00.000', 'aff-1', 'ref-2', 'approved')`,
+      )
+      .run();
+
+    const info = await getConversionApprovalNotifyInfo(db, 'ce-2');
+    expect(info).toEqual({ affiliateId: 'aff-1', offerName: null, rewardAmount: 0 });
+  });
+
+  test('returns null for a non-attributed (affiliate_id NULL) event', async () => {
+    sqlite
+      .prepare(
+        `INSERT INTO conversion_events (id, conversion_point_id, friend_id, created_at)
+         VALUES ('ce-null', 'cp-1', 'f-1', '2024-01-01T00:00:00.000')`,
+      )
+      .run();
+    expect(await getConversionApprovalNotifyInfo(db, 'ce-null')).toBeNull();
+  });
+
+  test('returns null for a missing event', async () => {
+    expect(await getConversionApprovalNotifyInfo(db, 'nope')).toBeNull();
   });
 });
 
