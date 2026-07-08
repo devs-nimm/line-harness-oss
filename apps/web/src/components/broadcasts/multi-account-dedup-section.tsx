@@ -21,6 +21,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { api } from '@/lib/api'
 import { useAccount } from '@/contexts/account-context'
 import { countryFlag } from '@/lib/country-flag'
+import { useI18n } from '@/lib/i18n'
 
 interface PreviewData {
   totalSelected: number
@@ -48,6 +49,7 @@ interface Props {
 }
 
 function PriorityRow({ id, label, flag, ordinal }: { id: string; label: string; flag: string; ordinal: number }) {
+  const { t } = useI18n()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -63,7 +65,7 @@ function PriorityRow({ id, label, flag, ordinal }: { id: string; label: string; 
       {...listeners}
     >
       <span className="text-gray-400">⋮⋮</span>
-      <span className="w-6 text-xs text-gray-500">{ordinal}位</span>
+      <span className="w-6 text-xs text-gray-500">{t('位')}{ordinal}</span>
       {flag && <span>{flag}</span>}
       <span>{label}</span>
     </div>
@@ -79,6 +81,7 @@ export default function MultiAccountDedupSection({
   onDedupPriorityChange,
   onTargetTagIdChange,
 }: Props) {
+  const { t } = useI18n()
   const { accounts } = useAccount()
   const [preview, setPreview] = useState<PreviewData | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
@@ -126,10 +129,10 @@ export default function MultiAccountDedupSection({
         if (res.success && res.data) {
           setPreview(res.data)
         } else {
-          setPreviewError(res.error || 'プレビュー取得失敗')
+          setPreviewError(res.error || t('プレビュー取得失敗'))
         }
       } catch {
-        setPreviewError('プレビュー取得失敗')
+        setPreviewError(t('プレビュー取得失敗'))
       } finally {
         setPreviewLoading(false)
       }
@@ -163,7 +166,7 @@ export default function MultiAccountDedupSection({
   return (
     <div className="space-y-4 mt-3 p-4 bg-gray-50 rounded-lg">
       <div>
-        <p className="text-xs font-medium text-gray-700 mb-2">配信先アカウント</p>
+        <p className="text-xs font-medium text-gray-700 mb-2">{t('配信先アカウント')}</p>
         <div className="space-y-1">
           {sortedAccounts.map((a) => (
             <label key={a.id} className="flex items-center gap-2 text-sm">
@@ -180,39 +183,39 @@ export default function MultiAccountDedupSection({
               />
               {countryFlag(a.country) && <span>{countryFlag(a.country)}</span>}
               <span>{a.displayName || a.name}</span>
-              {!a.isActive && <span className="text-xs text-gray-400">(無効)</span>}
+              {!a.isActive && <span className="text-xs text-gray-400">{t('(無効)')}</span>}
             </label>
           ))}
         </div>
       </div>
 
       <div className={`text-xs ${isSingleAccount ? 'text-gray-400' : 'text-gray-700'}`}>
-        ☑ 重複除外モード
-        {isSingleAccount && '（1 アカ選択時は無効）'}
+        ☑ {t('重複除外モード')}
+        {isSingleAccount && t('（1 アカ選択時は無効）')}
       </div>
 
       {/* Optional tag filter — narrows the recipient population to friends
           who carry the selected tag, then dedup runs on that narrowed set. */}
       <div>
-        <p className="text-xs font-medium text-gray-700 mb-2">タグ絞込 (任意)</p>
+        <p className="text-xs font-medium text-gray-700 mb-2">{t('タグ絞込 (任意)')}</p>
         <select
           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
           value={targetTagId ?? ''}
           onChange={(e) => onTargetTagIdChange(e.target.value || null)}
         >
-          <option value="">タグ絞込なし (選択アカの全友達)</option>
+          <option value="">{t('タグ絞込なし (選択アカの全友達)')}</option>
           {tags.map((tag) => (
             <option key={tag.id} value={tag.id}>{tag.name}</option>
           ))}
         </select>
         <p className="mt-1 text-[11px] text-gray-500">
-          タグを選ぶと、そのタグが付いた友達だけ対象に重複除外する。空なら全員対象。
+          {t('タグを選ぶと、そのタグが付いた友達だけ対象に重複除外する。空なら全員対象。')}
         </p>
       </div>
 
       {showDedupUI && (
         <div>
-          <p className="text-xs font-medium text-gray-700 mb-2">送信元優先順 (上が優先)</p>
+          <p className="text-xs font-medium text-gray-700 mb-2">{t('送信元優先順 (上が優先)')}</p>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={dedupPriority} strategy={verticalListSortingStrategy}>
               <div className="space-y-1">
@@ -232,34 +235,34 @@ export default function MultiAccountDedupSection({
               </div>
             </SortableContext>
           </DndContext>
-          <p className="text-xs text-gray-400 mt-1">※ デフォルト順は /accounts の並び替えモードで変更</p>
+          <p className="text-xs text-gray-400 mt-1">※ {t('デフォルト順は /accounts の並び替えモードで変更')}</p>
         </div>
       )}
 
       <div className="bg-white rounded-lg border border-gray-200 p-3">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-bold text-gray-700">プレビュー</p>
-          {previewLoading && <span className="text-xs text-gray-400">更新中...</span>}
+          <p className="text-xs font-bold text-gray-700">{t('プレビュー')}</p>
+          {previewLoading && <span className="text-xs text-gray-400">{t('更新中...')}</span>}
         </div>
         {previewError && (
-          <p className="text-xs text-red-600 mb-2">{previewError}（前回の値を表示中）</p>
+          <p className="text-xs text-red-600 mb-2">{previewError}{t('（前回の値を表示中）')}</p>
         )}
         {preview ? (
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-500">合計選択</span>
-              <span>{preview.totalSelected.toLocaleString()} 通</span>
+              <span className="text-gray-500">{t('合計選択')}</span>
+              <span>{preview.totalSelected.toLocaleString()} {t('通')}</span>
             </div>
             <div className="flex justify-between font-medium">
-              <span className="text-gray-700">ユニーク配信</span>
-              <span>{preview.uniqueRecipients.toLocaleString()} 通</span>
+              <span className="text-gray-700">{t('ユニーク配信')}</span>
+              <span>{preview.uniqueRecipients.toLocaleString()} {t('通')}</span>
             </div>
             <div className="flex justify-between text-green-700">
-              <span>削減</span>
-              <span>{preview.reduction.toLocaleString()} 通 ({(preview.reductionRate * 100).toFixed(1)}%)</span>
+              <span>{t('削減')}</span>
+              <span>{preview.reduction.toLocaleString()} {t('通')} ({(preview.reductionRate * 100).toFixed(1)}%)</span>
             </div>
             <div className="border-t border-gray-100 pt-2 mt-2">
-              <p className="text-xs font-medium text-gray-600 mb-1">送信内訳</p>
+              <p className="text-xs font-medium text-gray-600 mb-1">{t('送信内訳')}</p>
               {preview.perAccount.map((p) => {
                 const flag = countryFlag(p.accountCountry)
                 const ordinal = dedupPriority.indexOf(p.accountId)
@@ -275,12 +278,12 @@ export default function MultiAccountDedupSection({
                     <span className="text-gray-700">
                       {flag && <span className="mr-1">{flag}</span>}
                       {renderedName}
-                      {ordinal >= 0 && <span className="text-gray-400"> ({ordinal + 1}位)</span>}
+                      {ordinal >= 0 && <span className="text-gray-400"> ({t('位')}{ordinal + 1})</span>}
                     </span>
                     <span>
-                      {p.sendCount.toLocaleString()} 通
+                      {p.sendCount.toLocaleString()} {t('通')}
                       {p.excludedToHigherPriority > 0 && (
-                        <span className="text-gray-400 ml-1">[{p.excludedToHigherPriority} 除外]</span>
+                        <span className="text-gray-400 ml-1">[{p.excludedToHigherPriority} {t('除外')}]</span>
                       )}
                     </span>
                   </div>
@@ -288,11 +291,11 @@ export default function MultiAccountDedupSection({
               })}
             </div>
             <p className="text-xs text-gray-400 mt-2">
-              ⓘ 実際の送信数は送信時の友だち状態で決定。preview と若干ズレる場合あり
+              ⓘ {t('実際の送信数は送信時の友だち状態で決定。preview と若干ズレる場合あり')}
             </p>
           </div>
         ) : (
-          <p className="text-xs text-gray-400">アカウントを選択するとプレビュー表示</p>
+          <p className="text-xs text-gray-400">{t('アカウントを選択するとプレビュー表示')}</p>
         )}
       </div>
     </div>

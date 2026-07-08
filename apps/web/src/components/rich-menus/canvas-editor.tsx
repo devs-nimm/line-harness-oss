@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useI18n } from '@/lib/i18n'
 
 export type Area = {
   id: string
@@ -83,6 +84,7 @@ export function CanvasEditor({
   preview = false,
   onPreviewAction,
 }: Props) {
+  const { t } = useI18n()
   const canvasRef = useRef<HTMLDivElement>(null)
   const dims = SIZE_DIMS[size]
   const [scale, setScale] = useState(0.3)
@@ -198,7 +200,7 @@ export function CanvasEditor({
           // LINE の上限 (1 page あたり area 20 個) を事前にブロック。
           // 上限を超えて追加させると Save Draft / Publish が 400 になる。
           if (areas.length >= 20) {
-            alert('1 ページあたり areas は最大 20 個までです (LINE 仕様)。')
+            alert(t('1 ページあたり areas は最大 20 個までです (LINE 仕様)。'))
           } else {
             onAddArea({
               id: typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -282,7 +284,7 @@ export function CanvasEditor({
   return (
     <div className="space-y-2 select-none">
       <div className="flex items-center gap-2 text-sm">
-        <span className="text-gray-500 text-xs">ズーム</span>
+        <span className="text-gray-500 text-xs">{t('ズーム')}</span>
         {[0.25, 0.3, 0.5, 0.75, 1].map((s) => (
           <button
             key={s}
@@ -301,7 +303,7 @@ export function CanvasEditor({
         </span>
         {!preview && (
           <span className="ml-auto text-xs text-gray-400">
-            空白でドラッグ → 新規矩形 / 矩形クリックで選択 / 矢印キーで微調整 / Delete で削除
+            {t('空白でドラッグ → 新規矩形 / 矩形クリックで選択 / 矢印キーで微調整 / Delete で削除')}
           </span>
         )}
       </div>

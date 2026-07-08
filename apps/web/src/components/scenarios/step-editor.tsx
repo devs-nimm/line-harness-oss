@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { ScenarioStep, MessageType } from '@line-crm/shared'
+import { useI18n } from '@/lib/i18n'
 
 interface StepEditorProps {
   step?: ScenarioStep
@@ -28,6 +29,7 @@ function displayToMinutes(days: number, hours: number, mins: number): number {
 }
 
 export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEditorProps) {
+  const { t } = useI18n()
   const initial = step ? minutesToDisplay(step.delayMinutes) : { days: 0, hours: 0, mins: 0 }
 
   const [days, setDays] = useState(initial.days)
@@ -40,14 +42,14 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
 
   const handleSave = async () => {
     if (!messageContent.trim()) {
-      setError('メッセージ内容を入力してください')
+      setError(t('メッセージ内容を入力してください'))
       return
     }
     if (messageType === 'flex') {
       try {
         JSON.parse(messageContent)
       } catch {
-        setError('FlexメッセージのJSONが無効です')
+        setError(t('FlexメッセージのJSONが無効です'))
         return
       }
     }
@@ -61,7 +63,7 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
         messageContent,
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : '保存に失敗しました')
+      setError(err instanceof Error ? err.message : t('保存に失敗しました'))
     } finally {
       setSaving(false)
     }
@@ -70,13 +72,13 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-4">
       <h3 className="text-sm font-semibold text-gray-800">
-        {step ? 'ステップを編集' : `ステップ ${stepOrder} を追加`}
+        {step ? t('ステップを編集') : `${t('ステップ')} ${stepOrder} ${t('を追加')}`}
       </h3>
 
       {/* Delay settings */}
       <div>
         <label className="block text-xs font-medium text-gray-600 mb-2">
-          前のステップからの待機時間
+          {t('前のステップからの待機時間')}
         </label>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1">
@@ -87,7 +89,7 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
               value={days}
               onChange={(e) => setDays(Math.max(0, parseInt(e.target.value) || 0))}
             />
-            <span className="text-sm text-gray-500">日</span>
+            <span className="text-sm text-gray-500">{t('日')}</span>
           </div>
           <div className="flex items-center gap-1">
             <input
@@ -98,7 +100,7 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
               value={hours}
               onChange={(e) => setHours(Math.min(23, Math.max(0, parseInt(e.target.value) || 0)))}
             />
-            <span className="text-sm text-gray-500">時間</span>
+            <span className="text-sm text-gray-500">{t('時間')}</span>
           </div>
           <div className="flex items-center gap-1">
             <input
@@ -109,17 +111,17 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
               value={mins}
               onChange={(e) => setMins(Math.min(59, Math.max(0, parseInt(e.target.value) || 0)))}
             />
-            <span className="text-sm text-gray-500">分</span>
+            <span className="text-sm text-gray-500">{t('分')}</span>
           </div>
           <span className="text-xs text-gray-400">
-            (合計: {displayToMinutes(days, hours, mins).toLocaleString('ja-JP')} 分)
+            ({t('合計')}: {displayToMinutes(days, hours, mins).toLocaleString('ja-JP')} {t('分')})
           </span>
         </div>
       </div>
 
       {/* Message type */}
       <div>
-        <label className="block text-xs font-medium text-gray-600 mb-2">メッセージ種別</label>
+        <label className="block text-xs font-medium text-gray-600 mb-2">{t('メッセージ種別')}</label>
         <div className="flex gap-2">
           {(Object.keys(messageTypeLabels) as MessageType[]).map((type) => (
             <button
@@ -132,7 +134,7 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
                   : 'border-gray-300 text-gray-600 bg-white hover:border-gray-400'
               }`}
             >
-              {messageTypeLabels[type]}
+              {t(messageTypeLabels[type])}
             </button>
           ))}
         </div>
@@ -141,9 +143,9 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
       {/* Message content */}
       <div>
         <label className="block text-xs font-medium text-gray-600 mb-2">
-          メッセージ内容
+          {t('メッセージ内容')}
           {(messageType === 'flex' || messageType === 'image') && (
-            <span className="ml-1 text-gray-400">(JSON形式)</span>
+            <span className="ml-1 text-gray-400">{t('(JSON形式)')}</span>
           )}
         </label>
 
@@ -154,7 +156,7 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
           return (
             <div className="space-y-2 mb-2">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">元画像URL (originalContentUrl)</label>
+                <label className="block text-xs text-gray-500 mb-1">{t('元画像URL (originalContentUrl)')}</label>
                 <input
                   type="url"
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -168,11 +170,11 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">プレビュー画像URL (previewImageUrl)</label>
+                <label className="block text-xs text-gray-500 mb-1">{t('プレビュー画像URL (previewImageUrl)')}</label>
                 <input
                   type="url"
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  placeholder="https://example.com/preview.png (空欄で元画像と同じ)"
+                  placeholder={t('https://example.com/preview.png (空欄で元画像と同じ)')}
                   value={parsed.previewImageUrl ?? ''}
                   onChange={(e) => {
                     const prev = e.target.value
@@ -189,7 +191,7 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
           rows={messageType === 'flex' ? 8 : messageType === 'image' ? 3 : 4}
           placeholder={
             messageType === 'text'
-              ? 'メッセージテキストを入力...'
+              ? t('メッセージテキストを入力...')
               : messageType === 'image'
               ? '{"originalContentUrl":"...","previewImageUrl":"..."}'
               : '{"type":"bubble","body":{...}}'
@@ -199,7 +201,7 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
           style={{ fontFamily: messageType !== 'text' ? 'monospace' : 'inherit' }}
         />
         {messageType === 'image' && (
-          <p className="text-xs text-gray-400 mt-1">上のURLフォームか、直接JSONを編集できます</p>
+          <p className="text-xs text-gray-400 mt-1">{t('上のURLフォームか、直接JSONを編集できます')}</p>
         )}
       </div>
 
@@ -216,14 +218,14 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
           className="px-4 py-2 min-h-[44px] text-sm font-medium text-white rounded-lg disabled:opacity-50 transition-opacity"
           style={{ backgroundColor: '#06C755' }}
         >
-          {saving ? '保存中...' : '保存'}
+          {saving ? t('保存中...') : t('保存')}
         </button>
         <button
           onClick={onCancel}
           disabled={saving}
           className="px-4 py-2 min-h-[44px] text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
         >
-          キャンセル
+          {t('キャンセル')}
         </button>
       </div>
     </div>

@@ -9,6 +9,7 @@ import Header from '@/components/layout/header'
 import BroadcastForm from '@/components/broadcasts/broadcast-form'
 import BroadcastDetail from '@/components/broadcasts/broadcast-detail'
 import CcPromptButton from '@/components/cc-prompt-button'
+import { useI18n } from '@/lib/i18n'
 
 const ccPrompts = [
   {
@@ -65,6 +66,7 @@ export default function BroadcastsPage() {
 type BroadcastTab = 'single' | 'dedup' | 'all'
 
 function BroadcastList() {
+  const { t } = useI18n()
   const { selectedAccountId } = useAccount()
   const [broadcasts, setBroadcasts] = useState<ApiBroadcast[]>([])
   const [tags, setTags] = useState<Tag[]>([])
@@ -92,7 +94,7 @@ function BroadcastList() {
         setInsights(prev => ({ ...prev, [id]: res.data }))
       }
     } catch {
-      setError('インサイトの取得に失敗しました')
+      setError(t('インサイトの取得に失敗しました'))
     } finally {
       setFetchingInsight(null)
     }
@@ -110,7 +112,7 @@ function BroadcastList() {
       else setError(broadcastsRes.error)
       if (tagsRes.success) setTags(tagsRes.data)
     } catch {
-      setError('データの読み込みに失敗しました。もう一度お試しください。')
+      setError(t('データの読み込みに失敗しました。もう一度お試しください。'))
     } finally {
       setLoading(false)
     }
@@ -124,12 +126,12 @@ function BroadcastList() {
   }, [broadcasts])
 
   const handleDelete = async (id: string) => {
-    if (!confirm('この配信を削除してもよいですか？')) return
+    if (!confirm(t('この配信を削除してもよいですか？'))) return
     try {
       await api.broadcasts.delete(id)
       load()
     } catch {
-      setError('削除に失敗しました')
+      setError(t('削除に失敗しました'))
     }
   }
 
@@ -151,14 +153,14 @@ function BroadcastList() {
   return (
     <div>
       <Header
-        title="一斉配信"
+        title={t('一斉配信')}
         action={
           <button
             onClick={() => setShowCreate(true)}
             className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
             style={{ backgroundColor: '#06C755' }}
           >
-            + 新規配信
+            + {t('新規配信')}
           </button>
         }
       />
@@ -183,9 +185,9 @@ function BroadcastList() {
       {!loading && broadcasts.length > 0 && (
         <div className="mb-4 flex gap-1 border-b border-gray-200">
           {([
-            { id: 'all', label: '全部', count: broadcasts.length },
-            { id: 'single', label: '単アカ配信', count: singleCount },
-            { id: 'dedup', label: '複アカ重複除外', count: dedupCount },
+            { id: 'all', label: t('全部'), count: broadcasts.length },
+            { id: 'single', label: t('単アカ配信'), count: singleCount },
+            { id: 'dedup', label: t('複アカ重複除外'), count: dedupCount },
           ] as const).map((tab) => (
             <button
               key={tab.id}
@@ -222,12 +224,12 @@ function BroadcastList() {
         </div>
       ) : broadcasts.length === 0 && !showCreate ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-          <p className="text-gray-500">配信がありません。「新規配信」から作成してください。</p>
+          <p className="text-gray-500">{t('配信がありません。「新規配信」から作成してください。')}</p>
         </div>
       ) : visibleBroadcasts.length === 0 ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
           <p className="text-gray-500">
-            {activeTab === 'dedup' ? '複数アカ重複除外配信はまだありません。' : 'このタブに該当する配信はありません。'}
+            {activeTab === 'dedup' ? t('複数アカ重複除外配信はまだありません。') : t('このタブに該当する配信はありません。')}
           </p>
         </div>
       ) : (
@@ -237,22 +239,22 @@ function BroadcastList() {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  配信タイトル
+                  {t('配信タイトル')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  ステータス
+                  {t('ステータス')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  配信対象
+                  {t('配信対象')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  予約日時
+                  {t('予約日時')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  送信完了日時
+                  {t('送信完了日時')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  実績
+                  {t('実績')}
                 </th>
                 <th className="px-4 py-3" />
               </tr>
@@ -274,12 +276,12 @@ function BroadcastList() {
                           </a>
                           {isDedup && (
                             <span className="inline-flex items-center px-1.5 py-0 rounded text-[10px] font-medium bg-purple-100 text-purple-700">
-                              複アカ
+                              {t('複アカ')}
                             </span>
                           )}
                         </div>
                         <p className="text-xs text-gray-400 mt-0.5">
-                          {broadcast.messageType === 'text' ? 'テキスト' : broadcast.messageType === 'image' ? '画像' : 'Flex'}
+                          {broadcast.messageType === 'text' ? t('テキスト') : broadcast.messageType === 'image' ? t('画像') : 'Flex'}
                         </p>
                       </div>
                     </td>
@@ -287,20 +289,20 @@ function BroadcastList() {
                     {/* Status */}
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusInfo.className}`}>
-                        {statusInfo.label}
+                        {t(statusInfo.label)}
                       </span>
                     </td>
 
                     {/* Target */}
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {isDedup ? (
-                        <span className="text-purple-700">重複除外{tagName ? `: ${tagName}` : ''}</span>
+                        <span className="text-purple-700">{t('重複除外')}{tagName ? `: ${tagName}` : ''}</span>
                       ) : broadcast.targetType === 'all' ? (
-                        '全員'
+                        t('全員')
                       ) : tagName ? (
-                        <span>タグ: {tagName}</span>
+                        <span>{t('タグ')}: {tagName}</span>
                       ) : (
-                        'タグ指定'
+                        t('タグ指定')
                       )}
                     </td>
 
@@ -319,22 +321,22 @@ function BroadcastList() {
                       {broadcast.status === 'sent' ? (
                         <div>
                           {broadcast.totalCount > 0 && (
-                            <p>{broadcast.successCount.toLocaleString('ja-JP')} / {broadcast.totalCount.toLocaleString('ja-JP')} 件</p>
+                            <p>{broadcast.successCount.toLocaleString('ja-JP')} / {broadcast.totalCount.toLocaleString('ja-JP')} {t('件')}</p>
                           )}
                           {insights[broadcast.id] ? (
                             <div className="mt-1 space-y-0.5">
                               {insights[broadcast.id].delivered != null && (
-                                <p className="text-xs">配信: <span className="font-medium text-gray-700">{insights[broadcast.id].delivered!.toLocaleString('ja-JP')}</span></p>
+                                <p className="text-xs">{t('配信')}: <span className="font-medium text-gray-700">{insights[broadcast.id].delivered!.toLocaleString('ja-JP')}</span></p>
                               )}
                               {insights[broadcast.id].uniqueImpression != null && (
-                                <p className="text-xs">開封: <span className="font-medium text-blue-600">{insights[broadcast.id].uniqueImpression!.toLocaleString('ja-JP')}</span>
+                                <p className="text-xs">{t('開封')}: <span className="font-medium text-blue-600">{insights[broadcast.id].uniqueImpression!.toLocaleString('ja-JP')}</span>
                                   {insights[broadcast.id].openRate != null && (
                                     <span className="text-gray-400"> ({(insights[broadcast.id].openRate! * 100).toFixed(1)}%)</span>
                                   )}
                                 </p>
                               )}
                               {insights[broadcast.id].uniqueClick != null && (
-                                <p className="text-xs">クリック: <span className="font-medium text-green-600">{insights[broadcast.id].uniqueClick!.toLocaleString('ja-JP')}</span>
+                                <p className="text-xs">{t('クリック')}: <span className="font-medium text-green-600">{insights[broadcast.id].uniqueClick!.toLocaleString('ja-JP')}</span>
                                   {insights[broadcast.id].clickRate != null && (
                                     <span className="text-gray-400"> ({(insights[broadcast.id].clickRate! * 100).toFixed(1)}%)</span>
                                   )}
@@ -347,7 +349,7 @@ function BroadcastList() {
                               disabled={fetchingInsight === broadcast.id}
                               className="mt-1 text-xs text-blue-500 hover:text-blue-700 disabled:opacity-50"
                             >
-                              {fetchingInsight === broadcast.id ? '取得中...' : 'インサイトを取得'}
+                              {fetchingInsight === broadcast.id ? t('取得中...') : t('インサイトを取得')}
                             </button>
                           )}
                         </div>
@@ -364,7 +366,7 @@ function BroadcastList() {
                             onClick={() => handleDelete(broadcast.id)}
                             className="px-3 py-1 min-h-[44px] text-xs font-medium text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
                           >
-                            削除
+                            {t('削除')}
                           </button>
                         )}
                       </div>

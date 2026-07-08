@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 
 interface Props {
   open: boolean
@@ -24,6 +25,7 @@ function nowJstAsLocalInput(): string {
 }
 
 export default function BulkPreviewModal({ open, scenarioId, onClose }: Props) {
+  const { t } = useI18n()
   const [startAt, setStartAt] = useState(() => nowJstAsLocalInput())
   const [steps, setSteps] = useState<PreviewStep[] | null>(null)
   const [loading, setLoading] = useState(false)
@@ -40,7 +42,7 @@ export default function BulkPreviewModal({ open, scenarioId, onClose }: Props) {
         if (res.success) setSteps(res.data.steps)
         else setError(res.error)
       })
-      .catch(() => setError('プレビューの読み込みに失敗しました'))
+      .catch(() => setError(t('プレビューの読み込みに失敗しました')))
       .finally(() => setLoading(false))
   }, [open, scenarioId, startAt])
 
@@ -56,7 +58,7 @@ export default function BulkPreviewModal({ open, scenarioId, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">一括プレビュー</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t('一括プレビュー')}</h2>
           <button
             onClick={onClose}
             className="text-sm text-gray-500 hover:bg-gray-100 px-2 py-1 rounded"
@@ -67,7 +69,7 @@ export default function BulkPreviewModal({ open, scenarioId, onClose }: Props) {
 
         <div className="mb-4">
           <label className="block text-xs font-medium text-gray-600 mb-1">
-            起点 (購読開始日時)
+            {t('起点 (購読開始日時)')}
           </label>
           <input
             type="datetime-local"
@@ -80,7 +82,7 @@ export default function BulkPreviewModal({ open, scenarioId, onClose }: Props) {
         {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
 
         {loading ? (
-          <p className="text-sm text-gray-400">読み込み中...</p>
+          <p className="text-sm text-gray-400">{t('読み込み中...')}</p>
         ) : steps && steps.length > 0 ? (
           <div className="space-y-2">
             {steps.map((s) => (
@@ -101,7 +103,7 @@ export default function BulkPreviewModal({ open, scenarioId, onClose }: Props) {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-gray-400">ステップがありません</p>
+          <p className="text-sm text-gray-400">{t('ステップがありません')}</p>
         )}
 
         <div className="mt-6 flex justify-end">
@@ -109,7 +111,7 @@ export default function BulkPreviewModal({ open, scenarioId, onClose }: Props) {
             onClick={onClose}
             className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
           >
-            閉じる
+            {t('閉じる')}
           </button>
         </div>
       </div>

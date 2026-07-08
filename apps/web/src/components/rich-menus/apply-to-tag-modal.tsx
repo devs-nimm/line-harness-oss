@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 
 type Tag = { id: string; name: string; color: string }
 
@@ -17,6 +18,7 @@ type Mode =
   | { kind: 'set-default' }
 
 export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
+  const { t } = useI18n()
   const [tags, setTags] = useState<Tag[]>([])
   const [mode, setMode] = useState<Mode>({ kind: 'all-followers' })
   const [phase, setPhase] = useState<'config' | 'running' | 'done' | 'error'>(
@@ -46,10 +48,13 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
     if (mode.kind === 'set-default') {
       if (
         !confirm(
-          'このリッチメニューを「LINE 公式アカウントの全員のデフォルト」に設定します。\n\n' +
-            '・新規友だちも含め、特別な設定をしていない全員に表示されます\n' +
-            '・同アカウント内で他のメニューがデフォルトに設定されていた場合、そちらは解除されます\n\n' +
-            '続行しますか？',
+          t('このリッチメニューを「LINE 公式アカウントの全員のデフォルト」に設定します。') +
+            '\n\n' +
+            t('・新規友だちも含め、特別な設定をしていない全員に表示されます') +
+            '\n' +
+            t('・同アカウント内で他のメニューがデフォルトに設定されていた場合、そちらは解除されます') +
+            '\n\n' +
+            t('続行しますか？'),
         )
       )
         return
@@ -64,7 +69,7 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
             ? { mode: 'bulk-link' as const, tagId: null }
             : { mode: 'set-default' as const }
       const res = await api.richMenuGroups.applyToTag(groupId, params)
-      if (!res.success) throw new Error(res.error ?? '適用失敗')
+      if (!res.success) throw new Error(res.error ?? t('適用失敗'))
       setResult(res.data)
       setPhase('done')
     } catch (e) {
@@ -78,7 +83,7 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
         <div className="p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-1">
-            友だちにこのメニューを表示
+            {t('友だちにこのメニューを表示')}
           </h2>
           <p className="text-sm text-gray-500 mb-5 break-all">「{groupName}」</p>
 
@@ -88,8 +93,8 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
                 <RadioOption
                   checked={mode.kind === 'all-followers'}
                   onChange={() => setMode({ kind: 'all-followers' })}
-                  label="このアカウントの全員に適用"
-                  description="現時点で friend 状態の友だち全員に LINE のメニューを link します。新規友だちには適用されません。"
+                  label={t('このアカウントの全員に適用')}
+                  description={t('現時点で friend 状態の友だち全員に LINE のメニューを link します。新規友だちには適用されません。')}
                 />
                 <RadioOption
                   checked={mode.kind === 'tag'}
@@ -99,8 +104,8 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
                       tagId: tags[0]?.id ?? '',
                     })
                   }
-                  label="タグで絞り込んで適用"
-                  description="指定したタグを持つ友だちだけに表示します。"
+                  label={t('タグで絞り込んで適用')}
+                  description={t('指定したタグを持つ友だちだけに表示します。')}
                   disabled={tags.length === 0}
                 >
                   {mode.kind === 'tag' && (
@@ -112,7 +117,7 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
                       className="mt-2 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                     >
                       {tags.length === 0 ? (
-                        <option value="">タグがありません</option>
+                        <option value="">{t('タグがありません')}</option>
                       ) : (
                         tags.map((t) => (
                           <option key={t.id} value={t.id}>
@@ -126,8 +131,8 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
                 <RadioOption
                   checked={mode.kind === 'set-default'}
                   onChange={() => setMode({ kind: 'set-default' })}
-                  label="全員のデフォルトに設定する"
-                  description="LINE 公式アカウントのデフォルトメニューにします。新規友だちも含め全員に自動で表示されます。同アカ内の他メニューのデフォルト設定は解除されます。"
+                  label={t('全員のデフォルトに設定する')}
+                  description={t('LINE 公式アカウントのデフォルトメニューにします。新規友だちも含め全員に自動で表示されます。同アカ内の他メニューのデフォルト設定は解除されます。')}
                   warn
                 />
               </div>
@@ -136,7 +141,7 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
                   onClick={onClose}
                   className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  キャンセル
+                  {t('キャンセル')}
                 </button>
                 <button
                   onClick={apply}
@@ -144,7 +149,7 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
                   className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50 transition-opacity hover:opacity-90"
                   style={{ backgroundColor: '#06C755' }}
                 >
-                  実行する
+                  {t('実行する')}
                 </button>
               </div>
             </>
@@ -152,9 +157,9 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
 
           {phase === 'running' && (
             <div className="text-center py-10 text-sm text-gray-500">
-              <div className="mb-2">適用中...</div>
+              <div className="mb-2">{t('適用中...')}</div>
               <div className="text-xs text-gray-400">
-                LINE Messaging API に送信しています
+                {t('LINE Messaging API に送信しています')}
               </div>
             </div>
           )}
@@ -162,7 +167,7 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
           {phase === 'done' && result && (
             <>
               <div className="bg-green-50 border border-green-200 text-green-800 text-sm p-4 rounded-lg mb-4">
-                <div className="font-medium mb-1">✓ 完了しました</div>
+                <div className="font-medium mb-1">✓ {t('完了しました')}</div>
                 <div className="text-xs">
                   {result.message ??
                     `${result.total} 名の友だちに適用しました (${result.chunks} chunk)`}
@@ -174,7 +179,7 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
                   className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
                   style={{ backgroundColor: '#06C755' }}
                 >
-                  閉じる
+                  {t('閉じる')}
                 </button>
               </div>
             </>
@@ -190,14 +195,14 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
                   onClick={onClose}
                   className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  閉じる
+                  {t('閉じる')}
                 </button>
                 <button
                   onClick={() => setPhase('config')}
                   className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
                   style={{ backgroundColor: '#06C755' }}
                 >
-                  やり直す
+                  {t('やり直す')}
                 </button>
               </div>
             </>

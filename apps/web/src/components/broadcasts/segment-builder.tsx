@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { Tag } from '@line-crm/shared'
 import { api } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 
 interface SegmentRule {
   type: 'tag_exists' | 'tag_not_exists' | 'metadata_equals' | 'metadata_not_equals' | 'is_following'
@@ -31,6 +32,7 @@ const ruleTypeLabels: Record<SegmentRule['type'], string> = {
 }
 
 export default function SegmentBuilder({ tags, accountId, initialConditions, onApply, onCancel }: SegmentBuilderProps) {
+  const { t } = useI18n()
   const [operator, setOperator] = useState<'AND' | 'OR'>(initialConditions?.operator ?? 'AND')
   const [rules, setRules] = useState<SegmentRule[]>(initialConditions?.rules ?? [{ type: 'tag_exists', value: '' }])
   const [count, setCount] = useState<number | null>(null)
@@ -73,14 +75,14 @@ export default function SegmentBuilder({ tags, accountId, initialConditions, onA
   return (
     <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-700">配信対象を絞り込む</h3>
+        <h3 className="text-sm font-semibold text-gray-700">{t('配信対象を絞り込む')}</h3>
         <select
           value={operator}
           onChange={(e) => setOperator(e.target.value as 'AND' | 'OR')}
           className="text-xs border border-gray-300 rounded px-2 py-1 bg-white"
         >
-          <option value="AND">すべて満たす (AND)</option>
-          <option value="OR">いずれか満たす (OR)</option>
+          <option value="AND">{t('すべて満たす (AND)')}</option>
+          <option value="OR">{t('いずれか満たす (OR)')}</option>
         </select>
       </div>
 
@@ -99,7 +101,7 @@ export default function SegmentBuilder({ tags, accountId, initialConditions, onA
               className="text-xs border border-gray-300 rounded px-2 py-1 bg-white min-w-[120px]"
             >
               {Object.entries(ruleTypeLabels).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
+                <option key={k} value={k}>{t(v)}</option>
               ))}
             </select>
 
@@ -109,7 +111,7 @@ export default function SegmentBuilder({ tags, accountId, initialConditions, onA
                 onChange={(e) => updateRule(i, { value: e.target.value })}
                 className="text-xs border border-gray-300 rounded px-2 py-1 bg-white flex-1"
               >
-                <option value="">タグを選択...</option>
+                <option value="">{t('タグを選択...')}</option>
                 {tags.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             )}
@@ -141,9 +143,9 @@ export default function SegmentBuilder({ tags, accountId, initialConditions, onA
       </div>
 
       <div className="flex items-center justify-between">
-        <button onClick={addRule} className="text-xs text-blue-500 hover:text-blue-700">+ ルール追加</button>
+        <button onClick={addRule} className="text-xs text-blue-500 hover:text-blue-700">+ {t('ルール追加')}</button>
         <span className="text-xs text-gray-500">
-          {counting ? '計算中...' : count != null ? `該当: ${count.toLocaleString('ja-JP')}人` : ''}
+          {counting ? t('計算中...') : count != null ? `${t('該当:')} ${count.toLocaleString('ja-JP')} ${t('人')}` : ''}
         </span>
       </div>
 
@@ -153,10 +155,10 @@ export default function SegmentBuilder({ tags, accountId, initialConditions, onA
           className="px-3 py-1.5 min-h-[44px] text-xs font-medium text-white rounded-md"
           style={{ backgroundColor: '#06C755' }}
         >
-          適用
+          {t('適用')}
         </button>
         <button onClick={onCancel} className="px-3 py-1.5 min-h-[44px] text-xs font-medium text-gray-600 bg-gray-200 rounded-md">
-          キャンセル
+          {t('キャンセル')}
         </button>
       </div>
     </div>
