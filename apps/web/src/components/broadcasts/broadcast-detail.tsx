@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { api, type ApiBroadcast, type BroadcastInsight } from '@/lib/api'
 import { useAccount } from '@/contexts/account-context'
+import { useI18n } from '@/lib/i18n'
 import Header from '@/components/layout/header'
 import FlexPreviewComponent from '@/components/flex-preview'
 import TestSendSection from '@/components/broadcasts/test-send-section'
@@ -18,6 +19,7 @@ interface BroadcastDetailProps {
 
 export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
   const id = broadcastId
+  const { t } = useI18n()
   const router = useRouter()
   const { selectedAccount, accounts } = useAccount()
   // 別 broadcast に SPA navigation した直後に、前の broadcast の async response が
@@ -76,11 +78,11 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
           }).catch(() => {/* ignore — fall back to 0 */})
         }
       } else {
-        setError('配信が見つかりません')
+        setError(t('配信が見つかりません'))
       }
       if (tagsRes.success) setTags(tagsRes.data)
     } catch {
-      setError('読み込みに失敗しました')
+      setError(t('読み込みに失敗しました'))
     } finally {
       setLoading(false)
     }
@@ -157,7 +159,7 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
       await api.broadcasts.send(id)
       load()
     } catch {
-      setError('送信に失敗しました')
+      setError(t('送信に失敗しました'))
     } finally {
       setSending(false)
     }
@@ -166,7 +168,7 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
   if (loading) {
     return (
       <div>
-        <Header title="配信詳細" />
+        <Header title={t('配信詳細')} />
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-64" />
           <div className="h-40 bg-gray-100 rounded" />
@@ -178,8 +180,8 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
   if (!broadcast) {
     return (
       <div>
-        <Header title="配信詳細" />
-        <p className="text-gray-500">{error || '配信が見つかりません'}</p>
+        <Header title={t('配信詳細')} />
+        <p className="text-gray-500">{error || t('配信が見つかりません')}</p>
       </div>
     )
   }
@@ -196,7 +198,7 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
             onClick={() => router.push('/broadcasts', { scroll: false })}
             className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900"
           >
-            ← 一覧に戻る
+            ← {t('一覧に戻る')}
           </button>
         }
       />
@@ -208,7 +210,7 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         {/* Left: Preview */}
         <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">メッセージプレビュー</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('メッセージプレビュー')}</h3>
           {broadcast.messageType === 'flex' ? (
             <FlexPreviewComponent content={broadcast.messageContent} maxWidth={300} />
           ) : broadcast.messageType === 'image' ? (
@@ -216,7 +218,7 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
               try {
                 const img = JSON.parse(broadcast.messageContent)
                 return <img src={img.originalContentUrl} alt="" className="max-w-[300px] rounded-lg" />
-              } catch { return <p className="text-gray-400 text-sm">画像プレビュー不可</p> }
+              } catch { return <p className="text-gray-400 text-sm">{t('画像プレビュー不可')}</p> }
             })()
           ) : (
             <div className="bg-green-500 text-white rounded-2xl rounded-tl-sm px-4 py-3 max-w-[300px] text-sm whitespace-pre-wrap">
@@ -227,21 +229,21 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
 
         {/* Right: Settings */}
         <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">配信設定</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('配信設定')}</h3>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <dt className="text-gray-500">種別</dt>
-              <dd className="text-gray-900">{broadcast.messageType === 'text' ? 'テキスト' : broadcast.messageType === 'image' ? '画像' : 'Flex'}</dd>
+              <dt className="text-gray-500">{t('種別')}</dt>
+              <dd className="text-gray-900">{broadcast.messageType === 'text' ? t('テキスト') : broadcast.messageType === 'image' ? t('画像') : 'Flex'}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500">対象</dt>
+              <dt className="text-gray-500">{t('対象')}</dt>
               <dd className="text-gray-900">
-                {broadcast.targetType === 'all' ? '全員' : `タグ: ${broadcast.targetTagId ?? '-'}`}
-                {targetCount != null && <span className="ml-1 text-gray-500">({targetCount.toLocaleString('ja-JP')}人)</span>}
+                {broadcast.targetType === 'all' ? t('全員') : `${t('タグ:')} ${broadcast.targetTagId ?? '-'}`}
+                {targetCount != null && <span className="ml-1 text-gray-500">({targetCount.toLocaleString('ja-JP')} {t('人')})</span>}
               </dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500">ステータス</dt>
+              <dt className="text-gray-500">{t('ステータス')}</dt>
               <dd>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                   broadcast.status === 'draft' ? 'bg-gray-100 text-gray-600' :
@@ -249,13 +251,13 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
                   broadcast.status === 'sending' ? 'bg-yellow-100 text-yellow-700' :
                   'bg-green-100 text-green-700'
                 }`}>
-                  {broadcast.status === 'draft' ? '下書き' : broadcast.status === 'scheduled' ? '予約済み' : broadcast.status === 'sending' ? '送信中' : '送信完了'}
+                  {broadcast.status === 'draft' ? t('下書き') : broadcast.status === 'scheduled' ? t('予約済み') : broadcast.status === 'sending' ? t('送信中') : t('送信完了')}
                 </span>
               </dd>
             </div>
             {broadcast.scheduledAt && (
               <div className="flex justify-between">
-                <dt className="text-gray-500">予約日時</dt>
+                <dt className="text-gray-500">{t('予約日時')}</dt>
                 <dd className="text-gray-900">{new Date(broadcast.scheduledAt).toLocaleString('ja-JP')}</dd>
               </div>
             )}
@@ -271,7 +273,7 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
               onClick={() => setShowSegmentBuilder(true)}
               className="text-xs text-blue-500 hover:text-blue-700"
             >
-              セグメント条件を編集
+              {t('セグメント条件を編集')}
             </button>
           ) : (
             <SegmentBuilder
@@ -303,10 +305,10 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
                 } catch { /* keep previous state on failure */ }
               }}
             />
-            このメッセージでリンクを短縮する（クリック計測）
+            {t('このメッセージでリンクを短縮する（クリック計測）')}
           </label>
           <p className="text-xs text-gray-500 mt-1 ml-6">
-            OFFにすると本文のURLを計測用リンク（/t/…）に変換せず、そのまま送信します。
+            {t('OFFにすると本文のURLを計測用リンク（/t/…）に変換せず、そのまま送信します。')}
           </p>
         </div>
       )}
@@ -328,19 +330,19 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
       {/* Insight */}
       {broadcast.status === 'sent' && insight && (
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">配信実績</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">{t('配信実績')}</h3>
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
               <p className="text-2xl font-bold text-gray-900">{insight.delivered?.toLocaleString('ja-JP') ?? '-'}</p>
-              <p className="text-xs text-gray-500">配信</p>
+              <p className="text-xs text-gray-500">{t('配信')}</p>
             </div>
             <div>
               <p className="text-2xl font-bold text-blue-600">{insight.uniqueImpression?.toLocaleString('ja-JP') ?? '-'}</p>
-              <p className="text-xs text-gray-500">開封 {insight.openRate != null ? `(${(insight.openRate * 100).toFixed(1)}%)` : ''}</p>
+              <p className="text-xs text-gray-500">{t('開封')} {insight.openRate != null ? `(${(insight.openRate * 100).toFixed(1)}%)` : ''}</p>
             </div>
             <div>
               <p className="text-2xl font-bold text-green-600">{insight.uniqueClick?.toLocaleString('ja-JP') ?? '-'}</p>
-              <p className="text-xs text-gray-500">クリック {insight.clickRate != null ? `(${(insight.clickRate * 100).toFixed(1)}%)` : ''}</p>
+              <p className="text-xs text-gray-500">{t('クリック')} {insight.clickRate != null ? `(${(insight.clickRate * 100).toFixed(1)}%)` : ''}</p>
             </div>
           </div>
         </div>
@@ -351,15 +353,15 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
         (broadcast.status === 'sending' || broadcast.status === 'sent') &&
         perAccountStats && perAccountStats.length > 0 && (
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">アカウント別内訳</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('アカウント別内訳')}</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">アカウント</th>
-                  <th className="px-2 py-2 text-right text-xs font-medium text-gray-500">送信</th>
-                  <th className="px-2 py-2 text-right text-xs font-medium text-gray-500">開封</th>
-                  <th className="px-2 py-2 text-right text-xs font-medium text-gray-500">クリック</th>
+                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">{t('アカウント')}</th>
+                  <th className="px-2 py-2 text-right text-xs font-medium text-gray-500">{t('送信')}</th>
+                  <th className="px-2 py-2 text-right text-xs font-medium text-gray-500">{t('開封')}</th>
+                  <th className="px-2 py-2 text-right text-xs font-medium text-gray-500">{t('クリック')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -425,7 +427,7 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
                   const totalClickRate = totalClick != null && totalSent > 0 ? (totalClick / totalSent) * 100 : null
                   return (
                     <tr className="bg-gray-50 font-medium">
-                      <td className="px-2 py-2 text-gray-900">合計</td>
+                      <td className="px-2 py-2 text-gray-900">{t('合計')}</td>
                       <td className="px-2 py-2 text-right text-gray-900">{totalSent.toLocaleString('ja-JP')}</td>
                       <td className="px-2 py-2 text-right">
                         {totalImpr != null ? (
@@ -459,9 +461,9 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
           </div>
           {broadcast.status === 'sent' && perAccountStats.some((r) => r.sent > 0 && r.uniqueImpression == null) && (
             <p className="text-xs text-gray-400 mt-2">
-              開封・クリックは LINE 側の集計反映に〜30分程度かかります。後でリロードしてください。
+              {t('開封・クリックは LINE 側の集計反映に〜30分程度かかります。後でリロードしてください。')}
               <br />
-              送信数が約 200 未満のアカウントは LINE の仕様で per-account 数値が出ません。
+              {t('送信数が約 200 未満のアカウントは LINE の仕様で per-account 数値が出ません。')}
             </p>
           )}
         </div>
@@ -475,7 +477,7 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
           className="w-full px-4 py-3 min-h-[44px] text-sm font-medium text-white rounded-lg disabled:opacity-50 transition-opacity"
           style={{ backgroundColor: '#06C755' }}
         >
-          {sending ? '送信中...' : `この配信を送信する${targetCount != null ? ` (${targetCount.toLocaleString('ja-JP')}人)` : ''}`}
+          {sending ? t('送信中...') : `${t('この配信を送信する')}${targetCount != null ? ` (${targetCount.toLocaleString('ja-JP')} ${t('人')})` : ''}`}
         </button>
       )}
 

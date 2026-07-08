@@ -6,6 +6,7 @@ import Header from '@/components/layout/header'
 import FlexPreviewComponent from '@/components/flex-preview'
 import CcPromptButton from '@/components/cc-prompt-button'
 import ImageUploader from '@/components/shared/image-uploader'
+import { useI18n } from '@/lib/i18n'
 
 interface Template {
   id: string
@@ -70,6 +71,7 @@ const ccPrompts = [
 ]
 
 export default function TemplatesPage() {
+  const { t } = useI18n()
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -105,7 +107,7 @@ export default function TemplatesPage() {
         setError(res.error)
       }
     } catch {
-      setError('テンプレートの読み込みに失敗しました。')
+      setError(t('テンプレートの読み込みに失敗しました。'))
     } finally {
       setLoading(false)
     }
@@ -129,7 +131,7 @@ export default function TemplatesPage() {
       if (detailRes.success && detailRes.data) {
         setDrawerData(detailRes.data)
       } else {
-        setDrawerError((detailRes as { error?: string }).error ?? '読み込みに失敗しました')
+        setDrawerError((detailRes as { error?: string }).error ?? t('読み込みに失敗しました'))
       }
       if (usagesRes && usagesRes.success) {
         setScenarioStepUsages(usagesRes.data.scenarioSteps)
@@ -153,8 +155,8 @@ export default function TemplatesPage() {
   })
 
   const handleCreate = async () => {
-    if (!form.name.trim()) { setFormError('テンプレート名を入力してください'); return }
-    if (!form.messageContent.trim()) { setFormError('メッセージ内容を入力してください'); return }
+    if (!form.name.trim()) { setFormError(t('テンプレート名を入力してください')); return }
+    if (!form.messageContent.trim()) { setFormError(t('メッセージ内容を入力してください')); return }
     setSaving(true)
     setFormError('')
     try {
@@ -167,7 +169,7 @@ export default function TemplatesPage() {
         setFormError(res.error)
       }
     } catch {
-      setFormError('作成に失敗しました')
+      setFormError(t('作成に失敗しました'))
     } finally {
       setSaving(false)
     }
@@ -176,11 +178,11 @@ export default function TemplatesPage() {
   const handleSaveEdit = async () => {
     if (!drawerData) return
     if (editContent !== null && !editContent.trim()) {
-      setError('内容を空にはできません')
+      setError(t('内容を空にはできません'))
       return
     }
     if (editName !== null && !editName.trim()) {
-      setError('名前を空にはできません')
+      setError(t('名前を空にはできません'))
       return
     }
     setSavingEdit(true)
@@ -195,37 +197,37 @@ export default function TemplatesPage() {
       setEditName(null)
       load()
     } catch {
-      setError('更新に失敗しました')
+      setError(t('更新に失敗しました'))
     }
     setSavingEdit(false)
   }
 
   const handleDelete = async (id: string, usageCount: number) => {
     if (usageCount > 0) {
-      if (!confirm(`このテンプレートは ${usageCount} 箇所で使用されています。削除すると参照がクリアされます。続行しますか？`)) return
+      if (!confirm(`${t('このテンプレートは')} ${usageCount} ${t('箇所で使用されています。削除すると参照がクリアされます。続行しますか？')}`)) return
     } else {
-      if (!confirm('このテンプレートを削除しますか？')) return
+      if (!confirm(t('このテンプレートを削除しますか？'))) return
     }
     try {
       await api.templates.delete(id)
       if (drawerId === id) setDrawerId(null)
       load()
     } catch {
-      setError('削除に失敗しました')
+      setError(t('削除に失敗しました'))
     }
   }
 
   return (
     <div>
       <Header
-        title="テンプレート管理"
+        title={t('テンプレート管理')}
         action={
           <button
             onClick={() => setShowCreate(true)}
             className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
             style={{ backgroundColor: '#06C755' }}
           >
-            + 新規テンプレート
+            + {t('新規テンプレート')}
           </button>
         }
       />
@@ -239,11 +241,11 @@ export default function TemplatesPage() {
       {/* Type filter */}
       <div className="mb-4 flex flex-wrap gap-2">
         {([
-          { key: 'all', label: '全て' },
-          { key: 'text', label: 'テキスト' },
+          { key: 'all', label: t('全て') },
+          { key: 'text', label: t('テキスト') },
           { key: 'flex', label: 'Flex' },
-          { key: 'image', label: '画像' },
-          { key: 'unused', label: '未使用' },
+          { key: 'image', label: t('画像') },
+          { key: 'unused', label: t('未使用') },
         ] as const).map(({ key, label }) => (
           <button
             key={key}
@@ -261,42 +263,42 @@ export default function TemplatesPage() {
       {/* Create form */}
       {showCreate && (
         <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-sm font-semibold text-gray-800 mb-4">新規テンプレートを作成</h2>
+          <h2 className="text-sm font-semibold text-gray-800 mb-4">{t('新規テンプレートを作成')}</h2>
           <div className="space-y-4 max-w-lg">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">名前 <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t('名前')} <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="例: コスト比較 flex"
+                placeholder={t('例: コスト比較 flex')}
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">カテゴリ</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t('カテゴリ')}</label>
               <input
                 type="text"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="例: general, 挨拶, 返信"
+                placeholder={t('例: general, 挨拶, 返信')}
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">タイプ</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t('タイプ')}</label>
               <select
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
                 value={form.messageType}
                 onChange={(e) => setForm({ ...form, messageType: e.target.value })}
               >
-                <option value="text">テキスト</option>
+                <option value="text">{t('テキスト')}</option>
                 <option value="flex">Flex</option>
-                <option value="image">画像</option>
+                <option value="image">{t('画像')}</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">内容 / JSON <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t('内容')} / JSON <span className="text-red-500">*</span></label>
               {form.messageType === 'image' ? (
                 <ImageUploader
                   mode="line-image"
@@ -323,13 +325,13 @@ export default function TemplatesPage() {
                       setForm((prev) => ({ ...prev, messageContent: '' }))
                     }
                   }}
-                  label="テンプレート画像"
+                  label={t('テンプレート画像')}
                 />
               ) : (
                 <textarea
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
                   rows={form.messageType === 'flex' ? 10 : 4}
-                  placeholder={form.messageType === 'flex' ? '{"type":"bubble","body":...}' : 'メッセージ内容'}
+                  placeholder={form.messageType === 'flex' ? '{"type":"bubble","body":...}' : t('メッセージ内容')}
                   value={form.messageContent}
                   onChange={(e) => setForm({ ...form, messageContent: e.target.value })}
                 />
@@ -345,13 +347,13 @@ export default function TemplatesPage() {
                 className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
                 style={{ backgroundColor: '#06C755' }}
               >
-                {saving ? '作成中...' : '作成'}
+                {saving ? t('作成中...') : t('作成')}
               </button>
               <button
                 onClick={() => { setShowCreate(false); setFormError('') }}
                 className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg"
               >
-                キャンセル
+                {t('キャンセル')}
               </button>
             </div>
           </div>
@@ -375,7 +377,7 @@ export default function TemplatesPage() {
         </div>
       ) : filteredTemplates.length === 0 ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-          <p className="text-gray-500">該当するテンプレートがありません</p>
+          <p className="text-gray-500">{t('該当するテンプレートがありません')}</p>
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -383,49 +385,49 @@ export default function TemplatesPage() {
             <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">タイプ</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">名前</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">カテゴリ</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">使用数</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">更新日</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('タイプ')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('名前')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('カテゴリ')}</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{t('使用数')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('更新日')}</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredTemplates.map((t) => (
+                {filteredTemplates.map((tpl) => (
                   <tr
-                    key={t.id}
-                    onClick={() => setDrawerId(t.id)}
-                    className={`hover:bg-gray-50 cursor-pointer transition-colors ${drawerId === t.id ? 'bg-green-50' : ''}`}
+                    key={tpl.id}
+                    onClick={() => setDrawerId(tpl.id)}
+                    className={`hover:bg-gray-50 cursor-pointer transition-colors ${drawerId === tpl.id ? 'bg-green-50' : ''}`}
                   >
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${typeBadgeColor[t.messageType] ?? 'bg-gray-100 text-gray-700'}`}>
-                        {messageTypeLabels[t.messageType] ?? t.messageType}
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${typeBadgeColor[tpl.messageType] ?? 'bg-gray-100 text-gray-700'}`}>
+                        {t(messageTypeLabels[tpl.messageType] ?? tpl.messageType)}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="text-sm font-medium text-gray-900">{t.name}</p>
+                      <p className="text-sm font-medium text-gray-900">{tpl.name}</p>
                       <p className="text-[11px] text-gray-400 mt-0.5 truncate max-w-md">
-                        {t.messageContent.slice(0, 60)}{t.messageContent.length > 60 ? '...' : ''}
+                        {tpl.messageContent.slice(0, 60)}{tpl.messageContent.length > 60 ? '...' : ''}
                       </p>
                     </td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-700">
-                        {t.category}
+                        {tpl.category}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <span className={`text-sm ${t.usageCount === 0 ? 'text-gray-400' : 'text-gray-900 font-medium'}`}>
-                        {t.usageCount}
+                      <span className={`text-sm ${tpl.usageCount === 0 ? 'text-gray-400' : 'text-gray-900 font-medium'}`}>
+                        {tpl.usageCount}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-gray-500">{formatDate(t.updatedAt)}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500">{formatDate(tpl.updatedAt)}</td>
                     <td className="px-4 py-3 text-right">
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleDelete(t.id, t.usageCount) }}
+                        onClick={(e) => { e.stopPropagation(); handleDelete(tpl.id, tpl.usageCount) }}
                         className="px-2.5 py-1 text-xs font-medium text-red-500 hover:bg-red-50 rounded-md"
                       >
-                        削除
+                        {t('削除')}
                       </button>
                     </td>
                   </tr>
@@ -458,9 +460,9 @@ export default function TemplatesPage() {
                   <h3
                     className="text-sm font-semibold truncate cursor-text"
                     onClick={() => setEditName(drawerData?.name ?? '')}
-                    title="クリックで編集"
+                    title={t('クリックで編集')}
                   >
-                    {drawerData?.name ?? '読み込み中...'}
+                    {drawerData?.name ?? t('読み込み中...')}
                   </h3>
                 )}
               </div>
@@ -473,36 +475,36 @@ export default function TemplatesPage() {
             </div>
 
             {drawerLoading ? (
-              <div className="p-6 text-sm text-gray-400">読み込み中...</div>
+              <div className="p-6 text-sm text-gray-400">{t('読み込み中...')}</div>
             ) : drawerError ? (
               <div className="p-6">
-                <p className="text-sm text-red-600 mb-2">読み込みに失敗しました</p>
+                <p className="text-sm text-red-600 mb-2">{t('読み込みに失敗しました')}</p>
                 <p className="text-xs text-gray-500">{drawerError}</p>
               </div>
             ) : !drawerData ? null : (
               <div className="p-4 space-y-5">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${typeBadgeColor[drawerData.messageType] ?? 'bg-gray-100 text-gray-700'}`}>
-                    {messageTypeLabels[drawerData.messageType] ?? drawerData.messageType}
+                    {t(messageTypeLabels[drawerData.messageType] ?? drawerData.messageType)}
                   </span>
                   <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-700">
                     {drawerData.category}
                   </span>
                   <span className="text-[10px] text-gray-400">
-                    更新: {formatDate(drawerData.updatedAt)}
+                    {t('更新')}: {formatDate(drawerData.updatedAt)}
                   </span>
                 </div>
 
                 {/* Preview */}
                 <div>
-                  <h4 className="text-[11px] font-medium text-gray-500 mb-1.5 uppercase tracking-wide">プレビュー</h4>
+                  <h4 className="text-[11px] font-medium text-gray-500 mb-1.5 uppercase tracking-wide">{t('プレビュー')}</h4>
                   <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 overflow-x-auto">
                     {drawerData.messageType === 'flex' ? (
                       (() => {
                         try {
                           return <FlexPreviewComponent content={drawerData.messageContent} maxWidth={420} />
                         } catch {
-                          return <p className="text-xs text-red-500">Flex JSON parse 失敗</p>
+                          return <p className="text-xs text-red-500">Flex JSON parse {t('失敗')}</p>
                         }
                       })()
                     ) : drawerData.messageType === 'image' ? (
@@ -522,7 +524,7 @@ export default function TemplatesPage() {
 
                 {/* Edit JSON / content */}
                 <div>
-                  <h4 className="text-[11px] font-medium text-gray-500 mb-1.5 uppercase tracking-wide">内容 / JSON 編集</h4>
+                  <h4 className="text-[11px] font-medium text-gray-500 mb-1.5 uppercase tracking-wide">{t('内容')} / JSON {t('編集')}</h4>
                   <textarea
                     rows={drawerData.messageType === 'flex' ? 12 : 4}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
@@ -539,13 +541,13 @@ export default function TemplatesPage() {
                       className="px-3 py-1.5 text-xs font-medium text-white rounded-md disabled:opacity-50"
                       style={{ backgroundColor: '#06C755' }}
                     >
-                      {savingEdit ? '保存中...' : '保存'}
+                      {savingEdit ? t('保存中...') : t('保存')}
                     </button>
                     <button
                       onClick={() => { setEditContent(null); setEditName(null) }}
                       className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md"
                     >
-                      キャンセル
+                      {t('キャンセル')}
                     </button>
                   </div>
                 )}
@@ -553,38 +555,38 @@ export default function TemplatesPage() {
                 {/* Used by */}
                 <div>
                   <h4 className="text-[11px] font-medium text-gray-500 mb-1.5 uppercase tracking-wide">
-                    使用箇所 ({drawerData.usedBy.autoReplies.length + drawerData.usedBy.automations.length + scenarioStepUsages.length})
+                    {t('使用箇所')} ({drawerData.usedBy.autoReplies.length + drawerData.usedBy.automations.length + scenarioStepUsages.length})
                   </h4>
                   {(drawerData.usedBy.autoReplies.length === 0 && drawerData.usedBy.automations.length === 0 && scenarioStepUsages.length === 0) ? (
-                    <p className="text-[11px] text-gray-400 italic">どこからも使用されていません</p>
+                    <p className="text-[11px] text-gray-400 italic">{t('どこからも使用されていません')}</p>
                   ) : (
                     <>
                       <ul className="space-y-1.5 text-xs">
                         {drawerData.usedBy.autoReplies.map((ar) => (
                           <li key={`ar-${ar.id}`}>
                             <a href="/auto-replies" className="text-blue-600 hover:underline">
-                              🔗 自動返信: {ar.keyword} <span className="text-gray-400">({ar.matchType})</span>
+                              🔗 {t('自動返信')}: {ar.keyword} <span className="text-gray-400">({ar.matchType})</span>
                             </a>
                           </li>
                         ))}
                         {drawerData.usedBy.automations.map((au) => (
                           <li key={`au-${au.id}`}>
                             <a href="/automations" className="text-blue-600 hover:underline">
-                              🔗 オートメーション: {au.name} <span className="text-gray-400">({au.eventType})</span>
+                              🔗 {t('オートメーション')}: {au.name} <span className="text-gray-400">({au.eventType})</span>
                             </a>
                           </li>
                         ))}
                         {scenarioStepUsages.map((ss) => (
                           <li key={`ss-${ss.stepId}`}>
                             <a href={`/scenarios/detail?id=${ss.scenarioId}`} className="text-blue-600 hover:underline">
-                              🎬 シナリオ: {ss.scenarioName} <span className="text-gray-400">#{ss.stepOrder}</span>
+                              🎬 {t('シナリオ')}: {ss.scenarioName} <span className="text-gray-400">#{ss.stepOrder}</span>
                             </a>
                           </li>
                         ))}
                       </ul>
                       {scenarioStepUsages.length > 0 && (
                         <p className="mt-2 text-[10px] text-amber-700">
-                          ⚠ このテンプレートを修正すると、上記すべてに一斉反映されます
+                          ⚠ {t('このテンプレートを修正すると、上記すべてに一斉反映されます')}
                         </p>
                       )}
                     </>

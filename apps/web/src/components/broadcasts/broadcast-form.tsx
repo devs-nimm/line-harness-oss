@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import type { Tag } from '@line-crm/shared'
 import { api, eventsApi, type ApiBroadcast, type EventListItem } from '@/lib/api'
 import { useAccount } from '@/contexts/account-context'
+import { useI18n } from '@/lib/i18n'
 import FlexPreviewComponent from '@/components/flex-preview'
 import ImageUploader from '@/components/shared/image-uploader'
 import MultiAccountDedupSection from './multi-account-dedup-section'
@@ -34,6 +35,7 @@ interface FormState {
 }
 
 export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFormProps) {
+  const { t } = useI18n()
   const { selectedAccountId } = useAccount()
   // 「リンクするイベント」セレクタ用: 公開中の events を取得して
   // 選択された event の LIFF URL (テンプレ) を message に挿入する。
@@ -62,17 +64,17 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
   const [error, setError] = useState('')
 
   const handleSave = async () => {
-    if (!form.title.trim()) { setError('配信タイトルを入力してください'); return }
-    if (!form.messageContent.trim()) { setError('メッセージ内容を入力してください'); return }
+    if (!form.title.trim()) { setError(t('配信タイトルを入力してください')); return }
+    if (!form.messageContent.trim()) { setError(t('メッセージ内容を入力してください')); return }
     if (form.messageType === 'flex') {
-      try { JSON.parse(form.messageContent) } catch { setError('FlexメッセージのJSONが無効です'); return }
+      try { JSON.parse(form.messageContent) } catch { setError(t('FlexメッセージのJSONが無効です')); return }
     }
     if (!form.sendNow && !form.scheduledAt) {
-      setError('予約配信の場合は配信日時を指定してください')
+      setError(t('予約配信の場合は配信日時を指定してください'))
       return
     }
     if (form.targetType === 'multi-account-dedup' && form.accountIds.length === 0) {
-      setError('複数アカ重複除外: 配信先アカウントを 1 つ以上選択してください')
+      setError(t('複数アカ重複除外: 配信先アカウントを 1 つ以上選択してください'))
       return
     }
 
@@ -108,7 +110,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
         setError(res.error)
       }
     } catch {
-      setError('作成に失敗しました')
+      setError(t('作成に失敗しました'))
     } finally {
       setSaving(false)
     }
@@ -116,18 +118,18 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-      <h2 className="text-sm font-semibold text-gray-800 mb-5">新規配信を作成</h2>
+      <h2 className="text-sm font-semibold text-gray-800 mb-5">{t('新規配信を作成')}</h2>
 
       <div className="space-y-4 max-w-lg">
         {/* Title */}
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">
-            配信タイトル <span className="text-red-500">*</span>
+            {t('配信タイトル')} <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-            placeholder="例: 3月のキャンペーン告知"
+            placeholder={t('例: 3月のキャンペーン告知')}
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
           />
@@ -135,7 +137,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
 
         {/* Message type */}
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-2">メッセージ種別</label>
+          <label className="block text-xs font-medium text-gray-600 mb-2">{t('メッセージ種別')}</label>
           <div className="flex gap-2">
             {(Object.keys(messageTypeLabels) as ApiBroadcast['messageType'][]).map((type) => (
               <button
@@ -148,7 +150,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
                     : 'border-gray-300 text-gray-600 bg-white hover:border-gray-400'
                 }`}
               >
-                {messageTypeLabels[type]}
+                {t(messageTypeLabels[type])}
               </button>
             ))}
           </div>
@@ -157,9 +159,9 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
         {/* Message content */}
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">
-            メッセージ内容 <span className="text-red-500">*</span>
+            {t('メッセージ内容')} <span className="text-red-500">*</span>
             {(form.messageType === 'flex' || form.messageType === 'image') && (
-              <span className="ml-1 text-gray-400">(JSON形式)</span>
+              <span className="ml-1 text-gray-400">{t('(JSON形式)')}</span>
             )}
           </label>
 
@@ -184,7 +186,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
                     setForm((prev) => ({ ...prev, messageContent: '' }))
                   }
                 }}
-                label="送信する画像"
+                label={t('送信する画像')}
               />
             </div>
           )}
@@ -193,7 +195,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
           {linkableEvents.length > 0 && form.messageType === 'text' && (
             <div className="mb-2">
               <label className="block text-xs font-medium text-gray-600 mb-1">
-                リンクするイベント（任意）
+                {t('リンクするイベント（任意）')}
               </label>
               <select
                 value=""
@@ -211,7 +213,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
                 }}
                 className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm w-full"
               >
-                <option value="">— 選択しない —</option>
+                <option value="">{t('— 選択しない —')}</option>
                 {linkableEvents.map((ev) => (
                   <option key={ev.id} value={ev.id}>
                     {ev.name} ({ev.target_type === 'multi-account-dedup' ? 'multi' : 'single'})
@@ -219,7 +221,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
                 ))}
               </select>
               <p className="text-xs text-gray-500 mt-1">
-                選ぶと本文末尾にテンプレ URL を挿入。{'{{liff_id}}'} は配信時に各友だちのアカに対応した値に自動置換されます。
+                {t('選ぶと本文末尾にテンプレ URL を挿入。')}{'{{liff_id}}'} {t('は配信時に各友だちのアカに対応した値に自動置換されます。')}
               </p>
             </div>
           )}
@@ -228,7 +230,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
             rows={form.messageType === 'flex' ? 8 : form.messageType === 'image' ? 3 : 4}
             placeholder={
               form.messageType === 'text'
-                ? '配信するメッセージを入力...'
+                ? t('配信するメッセージを入力...')
                 : form.messageType === 'image'
                 ? '{"originalContentUrl":"...","previewImageUrl":"..."}'
                 : '{"type":"bubble","body":{...}}'
@@ -238,13 +240,13 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
             style={{ fontFamily: form.messageType !== 'text' ? 'monospace' : 'inherit' }}
           />
           {form.messageType === 'image' && (
-            <p className="text-xs text-gray-400 mt-1">上のURLフォームか、直接JSONを編集できます</p>
+            <p className="text-xs text-gray-400 mt-1">{t('上のURLフォームか、直接JSONを編集できます')}</p>
           )}
           {form.messageType === 'flex' && form.messageContent && (() => {
             try { JSON.parse(form.messageContent); return true } catch { return false }
           })() && (
             <div className="mt-3">
-              <p className="text-xs font-medium text-gray-500 mb-2">プレビュー</p>
+              <p className="text-xs font-medium text-gray-500 mb-2">{t('プレビュー')}</p>
               <FlexPreviewComponent content={form.messageContent} maxWidth={300} />
             </div>
           )}
@@ -259,17 +261,17 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
                 checked={form.trackLinks}
                 onChange={(e) => setForm({ ...form, trackLinks: e.target.checked })}
               />
-              このメッセージでリンクを短縮する（クリック計測）
+              {t('このメッセージでリンクを短縮する（クリック計測）')}
             </label>
             <p className="text-xs text-gray-500 mt-1 ml-6">
-              ONにすると本文のURLが計測用リンク（/t/…）に自動変換されます。OFFの場合はURLをそのまま送信します。
+              {t('ONにすると本文のURLが計測用リンク（/t/…）に自動変換されます。OFFの場合はURLをそのまま送信します。')}
             </p>
           </div>
         )}
 
         {/* Target */}
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-2">配信対象</label>
+          <label className="block text-xs font-medium text-gray-600 mb-2">{t('配信対象')}</label>
           <div className="flex flex-wrap gap-2 mb-2">
             <button
               type="button"
@@ -280,7 +282,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
                   : 'border-gray-300 text-gray-600 bg-white hover:border-gray-400'
               }`}
             >
-              全員
+              {t('全員')}
             </button>
             <button
               type="button"
@@ -291,7 +293,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
                   : 'border-gray-300 text-gray-600 bg-white hover:border-gray-400'
               }`}
             >
-              タグで絞り込み
+              {t('タグで絞り込み')}
             </button>
             <button
               type="button"
@@ -302,7 +304,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
                   : 'border-gray-300 text-gray-600 bg-white hover:border-gray-400'
               }`}
             >
-              複数アカ重複除外
+              {t('複数アカ重複除外')}
             </button>
           </div>
           {form.targetType === 'tag' && (
@@ -311,7 +313,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
               value={form.targetTagId}
               onChange={(e) => setForm({ ...form, targetTagId: e.target.value })}
             >
-              <option value="">タグを選択...</option>
+              <option value="">{t('タグを選択...')}</option>
               {tags.map((tag) => (
                 <option key={tag.id} value={tag.id}>{tag.name}</option>
               ))}
@@ -332,7 +334,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
 
         {/* Schedule */}
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-2">配信タイミング</label>
+          <label className="block text-xs font-medium text-gray-600 mb-2">{t('配信タイミング')}</label>
           <div className="flex flex-wrap gap-2 mb-2">
             <button
               type="button"
@@ -343,7 +345,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
                   : 'border-gray-300 text-gray-600 bg-white hover:border-gray-400'
               }`}
             >
-              下書きとして保存
+              {t('下書きとして保存')}
             </button>
             <button
               type="button"
@@ -354,7 +356,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
                   : 'border-gray-300 text-gray-600 bg-white hover:border-gray-400'
               }`}
             >
-              予約配信
+              {t('予約配信')}
             </button>
           </div>
           {!form.sendNow && (
@@ -378,14 +380,14 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
             className="px-4 py-2 min-h-[44px] text-sm font-medium text-white rounded-lg disabled:opacity-50 transition-opacity"
             style={{ backgroundColor: '#06C755' }}
           >
-            {saving ? '作成中...' : '作成'}
+            {saving ? t('作成中...') : t('作成')}
           </button>
           <button
             onClick={onCancel}
             disabled={saving}
             className="px-4 py-2 min-h-[44px] text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
           >
-            キャンセル
+            {t('キャンセル')}
           </button>
         </div>
       </div>

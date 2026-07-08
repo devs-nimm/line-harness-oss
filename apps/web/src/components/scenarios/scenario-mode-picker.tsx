@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { DeliveryMode, ScenarioTriggerType, Tag } from '@line-crm/shared'
 import { api } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 
 interface Props {
   open: boolean
@@ -38,6 +39,7 @@ const triggerOptions: Array<{
 ]
 
 export default function ScenarioModePicker({ open, onClose, onCreate }: Props) {
+  const { t } = useI18n()
   const [stage, setStage] = useState<'pick' | 'name'>('pick')
   const [mode, setMode] = useState<DeliveryMode>('elapsed')
   const [name, setName] = useState('')
@@ -76,11 +78,11 @@ export default function ScenarioModePicker({ open, onClose, onCreate }: Props) {
 
   const handleCreate = async () => {
     if (!name.trim()) {
-      setError('シナリオ名を入力してください')
+      setError(t('シナリオ名を入力してください'))
       return
     }
     if (triggerType === 'tag_added' && !triggerTagId) {
-      setError('トリガータグを選択してください')
+      setError(t('トリガータグを選択してください'))
       return
     }
     setSubmitting(true)
@@ -95,7 +97,7 @@ export default function ScenarioModePicker({ open, onClose, onCreate }: Props) {
       reset()
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : '作成に失敗しました')
+      setError(e instanceof Error ? e.message : t('作成に失敗しました'))
     } finally {
       setSubmitting(false)
     }
@@ -112,7 +114,7 @@ export default function ScenarioModePicker({ open, onClose, onCreate }: Props) {
       >
         {stage === 'pick' && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">配信方式を選択</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('配信方式を選択')}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <button
                 onClick={() => {
@@ -122,9 +124,9 @@ export default function ScenarioModePicker({ open, onClose, onCreate }: Props) {
                 className="text-left border border-gray-200 rounded-lg p-5 hover:border-amber-500 hover:bg-amber-50 transition-colors"
               >
                 <div className="text-2xl mb-2">🕐</div>
-                <h3 className="font-semibold text-gray-900 mb-1">毎日◯時に配信</h3>
-                <p className="text-sm text-gray-600 mb-2">例: 翌日 朝 9:00</p>
-                <p className="text-xs text-green-700">✅ 深夜配信なし</p>
+                <h3 className="font-semibold text-gray-900 mb-1">{t('毎日◯時に配信')}</h3>
+                <p className="text-sm text-gray-600 mb-2">{t('例: 翌日 朝 9:00')}</p>
+                <p className="text-xs text-green-700">✅ {t('深夜配信なし')}</p>
               </button>
               <button
                 onClick={() => {
@@ -134,9 +136,9 @@ export default function ScenarioModePicker({ open, onClose, onCreate }: Props) {
                 className="text-left border border-gray-200 rounded-lg p-5 hover:border-blue-500 hover:bg-blue-50 transition-colors"
               >
                 <div className="text-2xl mb-2">⏱</div>
-                <h3 className="font-semibold text-gray-900 mb-1">追加◯時間後に配信</h3>
-                <p className="text-sm text-gray-600 mb-2">例: 追加から 5 時間後</p>
-                <p className="text-xs text-red-600">⚠ 深夜にも配信され得る</p>
+                <h3 className="font-semibold text-gray-900 mb-1">{t('追加◯時間後に配信')}</h3>
+                <p className="text-sm text-gray-600 mb-2">{t('例: 追加から 5 時間後')}</p>
+                <p className="text-xs text-red-600">⚠ {t('深夜にも配信され得る')}</p>
               </button>
             </div>
             <div className="mt-4 text-center">
@@ -147,7 +149,7 @@ export default function ScenarioModePicker({ open, onClose, onCreate }: Props) {
                 }}
                 className="text-xs text-gray-400 hover:text-gray-600 underline"
               >
-                既存方式（前ステップから N 分後）で作成
+                {t('既存方式（前ステップから N 分後）で作成')}
               </button>
             </div>
             <div className="mt-4 flex justify-end">
@@ -155,35 +157,35 @@ export default function ScenarioModePicker({ open, onClose, onCreate }: Props) {
                 onClick={handleClose}
                 className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
               >
-                キャンセル
+                {t('キャンセル')}
               </button>
             </div>
           </>
         )}
         {stage === 'name' && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">シナリオを作成</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t('シナリオを作成')}</h2>
             <p className="text-xs text-gray-500 mb-4">
-              配信方式:{' '}
+              {t('配信方式')}:{' '}
               <span className="font-medium">
                 {mode === 'absolute_time'
-                  ? '時刻で指定'
+                  ? t('時刻で指定')
                   : mode === 'elapsed'
-                    ? '経過時間で指定'
-                    : '既存方式 (relative)'}
+                    ? t('経過時間で指定')
+                    : t('既存方式 (relative)')}
               </span>
             </p>
 
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">
-                  シナリオ名 <span className="text-red-500">*</span>
+                  {t('シナリオ名')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   autoFocus
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  placeholder="例: 友だち追加ウェルカム"
+                  placeholder={t('例: 友だち追加ウェルカム')}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   onKeyDown={(e) => {
@@ -193,7 +195,7 @@ export default function ScenarioModePicker({ open, onClose, onCreate }: Props) {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">いつ開始する？</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">{t('いつ開始する？')}</label>
                 <div className="space-y-2">
                   {triggerOptions.map((opt) => (
                     <label
@@ -213,8 +215,8 @@ export default function ScenarioModePicker({ open, onClose, onCreate }: Props) {
                         className="mt-0.5"
                       />
                       <div className="flex-1">
-                        <div className="text-sm font-medium text-gray-900">{opt.label}</div>
-                        <div className="text-xs text-gray-500">{opt.description}</div>
+                        <div className="text-sm font-medium text-gray-900">{t(opt.label)}</div>
+                        <div className="text-xs text-gray-500">{t(opt.description)}</div>
                       </div>
                     </label>
                   ))}
@@ -224,14 +226,14 @@ export default function ScenarioModePicker({ open, onClose, onCreate }: Props) {
               {triggerType === 'tag_added' && (
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">
-                    トリガータグ <span className="text-red-500">*</span>
+                    {t('トリガータグ')} <span className="text-red-500">*</span>
                   </label>
                   <select
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
                     value={triggerTagId}
                     onChange={(e) => setTriggerTagId(e.target.value)}
                   >
-                    <option value="">-- 選択してください --</option>
+                    <option value="">{t('-- 選択してください --')}</option>
                     {tags.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.name}
@@ -239,7 +241,7 @@ export default function ScenarioModePicker({ open, onClose, onCreate }: Props) {
                     ))}
                   </select>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    このタグが友だちに付与されたら、自動でこのシナリオを開始します
+                    {t('このタグが友だちに付与されたら、自動でこのシナリオを開始します')}
                   </p>
                 </div>
               )}
@@ -253,7 +255,7 @@ export default function ScenarioModePicker({ open, onClose, onCreate }: Props) {
                 disabled={submitting}
                 className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg disabled:opacity-50"
               >
-                ← 戻る
+                ← {t('戻る')}
               </button>
               <button
                 onClick={handleCreate}
@@ -261,7 +263,7 @@ export default function ScenarioModePicker({ open, onClose, onCreate }: Props) {
                 className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
                 style={{ backgroundColor: '#06C755' }}
               >
-                {submitting ? '作成中...' : '作成して編集へ'}
+                {submitting ? t('作成中...') : t('作成して編集へ')}
               </button>
             </div>
           </>

@@ -7,6 +7,7 @@ import type { Scenario, LineAccount } from '@line-crm/shared'
 import { api } from '@/lib/api'
 import { useAccount } from '@/contexts/account-context'
 import Header from '@/components/layout/header'
+import { useI18n } from '@/lib/i18n'
 
 type ScenarioWithCount = Scenario & {
   stepCount?: number
@@ -21,6 +22,7 @@ interface AccountRow {
 }
 
 export default function FriendAddSettingsPage() {
+  const { t } = useI18n()
   const router = useRouter()
   const { setSelectedAccountId } = useAccount()
   const [rows, setRows] = useState<AccountRow[]>([])
@@ -38,7 +40,7 @@ export default function FriendAddSettingsPage() {
       // to a deleted account); orphans are dropped instead of being shown under every account.
       const accountsRes = await api.lineAccounts.list()
       if (!accountsRes.success) {
-        setError('LINEアカウントの取得に失敗しました')
+        setError(t('LINEアカウントの取得に失敗しました'))
         setLoading(false)
         return
       }
@@ -56,7 +58,7 @@ export default function FriendAddSettingsPage() {
         // Surface this as a banner — silent failure here would hide globals/orphans and
         // make per-account active counts under-report.
         setError(
-          'シナリオの全件取得に失敗しました。「全アカ共通」シナリオと孤児シナリオの検出が反映されていない可能性があります。',
+          t('シナリオの全件取得に失敗しました。「全アカ共通」シナリオと孤児シナリオの検出が反映されていない可能性があります。'),
         )
       }
 
@@ -65,7 +67,7 @@ export default function FriendAddSettingsPage() {
       accounts.forEach((account, i) => {
         const slot = settled[i + 1]
         if (slot.status === 'rejected') {
-          accountErrors.set(account.id, '読み込みに失敗しました')
+          accountErrors.set(account.id, t('読み込みに失敗しました'))
           return
         }
         const res = slot.value
@@ -109,7 +111,7 @@ export default function FriendAddSettingsPage() {
       setRows(results)
       setOrphanScenarios(orphans)
     } catch {
-      setError('読み込みに失敗しました')
+      setError(t('読み込みに失敗しました'))
     } finally {
       setLoading(false)
     }
@@ -117,8 +119,8 @@ export default function FriendAddSettingsPage() {
 
   const handleCreateForAccount = async (accountId: string, accountName: string) => {
     const name = window.prompt(
-      `${accountName} の friend_add シナリオの名前を入力してください`,
-      `${accountName} ウェルカム`,
+      `${accountName} ${t('の friend_add シナリオの名前を入力してください')}`,
+      `${accountName} ${t('ウェルカム')}`,
     )
     if (!name || !name.trim()) return
 
@@ -133,14 +135,14 @@ export default function FriendAddSettingsPage() {
         lineAccountId: accountId,
       })
       if (!res.success) {
-        setError(`シナリオ作成に失敗しました: ${res.error}`)
+        setError(`${t('シナリオ作成に失敗しました')}: ${res.error}`)
         return
       }
       // Pre-select the account so the editor stays in the right context, then jump to the new scenario's editor.
       setSelectedAccountId(accountId)
       router.push(`/scenarios/detail?id=${res.data.id}`)
     } catch {
-      setError('シナリオ作成に失敗しました')
+      setError(t('シナリオ作成に失敗しました'))
     }
   }
 
@@ -171,11 +173,11 @@ export default function FriendAddSettingsPage() {
       const res = await api.scenarios.update(scenarioId, { isActive: !current })
       if (!res.success) {
         patch(current)
-        setError(`シナリオの更新に失敗しました: ${res.error}`)
+        setError(`${t('シナリオの更新に失敗しました')}: ${res.error}`)
       }
     } catch {
       patch(current)
-      setError('シナリオの更新に失敗しました')
+      setError(t('シナリオの更新に失敗しました'))
     } finally {
       setTogglingId(null)
     }
@@ -184,8 +186,8 @@ export default function FriendAddSettingsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header
-        title="友だち追加時設定"
-        description="各 LINE アカウントに友だち追加した瞬間に何が配信されるかを管理します。アクティブなシナリオが0件のアカウントは新規友だちに何も届きません。"
+        title={t('友だち追加時設定')}
+        description={t('各 LINE アカウントに友だち追加した瞬間に何が配信されるかを管理します。アクティブなシナリオが0件のアカウントは新規友だちに何も届きません。')}
       />
 
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-4">
@@ -194,14 +196,14 @@ export default function FriendAddSettingsPage() {
         )}
 
         {loading ? (
-          <div className="text-gray-500 text-center py-12">読み込み中…</div>
+          <div className="text-gray-500 text-center py-12">{t('読み込み中…')}</div>
         ) : rows.length === 0 && orphanScenarios.length === 0 ? (
-          <div className="text-gray-500 text-center py-12">LINE アカウントが登録されていません</div>
+          <div className="text-gray-500 text-center py-12">{t('LINE アカウントが登録されていません')}</div>
         ) : (
           <>
             {rows.length === 0 ? (
               <div className="text-gray-500 text-center py-6 text-sm">
-                LINE アカウントは登録されていませんが、孤児シナリオが残っています。下の一覧からクリーンアップしてください。
+                {t('LINE アカウントは登録されていませんが、孤児シナリオが残っています。下の一覧からクリーンアップしてください。')}
               </div>
             ) : (
               rows.map(row => (
@@ -237,12 +239,13 @@ function OrphanSection({
   togglingId: string | null
   onToggle: (id: string, current: boolean) => void
 }) {
+  const { t } = useI18n()
   return (
     <div className="bg-white border border-amber-200 rounded-lg overflow-hidden">
       <div className="px-4 py-3 border-b border-amber-200 bg-amber-50">
-        <h2 className="font-semibold text-amber-900">⚠ 孤児シナリオ (削除済みアカウント所属)</h2>
+        <h2 className="font-semibold text-amber-900">⚠ {t('孤児シナリオ (削除済みアカウント所属)')}</h2>
         <p className="text-xs text-amber-700 mt-1">
-          所属していた LINE アカウントが削除されたシナリオです。webhook は元の line_account_id でしか発火しないため実質配信されません。残しておく理由がなければ削除推奨。
+          {t('所属していた LINE アカウントが削除されたシナリオです。webhook は元の line_account_id でしか発火しないため実質配信されません。残しておく理由がなければ削除推奨。')}
         </p>
       </div>
       <ul className="divide-y divide-gray-100">
@@ -252,7 +255,7 @@ function OrphanSection({
               <Link href={`/scenarios/detail?id=${scenario.id}`} className="block">
                 <div className="font-medium text-gray-900 truncate">{scenario.name}</div>
                 <div className="text-xs text-gray-400 mt-1">
-                  元 line_account_id: {scenario.lineAccountId} ・ 更新 {scenario.updatedAt.slice(0, 10)}
+                  {t('元')} line_account_id: {scenario.lineAccountId} ・ {t('更新')} {scenario.updatedAt.slice(0, 10)}
                 </div>
               </Link>
             </div>
@@ -279,6 +282,7 @@ function AccountSection({
   onToggle: (id: string, current: boolean) => void
   onCreate: () => void
 }) {
+  const { t } = useI18n()
   const activeCount = row.scenarios.filter(s => s.isActive).length
   const isHealthy = activeCount > 0
   return (
@@ -290,28 +294,28 @@ function AccountSection({
         </div>
         {isHealthy ? (
           <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">
-            アクティブ {activeCount} 件
+            {t('アクティブ')} {activeCount} {t('件')}
           </span>
         ) : (
           <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700 font-medium">
-            ⚠ アクティブ 0 件 — 新規友だちに何も届きません
+            ⚠ {t('アクティブ 0 件 — 新規友だちに何も届きません')}
           </span>
         )}
       </div>
 
       {row.loadError && (
-        <div className="px-4 py-3 text-sm text-red-600">読み込みエラー: {row.loadError}</div>
+        <div className="px-4 py-3 text-sm text-red-600">{t('読み込みエラー')}: {row.loadError}</div>
       )}
 
       {row.scenarios.length === 0 && !row.loadError ? (
         <div className="px-4 py-6 text-center text-sm text-gray-500">
-          このアカウントには friend_add トリガーのシナリオがありません。
+          {t('このアカウントには friend_add トリガーのシナリオがありません。')}
           <button
             type="button"
             onClick={onCreate}
             className="ml-2 text-green-700 underline hover:text-green-800"
           >
-            このアカウントでシナリオを作成
+            {t('このアカウントでシナリオを作成')}
           </button>
         </div>
       ) : (
@@ -324,10 +328,10 @@ function AccountSection({
                     {scenario.name}
                     {scenario.isGlobal && (
                       <span
-                        title="このシナリオは line_account_id=NULL のため全アカウント共通で発火します"
+                        title={t('このシナリオは line_account_id=NULL のため全アカウント共通で発火します')}
                         className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-medium"
                       >
-                        全アカ共通
+                        {t('全アカ共通')}
                       </span>
                     )}
                   </div>
@@ -335,7 +339,7 @@ function AccountSection({
                     <div className="text-xs text-gray-500 truncate">{scenario.description}</div>
                   )}
                   <div className="text-xs text-gray-400 mt-1">
-                    {(scenario.stepCount ?? 0)} ステップ ・ 更新 {scenario.updatedAt.slice(0, 10)}
+                    {(scenario.stepCount ?? 0)} {t('ステップ')} ・ {t('更新')} {scenario.updatedAt.slice(0, 10)}
                   </div>
                 </Link>
               </div>
@@ -361,6 +365,7 @@ function Toggle({
   disabled: boolean
   onClick: () => void
 }) {
+  const { t } = useI18n()
   return (
     <button
       type="button"
@@ -369,7 +374,7 @@ function Toggle({
       className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
         value ? 'bg-green-500' : 'bg-gray-300'
       } ${disabled ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
-      aria-label={value ? '無効化' : '有効化'}
+      aria-label={value ? t('無効化') : t('有効化')}
     >
       <span
         className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${

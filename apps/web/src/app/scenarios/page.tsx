@@ -9,6 +9,7 @@ import Header from '@/components/layout/header'
 import ScenarioList from '@/components/scenarios/scenario-list'
 import ScenarioModePicker from '@/components/scenarios/scenario-mode-picker'
 import CcPromptButton from '@/components/cc-prompt-button'
+import { useI18n } from '@/lib/i18n'
 
 const ccPrompts = [
   {
@@ -33,6 +34,7 @@ const ccPrompts = [
 type ScenarioWithCount = Scenario & { stepCount?: number }
 
 export default function ScenariosPage() {
+  const { t } = useI18n()
   const { selectedAccountId, loading: accountLoading } = useAccount()
   const router = useRouter()
   const [scenarios, setScenarios] = useState<ScenarioWithCount[]>([])
@@ -51,7 +53,7 @@ export default function ScenariosPage() {
         setError(res.error)
       }
     } catch {
-      setError('シナリオの読み込みに失敗しました。もう一度お試しください。')
+      setError(t('シナリオの読み込みに失敗しました。もう一度お試しください。'))
     } finally {
       setLoading(false)
     }
@@ -73,7 +75,7 @@ export default function ScenariosPage() {
         }
       } catch {
         if (cancelled) return
-        setError('シナリオの読み込みに失敗しました。もう一度お試しください。')
+        setError(t('シナリオの読み込みに失敗しました。もう一度お試しください。'))
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -111,7 +113,7 @@ export default function ScenariosPage() {
       await api.scenarios.update(id, { isActive: !current })
       loadScenarios()
     } catch {
-      setError('ステータスの変更に失敗しました')
+      setError(t('ステータスの変更に失敗しました'))
     }
   }
 
@@ -120,21 +122,21 @@ export default function ScenariosPage() {
       await api.scenarios.delete(id)
       loadScenarios()
     } catch {
-      setError('削除に失敗しました')
+      setError(t('削除に失敗しました'))
     }
   }
 
   return (
     <div>
       <Header
-        title="シナリオ配信"
+        title={t('シナリオ配信')}
         action={
           <button
             onClick={() => setPickerOpen(true)}
             className="px-4 py-2 min-h-[44px] text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
             style={{ backgroundColor: '#06C755' }}
           >
-            + 新規シナリオ
+            + {t('新規シナリオ')}
           </button>
         }
       />

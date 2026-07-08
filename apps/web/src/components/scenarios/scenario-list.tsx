@@ -1,5 +1,8 @@
+'use client'
+
 import Link from 'next/link'
 import type { Scenario, DeliveryMode } from '@line-crm/shared'
+import { useI18n } from '@/lib/i18n'
 
 type ScenarioWithCount = Scenario & { stepCount?: number }
 
@@ -16,10 +19,11 @@ const deliveryModeStyles: Record<DeliveryMode, { bg: string; text: string; label
 }
 
 function ModeBadge({ mode }: { mode?: DeliveryMode }) {
+  const { t } = useI18n()
   const s = deliveryModeStyles[mode ?? 'relative']
   return (
     <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${s.bg} ${s.text}`}>
-      {s.label}
+      {t(s.label)}
     </span>
   )
 }
@@ -32,10 +36,11 @@ interface ScenarioListProps {
 }
 
 export default function ScenarioList({ scenarios, onToggleActive, onDelete, loading }: ScenarioListProps) {
+  const { t } = useI18n()
   if (scenarios.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-        <p className="text-gray-500">シナリオがありません。新しいシナリオを作成してください。</p>
+        <p className="text-gray-500">{t('シナリオがありません。新しいシナリオを作成してください。')}</p>
       </div>
     )
   }
@@ -59,9 +64,9 @@ export default function ScenarioList({ scenarios, onToggleActive, onDelete, load
               {scenario.lineAccountId === null && (
                 <span
                   className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200"
-                  title="全アカウントに適用されるシナリオです"
+                  title={t('全アカウントに適用されるシナリオです')}
                 >
-                  全アカウント共通
+                  {t('全アカウント共通')}
                 </span>
               )}
               <ModeBadge mode={scenario.deliveryMode} />
@@ -72,7 +77,7 @@ export default function ScenarioList({ scenarios, onToggleActive, onDelete, load
                     : 'bg-gray-100 text-gray-500'
                 }`}
               >
-                {scenario.isActive ? '有効' : '無効'}
+                {scenario.isActive ? t('有効') : t('無効')}
               </span>
             </div>
           </div>
@@ -89,14 +94,14 @@ export default function ScenarioList({ scenarios, onToggleActive, onDelete, load
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-              <span>トリガー: {triggerLabels[scenario.triggerType] ?? scenario.triggerType}</span>
+              <span>{t('トリガー')}: {t(triggerLabels[scenario.triggerType] ?? scenario.triggerType)}</span>
             </span>
             <span className="flex items-center gap-1">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
-              <span>ステップ数: {scenario.stepCount ?? '-'}</span>
+              <span>{t('ステップ数')}: {scenario.stepCount ?? '-'}</span>
             </span>
           </div>
 
@@ -106,7 +111,7 @@ export default function ScenarioList({ scenarios, onToggleActive, onDelete, load
               href={`/scenarios/detail?id=${scenario.id}`}
               className="flex-1 text-center text-xs font-medium text-green-600 hover:text-green-700 py-1 min-h-[44px] flex items-center justify-center rounded-md hover:bg-green-50 transition-colors"
             >
-              編集
+              {t('編集')}
             </Link>
             <button
               onClick={() => {
@@ -125,7 +130,7 @@ export default function ScenarioList({ scenarios, onToggleActive, onDelete, load
               disabled={loading}
               className="flex-1 text-xs font-medium text-gray-600 hover:text-gray-900 py-1 min-h-[44px] flex items-center justify-center rounded-md hover:bg-gray-100 transition-colors disabled:opacity-40"
             >
-              {scenario.isActive ? '無効にする' : '有効にする'}
+              {scenario.isActive ? t('無効にする') : t('有効にする')}
             </button>
             <button
               onClick={() => {
@@ -140,7 +145,7 @@ export default function ScenarioList({ scenarios, onToggleActive, onDelete, load
               disabled={loading}
               className="flex-1 text-xs font-medium text-red-500 hover:text-red-700 py-1 min-h-[44px] flex items-center justify-center rounded-md hover:bg-red-50 transition-colors disabled:opacity-40"
             >
-              削除
+              {t('削除')}
             </button>
           </div>
         </div>
