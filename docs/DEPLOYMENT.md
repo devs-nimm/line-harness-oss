@@ -55,12 +55,19 @@ pnpm install
 ### Admin dashboard → Cloudflare Pages
 
 ```bash
+# Build the workspace packages the admin app imports FIRST. Their compiled
+# dist/ is git-ignored, so a fresh checkout has none until you build them —
+# skipping this yields "Can't resolve '@line-harness/update-engine/pure'".
 pnpm --filter @line-crm/shared build
+pnpm --filter @line-harness/update-engine build
+
 NEXT_PUBLIC_API_URL="https://<your-worker-url>" pnpm --filter web build
 npx wrangler pages deploy apps/web/out --project-name="line-harness-admin"
 ```
 
 > `NEXT_PUBLIC_API_URL` is baked in at **build time**, so it must be set for the build step — not just the deploy. Point it at your deployed Worker URL.
+>
+> Shortcut: `pnpm -r build` builds every workspace package (admin + worker + deps) in one go if you don't want to name them individually.
 
 ### API → Cloudflare Workers
 
