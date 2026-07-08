@@ -7,6 +7,8 @@ import { useAccount } from '@/contexts/account-context'
 import type { AccountWithStats } from '@/contexts/account-context'
 import { countryFlag } from '@/lib/country-flag'
 import { UNANSWERED_REFRESH_EVENT } from '@/lib/events'
+import { useI18n } from '@/lib/i18n'
+import LanguageSwitcher from './language-switcher'
 
 const appVersion = process.env.APP_VERSION || '0.0.0'
 const appCommitSha = process.env.APP_COMMIT_SHA || 'local'
@@ -198,6 +200,7 @@ function NavIcon({ d }: { d: string }) {
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const { t } = useI18n()
   const [isOpen, setIsOpen] = useState(false)
   const [staffName, setStaffName] = useState<string | null>(null)
   const [staffRole, setStaffRole] = useState<string | null>(null)
@@ -256,7 +259,7 @@ export default function Sidebar() {
           </div>
           <div>
             <p className="text-sm font-bold text-gray-900 leading-tight">L Harness</p>
-            <p className="text-xs text-gray-400">管理画面</p>
+            <p className="text-xs text-gray-400">{t('管理画面')}</p>
           </div>
         </div>
       </div>
@@ -270,7 +273,7 @@ export default function Sidebar() {
           <div key={si}>
             {section.label && (
               <div className="pt-5 pb-2 px-3">
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{section.label}</p>
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{t(section.label)}</p>
               </div>
             )}
             {section.items.filter((item) => {
@@ -294,7 +297,7 @@ export default function Sidebar() {
                   style={active ? { backgroundColor: isDanger ? '#EF4444' : '#06C755' } : {}}
                 >
                   <NavIcon d={item.icon} />
-                  <span className="flex-1">{item.label}</span>
+                  <span className="flex-1">{t(item.label)}</span>
                   {item.href === '/notifications' && unansweredCount > 0 && (
                     <span
                       className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
@@ -321,7 +324,7 @@ export default function Sidebar() {
               staffRole === 'admin' ? 'bg-blue-100 text-blue-800' :
               'bg-gray-100 text-gray-600'
             }`}>
-              {staffRole === 'owner' ? 'オーナー' : staffRole === 'admin' ? '管理者' : 'スタッフ'}
+              {staffRole === 'owner' ? t('オーナー') : staffRole === 'admin' ? t('管理者') : t('スタッフ')}
             </span>
           </div>
         )}
@@ -332,6 +335,7 @@ export default function Sidebar() {
             build {appCommitSha}{appBuildDate ? ` · ${appBuildDate}` : ''}
           </p>
         </div>
+        <LanguageSwitcher />
         <button
           onClick={async () => {
             try {
@@ -356,7 +360,7 @@ export default function Sidebar() {
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
-          ログアウト
+          {t('ログアウト')}
         </button>
         </div>
       </div>
@@ -370,7 +374,7 @@ export default function Sidebar() {
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
-          aria-label="メニュー"
+          aria-label={t('メニュー')}
         >
           <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             {isOpen
@@ -391,7 +395,7 @@ export default function Sidebar() {
       {/* モバイル: スライドインサイドバー */}
       <aside className={`lg:hidden fixed top-0 left-0 z-50 w-72 bg-white flex flex-col h-screen transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="absolute top-4 right-4">
-          <button onClick={() => setIsOpen(false)} className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-gray-100" aria-label="閉じる">
+          <button onClick={() => setIsOpen(false)} className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-gray-100" aria-label={t('閉じる')}>
             <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
