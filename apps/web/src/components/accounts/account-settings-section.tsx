@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { api } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 import { COUNTRY_OPTIONS, countryFlag } from '@/lib/country-flag'
 
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
 export default function AccountSettingsSection({
   accountId, initialCountry, initialRole, onUpdated,
 }: Props) {
+  const { t } = useI18n()
   const isPredefined = initialCountry === null
     || (COUNTRY_OPTIONS as readonly string[]).slice(0, -1).includes(initialCountry)
   const [select, setSelect] = useState<string>(
@@ -45,9 +47,9 @@ export default function AccountSettingsSection({
         role: role.trim() === '' ? null : role.trim(),
       })
       if (res.success) onUpdated()
-      else setError(res.error || '保存に失敗しました')
+      else setError(res.error || t('保存に失敗しました'))
     } catch {
-      setError('保存に失敗しました')
+      setError(t('保存に失敗しました'))
     } finally {
       setSaving(false)
     }
@@ -55,17 +57,17 @@ export default function AccountSettingsSection({
 
   return (
     <div className="space-y-3 mt-3 pt-3 border-t border-gray-100">
-      <p className="text-xs font-medium text-gray-600">アカウント設定</p>
+      <p className="text-xs font-medium text-gray-600">{t('アカウント設定')}</p>
 
       <div>
-        <label className="block text-xs text-gray-500 mb-1">国/地域</label>
+        <label className="block text-xs text-gray-500 mb-1">{t('国/地域')}</label>
         <div className="flex gap-2 items-center">
           <select
             value={select}
             onChange={(e) => setSelect(e.target.value)}
             className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm flex-1"
           >
-            <option value="">未設定</option>
+            <option value="">{t('未設定')}</option>
             {COUNTRY_OPTIONS.map((c) => (
               <option key={c} value={c}>{c} {countryFlag(c)}</option>
             ))}
@@ -75,7 +77,7 @@ export default function AccountSettingsSection({
               type="text"
               value={other}
               onChange={(e) => setOther(e.target.value)}
-              placeholder="例: インドネシア"
+              placeholder={t('例: インドネシア')}
               className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm flex-1"
             />
           )}
@@ -86,12 +88,12 @@ export default function AccountSettingsSection({
       </div>
 
       <div>
-        <label className="block text-xs text-gray-500 mb-1">役割</label>
+        <label className="block text-xs text-gray-500 mb-1">{t('役割')}</label>
         <input
           type="text"
           value={role}
           onChange={(e) => setRole(e.target.value)}
-          placeholder="本店 / プロモ / 実験 など"
+          placeholder={t('本店 / プロモ / 実験 など')}
           className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
         />
       </div>
@@ -103,7 +105,7 @@ export default function AccountSettingsSection({
         disabled={saving}
         className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-xs font-medium disabled:opacity-50"
       >
-        {saving ? '保存中...' : '保存'}
+        {saving ? t('保存中...') : t('保存')}
       </button>
     </div>
   )

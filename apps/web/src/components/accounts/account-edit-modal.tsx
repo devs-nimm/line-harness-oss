@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 import {
   AccountFormSections,
   emptyAccountFormState,
@@ -39,6 +40,7 @@ export default function AccountEditModal({
   onClose,
   onSaved,
 }: Props) {
+  const { t } = useI18n()
   const [state, setState] = useState<AccountFormState>({
     ...emptyAccountFormState,
     name: initialName,
@@ -124,10 +126,10 @@ export default function AccountEditModal({
         onSaved()
         onClose()
       } else {
-        setError(res.error || '保存に失敗しました')
+        setError(res.error || t('保存に失敗しました'))
       }
     } catch {
-      setError('保存に失敗しました')
+      setError(t('保存に失敗しました'))
     } finally {
       setSaving(false)
     }
@@ -143,12 +145,12 @@ export default function AccountEditModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-base font-bold text-gray-900">アカウント編集</h2>
+          <h2 className="text-base font-bold text-gray-900">{t('アカウント編集')}</h2>
           <button
             type="button"
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 text-xl leading-none"
-            aria-label="閉じる"
+            aria-label={t('閉じる')}
           >
             ×
           </button>
@@ -156,7 +158,7 @@ export default function AccountEditModal({
 
         <form onSubmit={handleSave} className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">アカウント名</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">{t('アカウント名')}</label>
             <input
               value={state.name}
               onChange={(e) => update({ name: e.target.value })}
@@ -182,7 +184,7 @@ export default function AccountEditModal({
 
           <AccountSetupUrls
             liffId={state.liffId.trim() || initialLiffId || null}
-            heading="このアカで使う URL（LINE Developers Console に貼る）"
+            heading={t('このアカで使う URL（LINE Developers Console に貼る）')}
           />
 
           {error && (
@@ -197,7 +199,7 @@ export default function AccountEditModal({
               onClick={onClose}
               className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 hover:bg-gray-50"
             >
-              キャンセル
+              {t('キャンセル')}
             </button>
             <button
               type="submit"
@@ -205,7 +207,7 @@ export default function AccountEditModal({
               className="px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
               style={{ backgroundColor: '#06C755' }}
             >
-              {saving ? '保存中...' : '保存'}
+              {saving ? t('保存中...') : t('保存')}
             </button>
           </div>
         </form>

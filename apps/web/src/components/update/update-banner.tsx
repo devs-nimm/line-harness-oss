@@ -9,6 +9,7 @@ import {
   type ReleaseEntry,
 } from '@/lib/update-client'
 import { UpdateButton } from './update-button'
+import { useI18n } from '@/lib/i18n'
 
 type Status =
   | { kind: 'loading' }
@@ -26,6 +27,7 @@ export const MANUAL_UPDATE_GUIDE_URL =
   'https://github.com/Shudesu/line-harness-oss/blob/main/docs/wiki/26-Manual-Update.md'
 
 export function UpdateBanner() {
+  const { t } = useI18n()
   const [status, setStatus] = useState<Status>({ kind: 'loading' })
 
   useEffect(() => {
@@ -77,7 +79,7 @@ export function UpdateBanner() {
   if (status.kind === 'latest') {
     return (
       <div className="text-xs text-gray-500 px-4 py-2 border-b bg-gray-50">
-        v{status.version} (最新)
+        v{status.version} {t('(最新)')}
       </div>
     )
   }
@@ -90,17 +92,16 @@ export function UpdateBanner() {
         className="bg-amber-50 text-amber-900 px-4 py-2 border-b text-sm"
         title={status.reason}
       >
-        カスタマイズ版で動作中です（v{status.version}）。そのままお使いいただけます。
-        更新したい場合は{' '}
+        {t('カスタマイズ版で動作中です（v')}{status.version}{t('）。そのままお使いいただけます。更新したい場合は')}{' '}
         <a
           className="underline"
           href={MANUAL_UPDATE_GUIDE_URL}
           target="_blank"
           rel="noreferrer"
         >
-          手動アップデートガイド
+          {t('手動アップデートガイド')}
         </a>{' '}
-        をご覧ください。
+        {t('をご覧ください。')}
       </div>
     )
   }
@@ -108,8 +109,8 @@ export function UpdateBanner() {
   return (
     <div className="bg-blue-50 text-blue-900 px-4 py-2 border-b flex items-center gap-3 text-sm">
       <div>
-        <strong>v{status.target.version}</strong> が利用可能（現 v
-        {status.current}）
+        <strong>v{status.target.version}</strong> {t('が利用可能（現 v')}
+        {status.current}{t('）')}
       </div>
       {status.target.changelog_url ? (
         <a
@@ -118,7 +119,7 @@ export function UpdateBanner() {
           target="_blank"
           rel="noreferrer"
         >
-          変更内容
+          {t('変更内容')}
         </a>
       ) : null}
       <div className="ml-auto">

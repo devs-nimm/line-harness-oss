@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useI18n } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL!
 // self-update を構成した環境 (create-line-harness セットアップ) でのみ設定される。
@@ -36,6 +37,7 @@ async function fetchHistory(adminKey: string): Promise<Row[]> {
 }
 
 export default function UpdatesPage() {
+  const { t } = useI18n()
   const [state, setState] = useState<LoadState>({ kind: 'loading' })
 
   useEffect(() => {
@@ -58,38 +60,38 @@ export default function UpdatesPage() {
 
   return (
     <div className="max-w-3xl mx-auto p-6">
-      <h1 className="text-xl font-semibold mb-4">アップデート履歴</h1>
+      <h1 className="text-xl font-semibold mb-4">{t('アップデート履歴')}</h1>
       {state.kind === 'unconfigured' && (
         <div className="text-gray-600 bg-gray-50 p-4 rounded mb-4 text-sm leading-relaxed">
-          この環境では自動アップデートが構成されていないため、履歴はありません。
+          {t('この環境では自動アップデートが構成されていないため、履歴はありません。')}
           <br />
-          自動アップデートは <code className="text-xs">create-line-harness</code>{' '}
-          でセットアップした環境で利用できます。自前でデプロイしている場合は{' '}
+          {t('自動アップデートは')} <code className="text-xs">create-line-harness</code>{' '}
+          {t('でセットアップした環境で利用できます。自前でデプロイしている場合は')}{' '}
           <a
             className="underline"
             href={MANUAL_UPDATE_GUIDE_URL}
             target="_blank"
             rel="noreferrer"
           >
-            手動アップデートガイド
+            {t('手動アップデートガイド')}
           </a>{' '}
-          をご覧ください。
+          {t('をご覧ください。')}
         </div>
       )}
       {state.kind === 'error' && (
         <div className="text-amber-800 bg-amber-50 p-3 rounded mb-4 text-sm">
-          履歴を取得できませんでした（{state.message}）。時間をおいて再読み込みしてください。
+          {t('履歴を取得できませんでした（')}{state.message}{t('）。時間をおいて再読み込みしてください。')}
         </div>
       )}
       {state.kind === 'ready' && rows.length === 0 && (
-        <p className="text-gray-500 text-sm">履歴はまだありません。</p>
+        <p className="text-gray-500 text-sm">{t('履歴はまだありません。')}</p>
       )}
       {rows.length > 0 && (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-gray-600 border-b">
               <tr>
-                <th className="py-2 pr-4">開始</th>
+                <th className="py-2 pr-4">{t('開始')}</th>
                 <th className="py-2 pr-4">From → To</th>
                 <th className="py-2 pr-4">Status</th>
                 <th className="py-2">Rollback</th>

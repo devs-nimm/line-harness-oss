@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Header from '@/components/layout/header'
+import { useI18n } from '@/lib/i18n'
 import { fetchApi } from '@/lib/api'
 import type { ApiResponse } from '@line-crm/shared'
 import type { StaffMember } from '@line-crm/shared'
@@ -8,6 +9,7 @@ import type { StaffMember } from '@line-crm/shared'
 type NewApiKey = { apiKey: string; staffId: string }
 
 function RoleBadge({ role }: { role: string }) {
+  const { t } = useI18n()
   const styles =
     role === 'owner'
       ? 'bg-yellow-100 text-yellow-800'
@@ -15,7 +17,7 @@ function RoleBadge({ role }: { role: string }) {
         ? 'bg-blue-100 text-blue-800'
         : 'bg-gray-100 text-gray-600'
   const label =
-    role === 'owner' ? 'オーナー' : role === 'admin' ? '管理者' : 'スタッフ'
+    role === 'owner' ? t('オーナー') : role === 'admin' ? t('管理者') : t('スタッフ')
   return (
     <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${styles}`}>
       {label}
@@ -29,6 +31,7 @@ function maskKey(key: string): string {
 }
 
 export default function StaffPage() {
+  const { t } = useI18n()
   const [members, setMembers] = useState<StaffMember[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -53,10 +56,10 @@ export default function StaffPage() {
       if (res.success) {
         setMembers(res.data)
       } else {
-        setError(res.error ?? 'スタッフの読み込みに失敗しました')
+        setError(res.error ?? t('スタッフの読み込みに失敗しました'))
       }
     } catch {
-      setError('スタッフの読み込みに失敗しました')
+      setError(t('スタッフの読み込みに失敗しました'))
     } finally {
       setLoading(false)
     }
@@ -91,10 +94,10 @@ export default function StaffPage() {
         setShowForm(false)
         await loadMembers()
       } else {
-        setFormError(res.error ?? '作成に失敗しました')
+        setFormError(res.error ?? t('作成に失敗しました'))
       }
     } catch {
-      setFormError('作成に失敗しました')
+      setFormError(t('作成に失敗しました'))
     } finally {
       setFormLoading(false)
     }
@@ -108,7 +111,7 @@ export default function StaffPage() {
       })
       await loadMembers()
     } catch {
-      setError('更新に失敗しました')
+      setError(t('更新に失敗しました'))
     }
   }
 
@@ -121,10 +124,10 @@ export default function StaffPage() {
       if (res.success) {
         setNewKey({ apiKey: res.data.apiKey, staffId: member.id })
       } else {
-        setError(res.error ?? 'キー再生成に失敗しました')
+        setError(res.error ?? t('キー再生成に失敗しました'))
       }
     } catch {
-      setError('キー再生成に失敗しました')
+      setError(t('キー再生成に失敗しました'))
     }
   }
 
@@ -134,7 +137,7 @@ export default function StaffPage() {
       await fetchApi<ApiResponse<null>>(`/api/staff/${member.id}`, { method: 'DELETE' })
       await loadMembers()
     } catch {
-      setError('削除に失敗しました')
+      setError(t('削除に失敗しました'))
     }
   }
 
@@ -148,14 +151,14 @@ export default function StaffPage() {
   return (
     <div>
       <Header
-        title="スタッフ管理"
+        title={t('スタッフ管理')}
         action={
           <button
             onClick={() => setShowForm(!showForm)}
             className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
             style={{ backgroundColor: '#06C755' }}
           >
-            + スタッフを追加
+            + {t('スタッフを追加')}
           </button>
         }
       />
@@ -164,7 +167,7 @@ export default function StaffPage() {
       {newKey && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
           <p className="text-sm font-medium text-green-800 mb-2">
-            APIキーが発行されました。このキーは一度しか表示されません。
+            {t('APIキーが発行されました。このキーは一度しか表示されません。')}
           </p>
           <div className="flex items-center gap-2">
             <code className="flex-1 text-xs bg-white border border-green-200 rounded px-3 py-2 font-mono break-all">
@@ -174,13 +177,13 @@ export default function StaffPage() {
               onClick={handleCopy}
               className="shrink-0 px-3 py-2 text-xs font-medium text-green-700 bg-white border border-green-300 rounded-lg hover:bg-green-50 transition-colors"
             >
-              {copied ? 'コピー済み' : 'コピー'}
+              {copied ? t('コピー済み') : t('コピー')}
             </button>
             <button
               onClick={() => setNewKey(null)}
               className="shrink-0 px-3 py-2 text-xs font-medium text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              閉じる
+              {t('閉じる')}
             </button>
           </div>
         </div>
@@ -189,22 +192,22 @@ export default function StaffPage() {
       {/* Create form */}
       {showForm && (
         <div className="mb-6 p-5 bg-white border border-gray-200 rounded-lg shadow-sm">
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">新しいスタッフを追加</h2>
+          <h2 className="text-sm font-semibold text-gray-900 mb-4">{t('新しいスタッフを追加')}</h2>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">名前 *</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">{t('名前')} *</label>
                 <input
                   type="text"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   required
-                  placeholder="田中 太郎"
+                  placeholder={t('田中 太郎')}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">メールアドレス</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">{t('メールアドレス')}</label>
                 <input
                   type="email"
                   value={formEmail}
@@ -214,14 +217,14 @@ export default function StaffPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">ロール *</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">{t('ロール')} *</label>
                 <select
                   value={formRole}
                   onChange={(e) => setFormRole(e.target.value as 'admin' | 'staff')}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
-                  <option value="staff">スタッフ</option>
-                  <option value="admin">管理者</option>
+                  <option value="staff">{t('スタッフ')}</option>
+                  <option value="admin">{t('管理者')}</option>
                 </select>
               </div>
             </div>
@@ -235,14 +238,14 @@ export default function StaffPage() {
                 className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50 transition-opacity hover:opacity-90"
                 style={{ backgroundColor: '#06C755' }}
               >
-                {formLoading ? '作成中...' : '作成'}
+                {formLoading ? t('作成中...') : t('作成')}
               </button>
               <button
                 type="button"
                 onClick={() => { setShowForm(false); setFormError('') }}
                 className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                キャンセル
+                {t('キャンセル')}
               </button>
             </div>
           </form>
@@ -273,19 +276,19 @@ export default function StaffPage() {
         </div>
       ) : members.length === 0 ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-          <p className="text-gray-500 text-sm">スタッフがいません。「+ スタッフを追加」から追加してください。</p>
+          <p className="text-gray-500 text-sm">{t('スタッフがいません。「+ スタッフを追加」から追加してください。')}</p>
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">名前</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">メール</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ロール</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">APIキー</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">状態</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('名前')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">{t('メール')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('ロール')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">{t('APIキー')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('状態')}</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('操作')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -302,7 +305,7 @@ export default function StaffPage() {
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center gap-1.5 text-xs ${member.isActive ? 'text-green-700' : 'text-gray-400'}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${member.isActive ? 'bg-green-500' : 'bg-gray-300'}`} />
-                      {member.isActive ? '有効' : '無効'}
+                      {member.isActive ? t('有効') : t('無効')}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -313,19 +316,19 @@ export default function StaffPage() {
                             onClick={() => handleToggleActive(member)}
                             className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
                           >
-                            {member.isActive ? '無効化' : '有効化'}
+                            {member.isActive ? t('無効化') : t('有効化')}
                           </button>
                           <button
                             onClick={() => handleRegenerateKey(member)}
                             className="px-2.5 py-1 text-xs font-medium text-blue-600 bg-white border border-blue-200 rounded hover:bg-blue-50 transition-colors"
                           >
-                            キー再生成
+                            {t('キー再生成')}
                           </button>
                           <button
                             onClick={() => handleDelete(member)}
                             className="px-2.5 py-1 text-xs font-medium text-red-600 bg-white border border-red-200 rounded hover:bg-red-50 transition-colors"
                           >
-                            削除
+                            {t('削除')}
                           </button>
                         </>
                       )}

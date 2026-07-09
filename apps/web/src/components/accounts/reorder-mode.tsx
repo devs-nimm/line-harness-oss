@@ -19,6 +19,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { api } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 import { countryFlag } from '@/lib/country-flag'
 
 interface AccountItem {
@@ -59,6 +60,7 @@ function SortableRow({ account }: { account: AccountItem }) {
 }
 
 export default function ReorderMode({ accounts, onClose, onSaved }: Props) {
+  const { t } = useI18n()
   const [items, setItems] = useState<AccountItem[]>(accounts)
   const [saving, setSaving] = useState(false)
 
@@ -86,15 +88,15 @@ export default function ReorderMode({ accounts, onClose, onSaved }: Props) {
       onSaved()
       onClose()
     } else {
-      alert('保存失敗: ' + (res.error || 'unknown'))
+      alert(t('保存失敗: ') + (res.error || 'unknown'))
     }
   }
 
   return (
     <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-5 max-h-[80vh] overflow-y-auto">
-        <h2 className="text-sm font-bold mb-4">並び替えモード</h2>
-        <p className="text-xs text-gray-500 mb-4">ドラッグで順序変更。サイドバーの並びにも反映されます。</p>
+        <h2 className="text-sm font-bold mb-4">{t('並び替えモード')}</h2>
+        <p className="text-xs text-gray-500 mb-4">{t('ドラッグで順序変更。サイドバーの並びにも反映されます。')}</p>
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
             <div className="space-y-2">
@@ -104,7 +106,7 @@ export default function ReorderMode({ accounts, onClose, onSaved }: Props) {
         </DndContext>
         <div className="flex gap-2 mt-5 justify-end">
           <button onClick={onClose} className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-xs">
-            キャンセル
+            {t('キャンセル')}
           </button>
           <button
             onClick={handleSave}
@@ -112,7 +114,7 @@ export default function ReorderMode({ accounts, onClose, onSaved }: Props) {
             className="px-3 py-1.5 rounded-lg text-xs text-white disabled:opacity-50"
             style={{ backgroundColor: '#06C755' }}
           >
-            {saving ? '保存中...' : '保存'}
+            {saving ? t('保存中...') : t('保存')}
           </button>
         </div>
       </div>

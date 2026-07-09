@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useI18n } from '@/lib/i18n'
 
 export interface PromptTemplate {
   title: string
@@ -14,6 +15,7 @@ interface PromptModalProps {
 }
 
 export default function PromptModal({ isOpen, onClose, prompts }: PromptModalProps) {
+  const { t } = useI18n()
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
 
@@ -50,11 +52,11 @@ export default function PromptModal({ isOpen, onClose, prompts }: PromptModalPro
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
-          <h2 className="text-base font-bold text-gray-900">CC プロンプトテンプレート</h2>
+          <h2 className="text-base font-bold text-gray-900">{t('CC プロンプトテンプレート')}</h2>
           <button
             onClick={onClose}
             className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
-            aria-label="閉じる"
+            aria-label={t('閉じる')}
           >
             <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -98,7 +100,7 @@ export default function PromptModal({ isOpen, onClose, prompts }: PromptModalPro
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
-                        コピーしました
+                        {t('コピーしました')}
                       </>
                     ) : (
                       <>
@@ -106,7 +108,7 @@ export default function PromptModal({ isOpen, onClose, prompts }: PromptModalPro
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                             d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
-                        コピー
+                        {t('コピー')}
                       </>
                     )}
                   </button>
@@ -118,7 +120,7 @@ export default function PromptModal({ isOpen, onClose, prompts }: PromptModalPro
 
         {/* Footer */}
         <div className="px-5 py-3 border-t border-gray-200">
-          <p className="text-xs text-gray-400">Claude Code にプロンプトを貼り付けて使用してください</p>
+          <p className="text-xs text-gray-400">{t('Claude Code にプロンプトを貼り付けて使用してください')}</p>
         </div>
       </div>
     </div>

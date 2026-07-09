@@ -1,6 +1,7 @@
 'use client'
 
 import UserRow, { type UserRowData } from './user-row'
+import { useI18n } from '@/lib/i18n'
 
 const fmt = new Intl.NumberFormat('ja-JP')
 
@@ -30,6 +31,7 @@ export default function UsersTable({
   loading,
   onPageChange,
 }: Props) {
+  const { t } = useI18n()
   const accountColorMap = new Map<string, string>()
   for (const row of rows) {
     for (const a of row.accounts) {
@@ -52,19 +54,19 @@ export default function UsersTable({
         <table className="min-w-full">
           <thead className="bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
             <tr>
-              <th className="px-4 py-3">識別子</th>
-              <th className="px-4 py-3">表示名</th>
-              <th className="px-4 py-3">登録アカウント</th>
+              <th className="px-4 py-3">{t('識別子')}</th>
+              <th className="px-4 py-3">{t('表示名')}</th>
+              <th className="px-4 py-3">{t('登録アカウント')}</th>
               <th className="px-4 py-3">X</th>
-              <th className="px-4 py-3">メール</th>
-              <th className="px-4 py-3">電話</th>
+              <th className="px-4 py-3">{t('メール')}</th>
+              <th className="px-4 py-3">{t('電話')}</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && !loading ? (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">
-                  該当ユーザーがいません
+                  {t('該当ユーザーがいません')}
                 </td>
               </tr>
             ) : (
@@ -77,7 +79,7 @@ export default function UsersTable({
       </div>
       <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3 text-sm text-gray-600">
         <span>
-          {fmt.format(total)} 件中 {fmt.format(start)}–{fmt.format(end)} 件
+          {fmt.format(total)} {t('件中')} {fmt.format(start)}–{fmt.format(end)} {t('件')}
         </span>
         <div className="flex items-center gap-2">
           <button
@@ -86,7 +88,7 @@ export default function UsersTable({
             disabled={page <= 1 || loading}
             className="rounded-md border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
-            前へ
+            {t('前へ')}
           </button>
           <span className="tabular-nums text-xs text-gray-500">
             {page} / {totalPages}
@@ -97,7 +99,7 @@ export default function UsersTable({
             disabled={page >= totalPages || loading}
             className="rounded-md border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
-            次へ
+            {t('次へ')}
           </button>
         </div>
       </div>

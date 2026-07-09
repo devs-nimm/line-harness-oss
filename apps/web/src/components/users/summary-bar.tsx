@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 
 const fmt = new Intl.NumberFormat('ja-JP')
 
@@ -12,6 +13,7 @@ interface Stats {
 }
 
 export default function SummaryBar() {
+  const { t } = useI18n()
   const [stats, setStats] = useState<Stats | null>(null)
 
   useEffect(() => {
@@ -41,12 +43,12 @@ export default function SummaryBar() {
 
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-      <Card label="友だち総数" value={fmt.format(stats.totalFollowing)} />
-      <Card label="ユニーク人数" value={fmt.format(stats.uniquePeople)} />
+      <Card label={t('友だち総数')} value={fmt.format(stats.totalFollowing)} />
+      <Card label={t('ユニーク人数')} value={fmt.format(stats.uniquePeople)} />
       {/* friendDups は行ベースの「余分な行数」(SUM(row_cnt - 1))。
           1人が3アカウントに居れば +2 とカウントされる。 */}
-      <Card label="余分な行数" value={fmt.format(stats.friendDups)} hint="重複ぶんの行" />
-      <Card label="余分率" value={`${dupRate.toFixed(1)}%`} hint="総行数のうち余分" />
+      <Card label={t('余分な行数')} value={fmt.format(stats.friendDups)} hint={t('重複ぶんの行')} />
+      <Card label={t('余分率')} value={`${dupRate.toFixed(1)}%`} hint={t('総行数のうち余分')} />
     </div>
   )
 }

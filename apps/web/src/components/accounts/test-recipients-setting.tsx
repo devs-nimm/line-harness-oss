@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 
 interface Friend {
   id: string
@@ -14,6 +15,7 @@ interface TestRecipientsSettingProps {
 }
 
 export default function TestRecipientsSetting({ accountId }: TestRecipientsSettingProps) {
+  const { t } = useI18n()
   const [recipients, setRecipients] = useState<Friend[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -84,11 +86,11 @@ export default function TestRecipientsSetting({ accountId }: TestRecipientsSetti
     finally { setSaving(false) }
   }
 
-  if (loading) return <p className="text-xs text-gray-400">読み込み中...</p>
+  if (loading) return <p className="text-xs text-gray-400">{t('読み込み中...')}</p>
 
   return (
     <div className="mt-3 pt-3 border-t border-gray-100">
-      <h4 className="text-xs font-semibold text-gray-600 mb-2">テスト送信先</h4>
+      <h4 className="text-xs font-semibold text-gray-600 mb-2">{t('テスト送信先')}</h4>
 
       {/* Current recipients */}
       {recipients.length > 0 && (
@@ -107,13 +109,13 @@ export default function TestRecipientsSetting({ accountId }: TestRecipientsSetti
       <div className="relative">
         <input
           type="text"
-          placeholder="友だちを検索して追加..."
+          placeholder={t('友だちを検索して追加...')}
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
         />
-        {searching && <span className="absolute right-2 top-1.5 text-xs text-gray-400">検索中...</span>}
-        {saving && <span className="absolute right-2 top-1.5 text-xs text-green-500">保存中...</span>}
+        {searching && <span className="absolute right-2 top-1.5 text-xs text-gray-400">{t('検索中...')}</span>}
+        {saving && <span className="absolute right-2 top-1.5 text-xs text-green-500">{t('保存中...')}</span>}
 
         {searchResults.length > 0 && (
           <ul className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">

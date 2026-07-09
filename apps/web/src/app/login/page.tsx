@@ -1,8 +1,10 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useI18n } from '@/lib/i18n'
 
 export default function LoginPage() {
+  const { t } = useI18n()
   const [apiKey, setApiKey] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -46,10 +48,10 @@ export default function LoginPage() {
         }
         router.push('/')
       } else if (res.status === 401) {
-        setError('APIキーが正しくありません')
+        setError(t('APIキーが正しくありません'))
       } else {
         // Surface topology / configuration errors (e.g. cross-site cookie guard).
-        let message = 'ログインに失敗しました'
+        let message = t('ログインに失敗しました')
         try {
           const data = await res.json()
           if (data?.error) message = data.error
@@ -59,7 +61,7 @@ export default function LoginPage() {
         setError(message)
       }
     } catch {
-      setError('接続に失敗しました')
+      setError(t('接続に失敗しました'))
     } finally {
       setLoading(false)
     }
@@ -73,7 +75,7 @@ export default function LoginPage() {
             H
           </div>
           <h1 className="text-xl font-bold text-gray-900">L Harness</h1>
-          <p className="text-sm text-gray-500 mt-1">管理画面にログイン</p>
+          <p className="text-sm text-gray-500 mt-1">{t('管理画面にログイン')}</p>
         </div>
 
         <form onSubmit={handleLogin}>
@@ -83,7 +85,7 @@ export default function LoginPage() {
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="APIキーを入力"
+              placeholder={t('APIキーを入力')}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
               autoFocus
             />
@@ -99,7 +101,7 @@ export default function LoginPage() {
             className="w-full py-3 text-white font-medium rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50"
             style={{ backgroundColor: '#06C755' }}
           >
-            {loading ? 'ログイン中...' : 'ログイン'}
+            {loading ? t('ログイン中...') : t('ログイン')}
           </button>
         </form>
       </div>

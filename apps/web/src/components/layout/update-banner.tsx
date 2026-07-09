@@ -1,7 +1,9 @@
 'use client'
 import { useUpdateNotification } from '@/hooks/use-update-notification'
+import { useI18n } from '@/lib/i18n'
 
 export default function UpdateBanner() {
+  const { t } = useI18n()
   const { release, dismiss } = useUpdateNotification()
   if (!release) return null
 
@@ -10,7 +12,7 @@ export default function UpdateBanner() {
       <div className="flex items-center gap-2 min-w-0 flex-wrap">
         <span aria-hidden="true">🎉</span>
         <span className="text-blue-900">
-          新バージョン <strong>{release.tag}</strong> がリリースされました
+          {t('新バージョン')} <strong>{release.tag}</strong> {t('がリリースされました')}
         </span>
         <a
           href={release.url}
@@ -18,13 +20,13 @@ export default function UpdateBanner() {
           rel="noopener noreferrer"
           className="text-blue-700 underline hover:text-blue-900"
         >
-          詳細を見る
+          {t('詳細を見る')}
         </a>
       </div>
       <button
         type="button"
         onClick={dismiss}
-        aria-label="このアップデート通知を閉じる"
+        aria-label={t('このアップデート通知を閉じる')}
         className="shrink-0 text-blue-600 hover:text-blue-800 px-2 -mr-2"
       >
         ✕

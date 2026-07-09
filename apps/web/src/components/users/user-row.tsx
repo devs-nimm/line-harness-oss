@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useI18n } from '@/lib/i18n'
 
 const fmt = new Intl.DateTimeFormat('ja-JP', {
   year: 'numeric',
@@ -43,6 +44,7 @@ interface Props {
 }
 
 export default function UserRow({ row, accountColorMap }: Props) {
+  const { t } = useI18n()
   const [expanded, setExpanded] = useState(false)
   const idShort =
     row.identityKey.length > 12 ? `${row.identityKey.slice(0, 8)}...` : row.identityKey
@@ -94,7 +96,7 @@ export default function UserRow({ row, accountColorMap }: Props) {
           <td colSpan={6} className="px-6 py-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <p className="mb-2 text-xs font-medium text-gray-500">登録アカウント詳細</p>
+                <p className="mb-2 text-xs font-medium text-gray-500">{t('登録アカウント詳細')}</p>
                 <ul className="space-y-1 text-sm">
                   {row.accounts.map((a) => (
                     <li key={a.friendId} className="flex flex-wrap items-center gap-2 text-gray-700">
@@ -104,7 +106,7 @@ export default function UserRow({ row, accountColorMap }: Props) {
                       <span className="font-medium">{a.accountName}</span>
                       <span className="font-mono text-xs text-gray-400">{a.lineUserId}</span>
                       <span className="text-xs text-gray-400">
-                        登録: {fmt.format(new Date(a.joinedAt))}
+                        {t('登録')}: {fmt.format(new Date(a.joinedAt))}
                       </span>
                     </li>
                   ))}
@@ -113,18 +115,18 @@ export default function UserRow({ row, accountColorMap }: Props) {
               <div className="space-y-2 text-sm">
                 {row.emails.length > 0 && (
                   <div>
-                    <p className="text-xs font-medium text-gray-500">メール（フォーム回答）</p>
+                    <p className="text-xs font-medium text-gray-500">{t('メール（フォーム回答）')}</p>
                     <p className="text-gray-700">{row.emails.join(', ')}</p>
                   </div>
                 )}
                 {row.phones.length > 0 && (
                   <div>
-                    <p className="text-xs font-medium text-gray-500">電話（フォーム回答）</p>
+                    <p className="text-xs font-medium text-gray-500">{t('電話（フォーム回答）')}</p>
                     <p className="text-gray-700">{row.phones.join(', ')}</p>
                   </div>
                 )}
                 <div>
-                  <p className="text-xs font-medium text-gray-500">識別子</p>
+                  <p className="text-xs font-medium text-gray-500">{t('識別子')}</p>
                   <p className="break-all font-mono text-xs text-gray-500">
                     {row.identityKey}
                     <span className="ml-2 rounded bg-gray-200 px-1 text-[10px] text-gray-600">

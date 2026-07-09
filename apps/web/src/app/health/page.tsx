@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Header from '@/components/layout/header'
 import { api } from '@/lib/api'
 import CcPromptButton from '@/components/cc-prompt-button'
+import { useI18n } from '@/lib/i18n'
 
 interface LineAccount {
   id: string
@@ -68,6 +69,7 @@ const ccPrompts = [
 ]
 
 export default function HealthPage() {
+  const { t } = useI18n()
   const [accounts, setAccounts] = useState<LineAccount[]>([])
   const [healthLogs, setHealthLogs] = useState<Record<string, AccountHealthLog[]>>({})
   const [latestRisk, setLatestRisk] = useState<Record<string, AccountHealthLog['riskLevel']>>({})
@@ -110,10 +112,10 @@ export default function HealthPage() {
         }
         setLatestRisk(risks)
       } else {
-        setError('アカウント情報の取得に失敗しました')
+        setError(t('アカウント情報の取得に失敗しました'))
       }
     } catch {
-      setError('アカウント情報の読み込みに失敗しました。もう一度お試しください。')
+      setError(t('アカウント情報の読み込みに失敗しました。もう一度お試しください。'))
     } finally {
       setLoading(false)
     }
@@ -149,7 +151,7 @@ export default function HealthPage() {
       setMigrateToId('')
       loadMigrations()
     } catch {
-      setError('移行リクエストに失敗しました')
+      setError(t('移行リクエストに失敗しました'))
     } finally {
       setMigrating(false)
     }
@@ -162,7 +164,7 @@ export default function HealthPage() {
 
   return (
     <div>
-      <Header title="BAN検知ダッシュボード" />
+      <Header title={t('BAN検知ダッシュボード')} />
 
       {/* Error */}
       {error && (
@@ -174,12 +176,12 @@ export default function HealthPage() {
       {/* Loading */}
       {loading ? (
         <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">
-          読み込み中...
+          {t('読み込み中...')}
         </div>
       ) : accounts.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">
-          <p className="mb-2">LINEアカウントが登録されていません</p>
-          <p className="text-xs text-gray-300">先にアカウント管理からLINEアカウントを登録してください</p>
+          <p className="mb-2">{t('LINEアカウントが登録されていません')}</p>
+          <p className="text-xs text-gray-300">{t('先にアカウント管理からLINEアカウントを登録してください')}</p>
         </div>
       ) : (
         <>
@@ -213,7 +215,7 @@ export default function HealthPage() {
                       <div className="flex items-center gap-2">
                         <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${config.bgColor} ${config.textColor}`}>
                           <span className={`w-2 h-2 rounded-full ${config.color} ${risk === 'danger' ? 'animate-pulse' : ''}`} />
-                          {config.label}
+                          {t(config.label)}
                         </span>
                         <svg
                           className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
@@ -239,23 +241,23 @@ export default function HealthPage() {
                             }}
                             className="px-3 py-1.5 rounded-lg text-white text-xs font-medium bg-red-500 hover:bg-red-600 transition-colors"
                           >
-                            友だちを移行する
+                            {t('友だちを移行する')}
                           </button>
                         </div>
                       )}
 
                       {logs.length === 0 ? (
-                        <p className="text-sm text-gray-400 text-center py-4">ヘルスログがありません</p>
+                        <p className="text-sm text-gray-400 text-center py-4">{t('ヘルスログがありません')}</p>
                       ) : (
                         <div className="overflow-x-auto">
                           <table className="w-full text-sm">
                             <thead>
                               <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
-                                <th className="pb-2 pr-3 font-medium">エラーコード</th>
-                                <th className="pb-2 pr-3 font-medium">エラー数</th>
-                                <th className="pb-2 pr-3 font-medium">チェック期間</th>
-                                <th className="pb-2 pr-3 font-medium">リスク</th>
-                                <th className="pb-2 font-medium">日時</th>
+                                <th className="pb-2 pr-3 font-medium">{t('エラーコード')}</th>
+                                <th className="pb-2 pr-3 font-medium">{t('エラー数')}</th>
+                                <th className="pb-2 pr-3 font-medium">{t('チェック期間')}</th>
+                                <th className="pb-2 pr-3 font-medium">{t('リスク')}</th>
+                                <th className="pb-2 font-medium">{t('日時')}</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -271,7 +273,7 @@ export default function HealthPage() {
                                     <td className="py-2 pr-3">
                                       <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${logConfig.bgColor} ${logConfig.textColor}`}>
                                         <span className={`w-1.5 h-1.5 rounded-full ${logConfig.color} ${log.riskLevel === 'danger' ? 'animate-pulse' : ''}`} />
-                                        {logConfig.label}
+                                        {t(logConfig.label)}
                                       </span>
                                     </td>
                                     <td className="py-2 text-gray-400 text-xs">
@@ -295,18 +297,18 @@ export default function HealthPage() {
           {migrateFrom && (
             <div className="mb-8 bg-white rounded-lg border border-red-200 p-6">
               <h2 className="text-sm font-bold text-gray-900 mb-4">
-                友だち移行: {getAccountName(migrateFrom)}
+                {t('友だち移行')}: {getAccountName(migrateFrom)}
               </h2>
               <form onSubmit={handleMigrate}>
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">移行先アカウント</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('移行先アカウント')}</label>
                   <select
                     value={migrateToId}
                     onChange={(e) => setMigrateToId(e.target.value)}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
                     required
                   >
-                    <option value="">選択してください</option>
+                    <option value="">{t('選択してください')}</option>
                     {accounts
                       .filter((a) => a.id !== migrateFrom && a.isActive)
                       .map((a) => (
@@ -323,7 +325,7 @@ export default function HealthPage() {
                     className="px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     style={{ backgroundColor: '#06C755' }}
                   >
-                    {migrating ? '移行中...' : '移行を開始'}
+                    {migrating ? t('移行中...') : t('移行を開始')}
                   </button>
                   <button
                     type="button"
@@ -333,7 +335,7 @@ export default function HealthPage() {
                     }}
                     className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                   >
-                    キャンセル
+                    {t('キャンセル')}
                   </button>
                 </div>
               </form>
@@ -342,10 +344,10 @@ export default function HealthPage() {
 
           {/* Migrations Table */}
           <div>
-            <h2 className="text-lg font-bold text-gray-900 mb-4">移行履歴</h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-4">{t('移行履歴')}</h2>
             {migrations.length === 0 ? (
               <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">
-                移行履歴はありません
+                {t('移行履歴はありません')}
               </div>
             ) : (
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -353,12 +355,12 @@ export default function HealthPage() {
                   <table className="w-full text-sm min-w-[640px]">
                     <thead>
                       <tr className="text-left text-xs text-gray-500 bg-gray-50 border-b border-gray-200">
-                        <th className="px-4 py-3 font-medium">移行元</th>
-                        <th className="px-4 py-3 font-medium">移行先</th>
-                        <th className="px-4 py-3 font-medium">ステータス</th>
-                        <th className="px-4 py-3 font-medium">進捗</th>
-                        <th className="px-4 py-3 font-medium">開始日時</th>
-                        <th className="px-4 py-3 font-medium">完了日時</th>
+                        <th className="px-4 py-3 font-medium">{t('移行元')}</th>
+                        <th className="px-4 py-3 font-medium">{t('移行先')}</th>
+                        <th className="px-4 py-3 font-medium">{t('ステータス')}</th>
+                        <th className="px-4 py-3 font-medium">{t('進捗')}</th>
+                        <th className="px-4 py-3 font-medium">{t('開始日時')}</th>
+                        <th className="px-4 py-3 font-medium">{t('完了日時')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -377,7 +379,7 @@ export default function HealthPage() {
                             </td>
                             <td className="px-4 py-3">
                               <span className={`inline-flex text-xs font-medium px-2.5 py-1 rounded-full ${status.bgColor} ${status.textColor}`}>
-                                {status.label}
+                                {t(status.label)}
                               </span>
                             </td>
                             <td className="px-4 py-3">

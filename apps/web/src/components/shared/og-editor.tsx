@@ -1,6 +1,7 @@
 'use client'
 
 import ImageUploader from './image-uploader'
+import { useI18n } from '@/lib/i18n'
 
 export interface OgValue {
   ogTitle: string | null
@@ -30,29 +31,30 @@ export default function OgEditor({
   autoImageUrl,
   hideTitle = false,
 }: OgEditorProps) {
+  const { t } = useI18n()
   const set = <K extends keyof OgValue>(k: K, v: OgValue[K]) =>
     onChange({ ...value, [k]: v })
 
   return (
     <div className="space-y-3 border border-gray-200 rounded-lg p-4 bg-gray-50">
       <div className="text-sm font-medium text-gray-900">
-        リンクプレビュー（OGP）
+        {t('リンクプレビュー（OGP）')}
       </div>
       <div className="text-xs text-gray-500">
-        LINE / X / Facebook 等にリンクを貼ったときに表示されるカードの内容。
-        空欄なら自動で生成されます。
+        {t('LINE / X / Facebook 等にリンクを貼ったときに表示されるカードの内容。')}
+        {t('空欄なら自動で生成されます。')}
       </div>
 
       {!hideTitle && (
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">
-            タイトル
+            {t('タイトル')}
           </label>
           <input
             type="text"
             value={value.ogTitle ?? ''}
             maxLength={TITLE_MAX}
-            placeholder={autoTitle ? `自動: ${autoTitle}` : '（自動生成）'}
+            placeholder={autoTitle ? `${t('自動: ')}${autoTitle}` : t('（自動生成）')}
             onChange={(e) => set('ogTitle', e.target.value || null)}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
           />
@@ -64,13 +66,13 @@ export default function OgEditor({
 
       <div>
         <label className="block text-xs font-medium text-gray-700 mb-1">
-          説明文
+          {t('説明文')}
         </label>
         <textarea
           value={value.ogDescription ?? ''}
           maxLength={DESC_MAX}
           placeholder={
-            autoDescription ? `自動: ${autoDescription}` : '（自動生成）'
+            autoDescription ? `${t('自動: ')}${autoDescription}` : t('（自動生成）')
           }
           rows={3}
           onChange={(e) => set('ogDescription', e.target.value || null)}
@@ -83,7 +85,7 @@ export default function OgEditor({
 
       <div>
         <label className="block text-xs font-medium text-gray-700 mb-1">
-          画像
+          {t('画像')}
         </label>
         <ImageUploader
           mode="url"
@@ -94,7 +96,7 @@ export default function OgEditor({
         />
         {!value.ogImageUrl && autoImageUrl && (
           <div className="text-xs text-gray-400 mt-1">
-            自動: {autoImageUrl}
+            {t('自動: ')}{autoImageUrl}
           </div>
         )}
       </div>

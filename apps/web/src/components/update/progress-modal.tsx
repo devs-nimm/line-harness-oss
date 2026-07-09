@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { openUpdateStream, getUpdateStatus } from '@/lib/update-client'
+import { useI18n } from '@/lib/i18n'
 import type { UpdateEvent } from '@line-harness/update-engine'
 
 /**
@@ -40,6 +41,7 @@ export function ProgressModal({
   updateId: string
   onClose: () => void
 }) {
+  const { t } = useI18n()
   const [events, setEvents] = useState<UpdateEvent[]>([])
   const [final, setFinal] = useState<FinalState | null>(null)
   const [mode, setMode] = useState<'sse' | 'polling'>('sse')
@@ -117,20 +119,20 @@ export function ProgressModal({
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
         <h2 className="text-lg font-semibold mb-3">
-          アップデート中{' '}
+          {t('アップデート中')}{' '}
           {mode === 'polling' && (
             <span className="text-xs text-gray-500">(polling)</span>
           )}
         </h2>
         <ul className="space-y-1 font-mono text-sm">
           {events.length === 0 && (
-            <li className="text-gray-500">接続中...</li>
+            <li className="text-gray-500">{t('接続中...')}</li>
           )}
           {events.map((e, i) => (
             <li key={i} className="flex items-center gap-2">
               <span className="w-5 inline-block">{iconFor(e.status)}</span>
               <span>
-                {labelFor(e.step)}
+                {t(labelFor(e.step))}
                 {e.name ? ` — ${e.name}` : ''}
                 {e.error ? ` (${e.error})` : ''}
               </span>
@@ -140,11 +142,11 @@ export function ProgressModal({
         {final && (
           <div className="mt-4 p-3 rounded bg-gray-50">
             {final.status === 'success' && (
-              <p className="text-green-700 font-semibold">完了しました 🎉</p>
+              <p className="text-green-700 font-semibold">{t('完了しました 🎉')}</p>
             )}
             {final.status === 'rolled_back' && (
               <p className="text-amber-700">
-                失敗。前バージョンに復旧済み。
+                {t('失敗。前バージョンに復旧済み。')}
                 {final.error && (
                   <span className="block text-xs mt-1 text-gray-600">
                     {final.error}
@@ -154,7 +156,7 @@ export function ProgressModal({
             )}
             {final.status === 'failed' && (
               <p className="text-red-700">
-                失敗 + 復旧失敗。手動対応が必要です。
+                {t('失敗 + 復旧失敗。手動対応が必要です。')}
                 {final.error && (
                   <span className="block text-xs mt-1 text-gray-600">
                     {final.error}
@@ -167,7 +169,7 @@ export function ProgressModal({
               onClick={onClose}
               className="mt-3 text-sm px-3 py-1 rounded bg-gray-200 hover:bg-gray-300"
             >
-              閉じる
+              {t('閉じる')}
             </button>
           </div>
         )}
