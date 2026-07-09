@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Header from '@/components/layout/header'
 import { eventsApi, type EventListItem } from '@/lib/api'
 import { useAccount } from '@/contexts/account-context'
+import { useI18n } from '@/lib/i18n'
 
 function formatJpDate(iso: string | null): string {
   if (!iso) return '日時未設定'
@@ -15,6 +16,7 @@ function formatJpDate(iso: string | null): string {
 
 export default function EventsListPage() {
   const { selectedAccountId } = useAccount()
+  const { t } = useI18n()
   const [items, setItems] = useState<EventListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -39,20 +41,20 @@ export default function EventsListPage() {
 
   return (
     <>
-      <Header title="イベント予約" />
+      <Header title={t('イベント予約')} />
       <div className="p-6 max-w-6xl mx-auto">
         <div className="mb-6 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">イベント一覧</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('イベント一覧')}</h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              日時を指定したイベントを作成し、LIFF 経由で友だちに予約してもらえます
+              {t('日時を指定したイベントを作成し、LIFF 経由で友だちに予約してもらえます')}
             </p>
           </div>
           <Link
             href="/events/new"
             className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
           >
-            ＋ 新しいイベント
+            ＋ {t('新しいイベント')}
           </Link>
         </div>
 
@@ -64,19 +66,19 @@ export default function EventsListPage() {
 
         {loading ? (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center text-gray-500">
-            読み込み中...
+            {t('読み込み中...')}
           </div>
         ) : items.length === 0 ? (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-            <div className="text-gray-700 font-medium mb-2">イベントが作成されていません</div>
+            <div className="text-gray-700 font-medium mb-2">{t('イベントが作成されていません')}</div>
             <p className="text-sm text-gray-500 mb-4">
-              友だちに告知する勉強会・説明会・オフ会などをここから作成します。
+              {t('友だちに告知する勉強会・説明会・オフ会などをここから作成します。')}
             </p>
             <Link
               href="/events/new"
               className="inline-block px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
             >
-              最初のイベントを作成
+              {t('最初のイベントを作成')}
             </Link>
           </div>
         ) : (
@@ -102,11 +104,11 @@ export default function EventsListPage() {
                     <div className="flex flex-col gap-1 shrink-0 items-end">
                       {e.is_published === 1 ? (
                         <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                          公開中
+                          {t('公開中')}
                         </span>
                       ) : (
                         <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                          下書き
+                          {t('下書き')}
                         </span>
                       )}
                       {e.target_type === 'multi-account-dedup' && (() => {
@@ -117,23 +119,23 @@ export default function EventsListPage() {
                             : []
                         return (
                           <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
-                            横断 {ids.length} アカ
+                            {t('横断')} {ids.length} {t('アカ')}
                           </span>
                         )
                       })()}
                     </div>
                   </div>
                   <div className="text-xs text-gray-500 mb-3">
-                    {formatJpDate(e.next_slot_starts_at)}
+                    {t(formatJpDate(e.next_slot_starts_at))}
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-700">
-                      予約 <span className="font-semibold">{e.total_active}</span>
+                      {t('予約')} <span className="font-semibold">{e.total_active}</span>
                       {e.total_capacity != null && <span className="text-gray-400"> / {e.total_capacity}</span>}
                     </span>
                     {e.pending_count > 0 && (
                       <span className="bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-0.5 rounded-full">
-                        承認待ち {e.pending_count}
+                        {t('承認待ち')} {e.pending_count}
                       </span>
                     )}
                   </div>

@@ -6,6 +6,7 @@ import Header from '@/components/layout/header'
 import ImageUploader from '@/components/shared/image-uploader'
 import { bookingApi, type BookingStaff } from '@/lib/api'
 import { useAccount } from '@/contexts/account-context'
+import { useI18n } from '@/lib/i18n'
 
 const EMPTY: Partial<BookingStaff> = {
   name: '',
@@ -20,6 +21,7 @@ const EMPTY: Partial<BookingStaff> = {
 
 export default function BookingStaffPage() {
   const { selectedAccountId } = useAccount()
+  const { t } = useI18n()
   const [items, setItems] = useState<BookingStaff[]>([])
   const [editing, setEditing] = useState<Partial<BookingStaff> | null>(null)
   const [loading, setLoading] = useState(true)
@@ -58,7 +60,7 @@ export default function BookingStaffPage() {
 
   async function remove(id: string) {
     if (!selectedAccountId) return
-    if (!confirm('このスタッフを削除しますか？（既存予約は維持されます）')) return
+    if (!confirm(t('このスタッフを削除しますか？（既存予約は維持されます）'))) return
     await bookingApi.deleteStaff(selectedAccountId, id)
     await load()
   }
@@ -66,8 +68,8 @@ export default function BookingStaffPage() {
   return (
     <div>
       <Header
-        title="予約スタッフ"
-        description="予約担当スタッフの管理（指名なし枠も含む）"
+        title={t('予約スタッフ')}
+        description={t('予約担当スタッフの管理（指名なし枠も含む）')}
         action={
           <button
             onClick={() => setEditing(EMPTY)}
@@ -75,7 +77,7 @@ export default function BookingStaffPage() {
             className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50"
             style={{ backgroundColor: '#06C755' }}
           >
-            + 新規スタッフ
+            + {t('新規スタッフ')}
           </button>
         }
       />
@@ -88,15 +90,15 @@ export default function BookingStaffPage() {
 
       {!selectedAccountId ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center text-sm text-gray-500">
-          サイドバーでアカウントを選択してください
+          {t('サイドバーでアカウントを選択してください')}
         </div>
       ) : loading ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center text-sm text-gray-500">
-          読み込み中…
+          {t('読み込み中…')}
         </div>
       ) : items.length === 0 ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center text-sm text-gray-500">
-          まだスタッフがいません。右上の「+ 新規スタッフ」から追加してください。
+          {t('まだスタッフがいません。右上の「+ 新規スタッフ」から追加してください。')}
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -104,12 +106,12 @@ export default function BookingStaffPage() {
             <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">スタッフ</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">役職</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">指名なし枠</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">並び順</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">有効</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">操作</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('スタッフ')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('役職')}</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">{t('指名なし枠')}</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{t('並び順')}</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">{t('有効')}</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{t('操作')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -139,7 +141,7 @@ export default function BookingStaffPage() {
                     <td className="px-4 py-3 text-sm text-gray-600">{s.role ?? '-'}</td>
                     <td className="px-4 py-3 text-center">
                       {s.is_designation_optional ? (
-                        <span className="inline-block px-2 py-0.5 rounded bg-purple-100 text-purple-700 text-xs">指名なし</span>
+                        <span className="inline-block px-2 py-0.5 rounded bg-purple-100 text-purple-700 text-xs">{t('指名なし')}</span>
                       ) : (
                         <span className="text-xs text-gray-300">-</span>
                       )}
@@ -154,11 +156,11 @@ export default function BookingStaffPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="inline-flex gap-2 text-xs">
-                        <button onClick={() => setEditing(s)} className="text-blue-600 hover:underline">編集</button>
+                        <button onClick={() => setEditing(s)} className="text-blue-600 hover:underline">{t('編集')}</button>
                         <Link href={`/booking/staff/shifts?staff_id=${s.id}`} className="text-blue-600 hover:underline">
-                          シフト
+                          {t('シフト')}
                         </Link>
-                        <button onClick={() => remove(s.id)} className="text-red-600 hover:underline">削除</button>
+                        <button onClick={() => remove(s.id)} className="text-red-600 hover:underline">{t('削除')}</button>
                       </div>
                     </td>
                   </tr>
@@ -183,6 +185,7 @@ function Modal({
   onSave: (s: Partial<BookingStaff>) => Promise<void>
   onClose: () => void
 }) {
+  const { t } = useI18n()
   const [form, setForm] = useState<Partial<BookingStaff>>(staff)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -207,43 +210,43 @@ function Modal({
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-base font-semibold">{form.id ? 'スタッフ編集' : '新規スタッフ'}</h2>
+          <h2 className="text-base font-semibold">{form.id ? t('スタッフ編集') : t('新規スタッフ')}</h2>
         </div>
         <div className="px-6 py-4 space-y-4">
-          <Field label="内部名（管理用）" required>
+          <Field label={t('内部名（管理用）')} required>
             <input
               type="text"
               value={form.name ?? ''}
               onChange={(e) => set('name', e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              placeholder="例: yamada-taro"
+              placeholder={t('例: yamada-taro')}
             />
           </Field>
-          <Field label="表示名" required>
+          <Field label={t('表示名')} required>
             <input
               type="text"
               value={form.display_name ?? ''}
               onChange={(e) => set('display_name', e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              placeholder="顧客に表示される名前"
+              placeholder={t('顧客に表示される名前')}
             />
           </Field>
-          <Field label="役職">
+          <Field label={t('役職')}>
             <input
               type="text"
               value={form.role ?? ''}
               onChange={(e) => set('role', e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              placeholder="例: トップスタイリスト"
+              placeholder={t('例: トップスタイリスト')}
             />
           </Field>
           <ImageUploader
             mode="url"
             value={form.profile_image_url ? { mode: 'url', url: form.profile_image_url } : null}
             onChange={(v) => set('profile_image_url', v?.mode === 'url' ? v.url : '')}
-            label="プロフィール画像"
+            label={t('プロフィール画像')}
           />
-          <Field label="紹介文">
+          <Field label={t('紹介文')}>
             <textarea
               value={form.bio ?? ''}
               onChange={(e) => set('bio', e.target.value)}
@@ -251,7 +254,7 @@ function Modal({
               rows={2}
             />
           </Field>
-          <Field label="並び順">
+          <Field label={t('並び順')}>
             <input
               type="number"
               value={form.sort_order ?? 0}
@@ -266,7 +269,7 @@ function Modal({
               onChange={(e) => set('is_designation_optional', e.target.checked ? 1 : 0)}
               className="rounded"
             />
-            <span>「指名なし」枠（仮想スタッフ）</span>
+            <span>{t('「指名なし」枠（仮想スタッフ）')}</span>
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -275,7 +278,7 @@ function Modal({
               onChange={(e) => set('is_active', e.target.checked ? 1 : 0)}
               className="rounded"
             />
-            <span>有効（顧客に表示する）</span>
+            <span>{t('有効（顧客に表示する）')}</span>
           </label>
           {err && <p className="text-xs text-red-600">{err}</p>}
         </div>
@@ -284,7 +287,7 @@ function Modal({
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg"
           >
-            キャンセル
+            {t('キャンセル')}
           </button>
           <button
             onClick={submit}
@@ -292,7 +295,7 @@ function Modal({
             className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
             style={{ backgroundColor: '#06C755' }}
           >
-            {saving ? '保存中…' : '保存'}
+            {saving ? t('保存中…') : t('保存')}
           </button>
         </div>
       </div>
