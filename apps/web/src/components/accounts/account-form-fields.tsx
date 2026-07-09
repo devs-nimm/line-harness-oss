@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react'
 import OgEditor from '@/components/shared/og-editor'
+import { useI18n } from '@/lib/i18n'
 
 // Shared form field building blocks for the LINE account create / edit flows.
 // Kept as primitives (not a full form) so the create page (single submit) and
@@ -127,11 +128,12 @@ export function AccountFormSections({
   channelIdEditable?: boolean
   defaultOpen?: { messaging?: boolean; login?: boolean; liff?: boolean; ogp?: boolean }
 }) {
+  const { t } = useI18n()
   return (
     <div className="space-y-3">
       <FormSection
         title="Messaging API"
-        description="LINE 公式アカウント本体の送信用設定（必須）"
+        description={t('LINE 公式アカウント本体の送信用設定（必須）')}
         defaultOpen={defaultOpen?.messaging ?? true}
       >
         {channelIdEditable ? (
@@ -152,7 +154,7 @@ export function AccountFormSections({
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono bg-gray-50 text-gray-500 cursor-not-allowed"
             />
             <p className="text-[11px] text-gray-400 mt-1">
-              Channel ID は変更できません（LINE 側で固定の識別子）
+              {t('Channel ID は変更できません（LINE 側で固定の識別子）')}
             </p>
           </div>
         )}
@@ -165,7 +167,7 @@ export function AccountFormSections({
           hint={
             showMessagingRequired
               ? undefined
-              : '空欄なら現在の値を維持。再発行した場合のみ入力'
+              : t('空欄なら現在の値を維持。再発行した場合のみ入力')
           }
         />
         <TextField
@@ -174,13 +176,13 @@ export function AccountFormSections({
           onChange={(v) => update({ channelSecret: v })}
           required={showMessagingRequired}
           type="password"
-          hint={showMessagingRequired ? undefined : '空欄なら現在の値を維持'}
+          hint={showMessagingRequired ? undefined : t('空欄なら現在の値を維持')}
         />
       </FormSection>
 
       <FormSection
-        title="LINE Login（任意）"
-        description="友だち追加 OAuth 導線で使う。後から追加可"
+        title={t('LINE Login（任意）')}
+        description={t('友だち追加 OAuth 導線で使う。後から追加可')}
         defaultOpen={defaultOpen?.login ?? false}
       >
         <TextField
@@ -199,8 +201,8 @@ export function AccountFormSections({
       </FormSection>
 
       <FormSection
-        title="LIFF（任意）"
-        description="LIFF page を開くときの ?liffId= で識別。後から追加可"
+        title={t('LIFF（任意）')}
+        description={t('LIFF page を開くときの ?liffId= で識別。後から追加可')}
         defaultOpen={defaultOpen?.liff ?? false}
       >
         <TextField
@@ -208,18 +210,18 @@ export function AccountFormSections({
           value={state.liffId}
           onChange={(v) => update({ liffId: v })}
           placeholder="2009624792-XXXXXXXX"
-          hint="LINE Developers > Login channel > LIFF タブで作成したものの ID"
+          hint={t('LINE Developers > Login channel > LIFF タブで作成したものの ID')}
         />
       </FormSection>
 
       <FormSection
-        title="ブランド設定（OGP）"
-        description="LINE / X / Facebook のリンクプレビューに使うブランド情報"
+        title={t('ブランド設定（OGP）')}
+        description={t('LINE / X / Facebook のリンクプレビューに使うブランド情報')}
         defaultOpen={defaultOpen?.ogp ?? false}
       >
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">
-            サイト名（og:site_name）
+            {t('サイト名（og:site_name）')}
           </label>
           <input
             type="text"
@@ -229,7 +231,7 @@ export function AccountFormSections({
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
           />
           <p className="text-[11px] text-gray-400 mt-1">
-            リンクプレビューでブランド名として表示されます。
+            {t('リンクプレビューでブランド名として表示されます。')}
           </p>
         </div>
         <OgEditor

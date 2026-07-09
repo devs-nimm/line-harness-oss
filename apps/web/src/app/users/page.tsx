@@ -6,6 +6,7 @@ import SummaryBar from '@/components/users/summary-bar'
 import UsersFilters from '@/components/users/users-filters'
 import UsersTable from '@/components/users/users-table'
 import { api } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 import type { UserRowData } from '@/components/users/user-row'
 
 const PAGE_SIZE = 50
@@ -16,6 +17,7 @@ interface AccountOption {
 }
 
 export default function UsersPage() {
+  const { t } = useI18n()
   const [rows, setRows] = useState<UserRowData[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -85,13 +87,13 @@ export default function UsersPage() {
         // 失敗時に古い rows を残すと、新しいフィルタ条件で古いデータが見えて誤誘導するのでクリア。
         setRows([])
         setTotal(0)
-        setError('取得に失敗しました')
+        setError(t('取得に失敗しました'))
       }
     } catch {
       if (seq !== requestSeqRef.current) return
       setRows([])
       setTotal(0)
-      setError('取得に失敗しました')
+      setError(t('取得に失敗しました'))
     } finally {
       if (seq === requestSeqRef.current) {
         setLoading(false)
@@ -108,13 +110,13 @@ export default function UsersPage() {
   }, [load])
 
   const headerDescription = useMemo(
-    () => 'LINE 画像トークンで人単位にまとめた一覧。重複・X・フォーム回答を一目で。',
-    [],
+    () => t('LINE 画像トークンで人単位にまとめた一覧。重複・X・フォーム回答を一目で。'),
+    [t],
   )
 
   return (
     <div className="space-y-6">
-      <Header title="ユーザー一覧" description={headerDescription} />
+      <Header title={t('ユーザー一覧')} description={headerDescription} />
 
       <SummaryBar />
 
@@ -137,9 +139,9 @@ export default function UsersPage() {
           onClick={() => setPendingForceRefresh(true)}
           disabled={refreshing}
           className="mt-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-          title="worker キャッシュをバイパスして再集計"
+          title={t('worker キャッシュをバイパスして再集計')}
         >
-          {refreshing ? '再計算中…' : '再計算'}
+          {refreshing ? t('再計算中…') : t('再計算')}
         </button>
       </div>
 

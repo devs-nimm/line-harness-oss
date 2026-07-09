@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useI18n } from '@/lib/i18n'
 
 interface Props {
   liffId: string | null
@@ -21,6 +22,7 @@ function workerBase(): string {
 }
 
 export default function AccountSetupUrls({ liffId, heading }: Props) {
+  const { t } = useI18n()
   const base = workerBase()
   const webhookUrl = base ? `${base}/webhook` : ''
   const callbackUrl = base ? `${base}/auth/callback` : ''
@@ -33,21 +35,21 @@ export default function AccountSetupUrls({ liffId, heading }: Props) {
   return (
     <div className="space-y-3 mt-4 pt-4 border-t border-gray-100">
       <p className="text-xs font-medium text-gray-700">
-        {heading ?? 'LINE Developers Console に登録すべき URL'}
+        {heading ?? t('LINE Developers Console に登録すべき URL')}
       </p>
       <div className="space-y-2">
-        <UrlRow label="Webhook URL" hint="Messaging API channel に貼る" url={webhookUrl} />
+        <UrlRow label="Webhook URL" hint={t('Messaging API channel に貼る')} url={webhookUrl} />
         <UrlRow
           label="Callback URL"
-          hint="LINE Login channel の Callback URL に貼る"
+          hint={t('LINE Login channel の Callback URL に貼る')}
           url={callbackUrl}
         />
         <UrlRow
           label="LIFF Endpoint URL"
           hint={
             liffId
-              ? '?liffId= 付き — LIFF 設定画面に貼る'
-              : 'LIFF ID 入力後に表示されます'
+              ? t('?liffId= 付き — LIFF 設定画面に貼る')
+              : t('LIFF ID 入力後に表示されます')
           }
           url={liffEndpointUrl}
         />
@@ -57,6 +59,7 @@ export default function AccountSetupUrls({ liffId, heading }: Props) {
 }
 
 function UrlRow({ label, hint, url }: { label: string; hint: string; url: string }) {
+  const { t } = useI18n()
   const [copied, setCopied] = useState(false)
   const onCopy = async () => {
     if (!url) return
@@ -90,7 +93,7 @@ function UrlRow({ label, hint, url }: { label: string; hint: string; url: string
           disabled={!url}
           className="px-2 rounded text-xs font-medium border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {copied ? '✓' : 'コピー'}
+          {copied ? '✓' : t('コピー')}
         </button>
       </div>
     </div>

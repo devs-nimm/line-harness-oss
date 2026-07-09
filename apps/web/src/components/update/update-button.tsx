@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { startUpdate } from '@/lib/update-client'
 import { ProgressModal } from './progress-modal'
+import { useI18n } from '@/lib/i18n'
 
 /**
  * Kicks off an update via `POST /admin/update/start` and mounts a
@@ -10,6 +11,7 @@ import { ProgressModal } from './progress-modal'
  * SSE/polling lifecycle and calls `onClose` when the operator dismisses it.
  */
 export function UpdateButton({ targetVersion }: { targetVersion: string }) {
+  const { t } = useI18n()
   const [loading, setLoading] = useState(false)
   const [updateId, setUpdateId] = useState<string | null>(null)
 
@@ -34,7 +36,7 @@ export function UpdateButton({ targetVersion }: { targetVersion: string }) {
         disabled={loading}
         className="text-sm px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
       >
-        {loading ? '開始中...' : `v${targetVersion} にアップデート`}
+        {loading ? t('開始中...') : `v${targetVersion} ${t('にアップデート')}`}
       </button>
       {updateId && (
         <ProgressModal

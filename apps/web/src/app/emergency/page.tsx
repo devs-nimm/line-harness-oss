@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { api } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 import Header from '@/components/layout/header'
 import CcPromptButton from '@/components/cc-prompt-button'
 
@@ -35,23 +36,24 @@ const emergencyPrompts = [
 ]
 
 export default function EmergencyPage() {
+  const { t } = useI18n()
   const [actions, setActions] = useState<EmergencyAction[]>([
     {
       id: 'stop-broadcasts',
-      label: '全配信停止',
-      description: 'スケジュール済みの一斉配信を全て下書きに戻します',
+      label: t('全配信停止'),
+      description: t('スケジュール済みの一斉配信を全て下書きに戻します'),
       status: 'idle',
     },
     {
       id: 'stop-scenarios',
-      label: 'シナリオ一括停止',
-      description: '全てのアクティブなシナリオ配信を無効化します',
+      label: t('シナリオ一括停止'),
+      description: t('全てのアクティブなシナリオ配信を無効化します'),
       status: 'idle',
     },
     {
       id: 'switch-account',
-      label: 'アカウント切替',
-      description: 'BAN検知時のアカウント移行ページへ移動します',
+      label: t('アカウント切替'),
+      description: t('BAN検知時のアカウント移行ページへ移動します'),
       status: 'idle',
     },
   ])
@@ -97,7 +99,7 @@ export default function EmergencyPage() {
         }
         updateAction(id, { status: 'done' })
       } catch {
-        updateAction(id, { status: 'error', errorMessage: '実行に失敗しました。再度お試しください。' })
+        updateAction(id, { status: 'error', errorMessage: t('実行に失敗しました。再度お試しください。') })
       }
     }
   }
@@ -114,19 +116,19 @@ export default function EmergencyPage() {
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
-            完了
+            {t('完了')}
           </span>
         )
       case 'executing':
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
-            実行中...
+            {t('実行中...')}
           </span>
         )
       case 'error':
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-            エラー
+            {t('エラー')}
           </span>
         )
       default:
@@ -136,7 +138,7 @@ export default function EmergencyPage() {
 
   return (
     <div>
-      <Header title="緊急コントロール" />
+      <Header title={t('緊急コントロール')} />
 
       {/* Warning banner */}
       <div className="mb-6 p-4 bg-red-50 border-2 border-red-300 rounded-lg">
@@ -146,9 +148,9 @@ export default function EmergencyPage() {
               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.072 16.5c-.77.833.192 2.5 1.732 2.5z" />
           </svg>
           <div>
-            <p className="text-sm font-bold text-red-800">注意: この操作は即時実行されます</p>
+            <p className="text-sm font-bold text-red-800">{t('注意: この操作は即時実行されます')}</p>
             <p className="text-xs text-red-600 mt-1">
-              各ボタンをクリックすると確認ダイアログが表示されます。「実行」で操作が開始されます。
+              {t('各ボタンをクリックすると確認ダイアログが表示されます。「実行」で操作が開始されます。')}
             </p>
           </div>
         </div>
@@ -173,19 +175,19 @@ export default function EmergencyPage() {
 
             {action.status === 'confirming' ? (
               <div className="space-y-2">
-                <p className="text-xs font-medium text-red-700">本当に実行しますか？</p>
+                <p className="text-xs font-medium text-red-700">{t('本当に実行しますか？')}</p>
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleAction(action.id)}
                     className="flex-1 px-3 py-2 min-h-[44px] text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
                   >
-                    実行
+                    {t('実行')}
                   </button>
                   <button
                     onClick={() => handleCancel(action.id)}
                     className="flex-1 px-3 py-2 min-h-[44px] text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                   >
-                    キャンセル
+                    {t('キャンセル')}
                   </button>
                 </div>
               </div>
@@ -195,7 +197,7 @@ export default function EmergencyPage() {
                 disabled={action.status === 'executing'}
                 className="w-full px-3 py-2 min-h-[44px] text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg transition-colors"
               >
-                {action.status === 'executing' ? '実行中...' : action.label}
+                {action.status === 'executing' ? t('実行中...') : action.label}
               </button>
             )}
           </div>
@@ -204,7 +206,7 @@ export default function EmergencyPage() {
 
       {/* Current status section */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-sm font-semibold text-gray-800 mb-3">現在のステータス</h2>
+        <h2 className="text-sm font-semibold text-gray-800 mb-3">{t('現在のステータス')}</h2>
         <div className="space-y-2">
           {actions.map((action) => (
             <div key={action.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
@@ -218,11 +220,11 @@ export default function EmergencyPage() {
                   ? 'text-yellow-600'
                   : 'text-gray-400'
               }`}>
-                {action.status === 'idle' && '未実行'}
-                {action.status === 'confirming' && '確認待ち'}
-                {action.status === 'executing' && '実行中'}
-                {action.status === 'done' && '実行済み'}
-                {action.status === 'error' && 'エラー'}
+                {action.status === 'idle' && t('未実行')}
+                {action.status === 'confirming' && t('確認待ち')}
+                {action.status === 'executing' && t('実行中')}
+                {action.status === 'done' && t('実行済み')}
+                {action.status === 'error' && t('エラー')}
               </span>
             </div>
           ))}

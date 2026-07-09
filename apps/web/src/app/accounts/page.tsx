@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { api } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 import Header from '@/components/layout/header'
 import CcPromptButton from '@/components/cc-prompt-button'
 import TestRecipientsSetting from '@/components/accounts/test-recipients-setting'
@@ -58,6 +59,7 @@ const ccPrompts = [
 ]
 
 export default function AccountsPage() {
+  const { t } = useI18n()
   const [accounts, setAccounts] = useState<LineAccountListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -77,10 +79,10 @@ export default function AccountsPage() {
       if (res.success) {
         setAccounts(res.data as unknown as LineAccountListItem[])
       } else {
-        setError('アカウント情報の取得に失敗しました')
+        setError(t('アカウント情報の取得に失敗しました'))
       }
     } catch {
-      setError('APIに接続できませんでした。サーバーが起動しているか確認してください。')
+      setError(t('APIに接続できませんでした。サーバーが起動しているか確認してください。'))
     }
     setLoading(false)
   }
@@ -94,7 +96,7 @@ export default function AccountsPage() {
     e.preventDefault()
     setCreateError('')
     if (!form.channelId || !form.name || !form.channelAccessToken || !form.channelSecret) {
-      setCreateError('Messaging API の必須項目を入力してください')
+      setCreateError(t('Messaging API の必須項目を入力してください'))
       return
     }
     setSubmitting(true)
@@ -117,17 +119,17 @@ export default function AccountsPage() {
         setShowCreate(false)
         load()
       } else {
-        setCreateError(res.error || '登録に失敗しました')
+        setCreateError(res.error || t('登録に失敗しました'))
       }
     } catch {
-      setCreateError('登録に失敗しました')
+      setCreateError(t('登録に失敗しました'))
     } finally {
       setSubmitting(false)
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('このLINEアカウントを削除しますか？')) return
+    if (!confirm(t('このLINEアカウントを削除しますか？'))) return
     await api.lineAccounts.delete(id)
     load()
   }
@@ -140,15 +142,15 @@ export default function AccountsPage() {
   return (
     <div>
       <Header
-        title="LINEアカウント管理"
-        description="マルチアカウント設定"
+        title={t('LINEアカウント管理')}
+        description={t('マルチアカウント設定')}
         action={
           <div className="flex gap-2">
             <button
               onClick={() => setShowReorder(true)}
               className="px-3 py-2 rounded-lg text-xs font-medium border border-gray-300 hover:bg-gray-50"
             >
-              並び替えモード
+              {t('並び替えモード')}
             </button>
             <button
               onClick={() => {
@@ -162,7 +164,7 @@ export default function AccountsPage() {
               className="px-4 py-2 rounded-lg text-white text-sm font-medium"
               style={{ backgroundColor: '#06C755' }}
             >
-              {showCreate ? 'キャンセル' : '+ アカウント追加'}
+              {showCreate ? t('キャンセル') : t('+ アカウント追加')}
             </button>
           </div>
         }
@@ -177,17 +179,17 @@ export default function AccountsPage() {
       {justCreated && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
           <p className="text-sm font-semibold text-green-800 mb-2">
-            ✓ アカウントを登録しました
+            ✓ {t('アカウントを登録しました')}
           </p>
           <p className="text-xs text-green-700 mb-3">
-            次に LINE Developers Console で以下の URL を貼り付けてください。
+            {t('次に LINE Developers Console で以下の URL を貼り付けてください。')}
           </p>
-          <AccountSetupUrls liffId={justCreated.liffId} heading="登録すべき URL" />
+          <AccountSetupUrls liffId={justCreated.liffId} heading={t('登録すべき URL')} />
           <button
             onClick={() => setJustCreated(null)}
             className="mt-3 text-xs text-green-700 underline"
           >
-            閉じる
+            {t('閉じる')}
           </button>
         </div>
       )}
@@ -196,13 +198,13 @@ export default function AccountsPage() {
         <form onSubmit={handleCreate} className="bg-white rounded-lg border border-gray-200 p-6 mb-6 space-y-4">
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              アカウント名 <span className="text-red-500">*</span>
+              {t('アカウント名')} <span className="text-red-500">*</span>
             </label>
             <input
               value={form.name}
               onChange={(e) => updateForm({ name: e.target.value })}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-              placeholder="メインアカウント"
+              placeholder={t('メインアカウント')}
               required
             />
           </div>
@@ -227,17 +229,17 @@ export default function AccountsPage() {
             className="px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
             style={{ backgroundColor: '#06C755' }}
           >
-            {submitting ? '登録中...' : '登録'}
+            {submitting ? t('登録中...') : t('登録')}
           </button>
         </form>
       )}
 
       {loading ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">読み込み中...</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">{t('読み込み中...')}</div>
       ) : accounts.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">
-          <p className="mb-2">LINEアカウントが登録されていません</p>
-          <p className="text-xs text-gray-300">LINE Developers Console からChannel情報を取得して登録してください</p>
+          <p className="mb-2">{t('LINEアカウントが登録されていません')}</p>
+          <p className="text-xs text-gray-300">{t('LINE Developers Console からChannel情報を取得して登録してください')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -270,21 +272,21 @@ export default function AccountsPage() {
                   onClick={() => handleToggle(account.id, account.isActive)}
                   className={`text-xs px-2 py-0.5 rounded-full ${account.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}
                 >
-                  {account.isActive ? '有効' : '無効'}
+                  {account.isActive ? t('有効') : t('無効')}
                 </button>
               </div>
               <div className="grid grid-cols-3 gap-3 mb-4 py-3 border-t border-b border-gray-100">
                 <div className="text-center">
                   <p className="text-lg font-bold text-gray-900">{account.stats.friendCount}</p>
-                  <p className="text-xs text-gray-400">友だち</p>
+                  <p className="text-xs text-gray-400">{t('友だち')}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-lg font-bold text-blue-600">{account.stats.activeScenarios}</p>
-                  <p className="text-xs text-gray-400">配信中</p>
+                  <p className="text-xs text-gray-400">{t('配信中')}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-lg font-bold text-green-600">{account.stats.messagesThisMonth}</p>
-                  <p className="text-xs text-gray-400">今月送信</p>
+                  <p className="text-xs text-gray-400">{t('今月送信')}</p>
                 </div>
               </div>
 
@@ -299,7 +301,7 @@ export default function AccountsPage() {
                       : 'bg-gray-100 text-gray-400'
                   }`}
                 >
-                  Login: {account.loginChannelId ? '設定済' : '未設定'}
+                  Login: {account.loginChannelId ? t('設定済') : t('未設定')}
                 </span>
                 <span
                   className={`px-2 py-0.5 rounded-full ${
@@ -308,7 +310,7 @@ export default function AccountsPage() {
                       : 'bg-gray-100 text-gray-400'
                   }`}
                 >
-                  LIFF: {account.liffId ? '設定済' : '未設定'}
+                  LIFF: {account.liffId ? t('設定済') : t('未設定')}
                 </span>
               </div>
 
@@ -322,20 +324,20 @@ export default function AccountsPage() {
 
               <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
                 <p className="text-xs text-gray-400">
-                  登録: {new Date(account.createdAt).toLocaleDateString('ja-JP')}
+                  {t('登録')}: {new Date(account.createdAt).toLocaleDateString('ja-JP')}
                 </p>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setEditing(account)}
                     className="text-xs text-blue-600 hover:text-blue-800"
                   >
-                    編集
+                    {t('編集')}
                   </button>
                   <button
                     onClick={() => handleDelete(account.id)}
                     className="text-red-500 hover:text-red-700 text-xs"
                   >
-                    削除
+                    {t('削除')}
                   </button>
                 </div>
               </div>
@@ -344,7 +346,7 @@ export default function AccountsPage() {
         </div>
       )}
       <div className="mt-8">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">グローバル設定</h2>
+        <h2 className="text-sm font-semibold text-gray-700 mb-3">{t('グローバル設定')}</h2>
         <LinkBaseUrlSetting />
       </div>
       <CcPromptButton prompts={ccPrompts} />

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 import CcPromptButton from '@/components/cc-prompt-button'
 import { useAccount } from '@/contexts/account-context'
+import { useI18n } from '@/lib/i18n'
 
 const ccPrompts = [
   {
@@ -44,6 +45,7 @@ interface StatCardProps {
 }
 
 function StatCard({ title, value, loading, icon, href, accentColor = '#06C755' }: StatCardProps) {
+  const { t } = useI18n()
   return (
     <Link href={href} className="block bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow group">
       <div className="flex items-start justify-between">
@@ -65,13 +67,14 @@ function StatCard({ title, value, loading, icon, href, accentColor = '#06C755' }
         </div>
       </div>
       <p className="text-xs text-gray-400 mt-3 group-hover:text-green-600 transition-colors">
-        詳細を見る →
+        {t('詳細を見る →')}
       </p>
     </Link>
   )
 }
 
 export default function DashboardPage() {
+  const { t } = useI18n()
   const { selectedAccountId, selectedAccount } = useAccount()
   const [stats, setStats] = useState<DashboardStats>({
     friendCount: null,
@@ -125,7 +128,7 @@ export default function DashboardPage() {
               : null,
         })
       } catch {
-        setError('データの読み込みに失敗しました')
+        setError(t('データの読み込みに失敗しました'))
       } finally {
         setLoading(false)
       }
@@ -137,11 +140,11 @@ export default function DashboardPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">ダッシュボード</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('ダッシュボード')}</h1>
         <p className="text-sm text-gray-500 mt-1">
           {selectedAccount
-            ? `${selectedAccount.displayName || selectedAccount.name} の管理画面`
-            : 'LINE公式アカウント CRM 管理画面'}
+            ? `${selectedAccount.displayName || selectedAccount.name} ${t('の管理画面')}`
+            : t('LINE公式アカウント CRM 管理画面')}
         </p>
       </div>
 
@@ -160,11 +163,11 @@ export default function DashboardPage() {
       >
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-bold text-gray-900">LINE で体験する</p>
-            <p className="text-xs text-gray-500 mt-0.5">友だち追加でステップ配信・フォーム・自動返信を体験</p>
+            <p className="text-sm font-bold text-gray-900">{t('LINE で体験する')}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{t('友だち追加でステップ配信・フォーム・自動返信を体験')}</p>
           </div>
           <span className="text-xs px-3 py-1.5 rounded-full text-white font-medium" style={{ backgroundColor: '#06C755' }}>
-            友だち追加
+            {t('友だち追加')}
           </span>
         </div>
       </a>
@@ -172,7 +175,7 @@ export default function DashboardPage() {
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
         <StatCard
-          title="友だち数"
+          title={t('友だち数')}
           value={stats.friendCount}
           loading={loading}
           href="/friends"
@@ -184,7 +187,7 @@ export default function DashboardPage() {
           }
         />
         <StatCard
-          title="アクティブシナリオ数"
+          title={t('アクティブシナリオ数')}
           value={stats.activeScenarioCount}
           loading={loading}
           href="/scenarios"
@@ -197,7 +200,7 @@ export default function DashboardPage() {
           }
         />
         <StatCard
-          title="配信数 (合計)"
+          title={t('配信数 (合計)')}
           value={stats.broadcastCount}
           loading={loading}
           href="/broadcasts"
@@ -214,7 +217,7 @@ export default function DashboardPage() {
       {/* Round 3 summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
         <StatCard
-          title="テンプレート数"
+          title={t('テンプレート数')}
           value={stats.templateCount}
           loading={loading}
           href="/templates"
@@ -227,7 +230,7 @@ export default function DashboardPage() {
           }
         />
         <StatCard
-          title="アクティブルール数"
+          title={t('アクティブルール数')}
           value={stats.automationCount}
           loading={loading}
           href="/automations"
@@ -240,7 +243,7 @@ export default function DashboardPage() {
           }
         />
         <StatCard
-          title="スコアリングルール数"
+          title={t('スコアリングルール数')}
           value={stats.scoringRuleCount}
           loading={loading}
           href="/scoring"
@@ -256,7 +259,7 @@ export default function DashboardPage() {
 
       {/* Quick links */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-sm font-semibold text-gray-800 mb-4">クイックアクション</h2>
+        <h2 className="text-sm font-semibold text-gray-800 mb-4">{t('クイックアクション')}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Link
             href="/friends"
@@ -269,8 +272,8 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-900 group-hover:text-green-700 transition-colors">友だち管理</p>
-              <p className="text-xs text-gray-400">友だちの一覧・タグ管理</p>
+              <p className="text-sm font-medium text-gray-900 group-hover:text-green-700 transition-colors">{t('友だち管理')}</p>
+              <p className="text-xs text-gray-400">{t('友だちの一覧・タグ管理')}</p>
             </div>
           </Link>
 
@@ -285,8 +288,8 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-900 group-hover:text-blue-700 transition-colors">シナリオ配信</p>
-              <p className="text-xs text-gray-400">自動配信シナリオの作成・編集</p>
+              <p className="text-sm font-medium text-gray-900 group-hover:text-blue-700 transition-colors">{t('シナリオ配信')}</p>
+              <p className="text-xs text-gray-400">{t('自動配信シナリオの作成・編集')}</p>
             </div>
           </Link>
 
@@ -301,8 +304,8 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-900 group-hover:text-purple-700 transition-colors">一斉配信</p>
-              <p className="text-xs text-gray-400">メッセージの一斉送信・予約</p>
+              <p className="text-sm font-medium text-gray-900 group-hover:text-purple-700 transition-colors">{t('一斉配信')}</p>
+              <p className="text-xs text-gray-400">{t('メッセージの一斉送信・予約')}</p>
             </div>
           </Link>
 
@@ -317,8 +320,8 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-900 group-hover:text-green-700 transition-colors">チャット</p>
-              <p className="text-xs text-gray-400">オペレーターチャット管理</p>
+              <p className="text-sm font-medium text-gray-900 group-hover:text-green-700 transition-colors">{t('チャット')}</p>
+              <p className="text-xs text-gray-400">{t('オペレーターチャット管理')}</p>
             </div>
           </Link>
 
@@ -333,8 +336,8 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-900 group-hover:text-red-700 transition-colors">BAN検知</p>
-              <p className="text-xs text-gray-400">アカウント健康度ダッシュボード</p>
+              <p className="text-sm font-medium text-gray-900 group-hover:text-red-700 transition-colors">{t('BAN検知')}</p>
+              <p className="text-xs text-gray-400">{t('アカウント健康度ダッシュボード')}</p>
             </div>
           </Link>
         </div>
