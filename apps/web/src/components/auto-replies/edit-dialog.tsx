@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { api } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 import ImageUploader from '@/components/shared/image-uploader'
 
 export interface AutoReplyDraft {
@@ -33,6 +34,7 @@ function detectMode(d: AutoReplyDraft): ResponseMode {
 }
 
 export default function EditDialog({ draft, templates, onClose, onSaved }: Props) {
+  const { t } = useI18n()
   const [keyword, setKeyword] = useState(draft.keyword)
   const [matchType, setMatchType] = useState<'exact' | 'contains'>(draft.matchType)
   const [mode, setMode] = useState<ResponseMode>(detectMode(draft))
@@ -47,10 +49,10 @@ export default function EditDialog({ draft, templates, onClose, onSaved }: Props
   const imageTemplates = templates.filter((t) => t.messageType === 'image')
 
   const handleSave = async () => {
-    if (!keyword.trim()) { setError('keyword を入力してください'); return }
-    if (mode === 'template' && !templateId) { setError('template を選んでください'); return }
+    if (!keyword.trim()) { setError(t('keyword を入力してください')); return }
+    if (mode === 'template' && !templateId) { setError(t('template を選んでください')); return }
     if ((mode === 'inline-text' || mode === 'inline-flex' || mode === 'inline-image') && !responseContent.trim()) {
-      setError('内容を入力してください'); return
+      setError(t('内容を入力してください')); return
     }
     setError('')
     setSaving(true)
@@ -96,7 +98,7 @@ export default function EditDialog({ draft, templates, onClose, onSaved }: Props
       }
       onSaved()
     } catch (e) {
-      setError(e instanceof Error ? e.message : '保存に失敗しました')
+      setError(e instanceof Error ? e.message : t('保存に失敗しました'))
     }
     setSaving(false)
   }
@@ -105,7 +107,7 @@ export default function EditDialog({ draft, templates, onClose, onSaved }: Props
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="px-5 py-4 border-b">
-          <h3 className="text-base font-semibold">{draft.id ? '自動返信ルール 編集' : '新規 自動返信ルール'}</h3>
+          <h3 className="text-base font-semibold">{draft.id ? t('自動返信ルール 編集') : t('新規 自動返信ルール')}</h3>
         </div>
         <div className="p-5 space-y-4">
           <div>
@@ -119,7 +121,7 @@ export default function EditDialog({ draft, templates, onClose, onSaved }: Props
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-600 mb-1">マッチ方法</label>
+            <label className="block text-xs text-gray-600 mb-1">{t('マッチ方法')}</label>
             <div className="flex gap-2">
               {(['exact', 'contains'] as const).map((mt) => (
                 <button
@@ -128,13 +130,13 @@ export default function EditDialog({ draft, templates, onClose, onSaved }: Props
                   className={`px-3 py-1.5 text-xs rounded-md ${matchType === mt ? 'text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                   style={matchType === mt ? { backgroundColor: '#06C755' } : undefined}
                 >
-                  {mt === 'exact' ? '完全一致' : '包含'}
+                  {mt === 'exact' ? t('完全一致') : t('包含')}
                 </button>
               ))}
             </div>
           </div>
           <div>
-            <label className="block text-xs text-gray-600 mb-1">応答方法</label>
+            <label className="block text-xs text-gray-600 mb-1">{t('応答方法')}</label>
             <div className="flex flex-wrap gap-2">
               {([
                 { key: 'silent', label: 'silent (返信なし)' },
@@ -149,7 +151,7 @@ export default function EditDialog({ draft, templates, onClose, onSaved }: Props
                   className={`px-3 py-1.5 text-xs rounded-md ${mode === key ? 'text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                   style={mode === key ? { backgroundColor: '#06C755' } : undefined}
                 >
-                  {label}
+                  {t(label)}
                 </button>
               ))}
             </div>
@@ -162,7 +164,7 @@ export default function EditDialog({ draft, templates, onClose, onSaved }: Props
                 onChange={(e) => setTemplateId(e.target.value || null)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               >
-                <option value="">-- 選択 --</option>
+                <option value="">{t('-- 選択 --')}</option>
                 {flexTemplates.length > 0 && (
                   <optgroup label="Flex">
                     {flexTemplates.map((t) => (
@@ -171,14 +173,14 @@ export default function EditDialog({ draft, templates, onClose, onSaved }: Props
                   </optgroup>
                 )}
                 {textTemplates.length > 0 && (
-                  <optgroup label="テキスト">
+                  <optgroup label={t('テキスト')}>
                     {textTemplates.map((t) => (
                       <option key={t.id} value={t.id}>{t.name}</option>
                     ))}
                   </optgroup>
                 )}
                 {imageTemplates.length > 0 && (
-                  <optgroup label="画像">
+                  <optgroup label={t('画像')}>
                     {imageTemplates.map((t) => (
                       <option key={t.id} value={t.id}>{t.name}</option>
                     ))}
@@ -187,7 +189,7 @@ export default function EditDialog({ draft, templates, onClose, onSaved }: Props
               </select>
               {templates.length === 0 && (
                 <p className="text-[11px] text-amber-600 mt-1">
-                  テンプレートがありません。<a href="/templates" className="underline">/templates</a> で作成してください。
+                  {t('テンプレートがありません。')}<a href="/templates" className="underline">/templates</a>{t(' で作成してください。')}
                 </p>
               )}
             </div>
@@ -195,7 +197,7 @@ export default function EditDialog({ draft, templates, onClose, onSaved }: Props
           {(mode === 'inline-text' || mode === 'inline-flex') && (
             <div>
               <label className="block text-xs text-gray-600 mb-1">
-                {mode === 'inline-flex' ? 'Flex JSON' : 'テキスト'}
+                {mode === 'inline-flex' ? 'Flex JSON' : t('テキスト')}
               </label>
               <textarea
                 rows={mode === 'inline-flex' ? 8 : 4}
@@ -231,7 +233,7 @@ export default function EditDialog({ draft, templates, onClose, onSaved }: Props
                   setResponseContent('')
                 }
               }}
-              label="返信画像"
+              label={t('返信画像')}
             />
           )}
           <label className="inline-flex items-center gap-2 cursor-pointer">
@@ -241,19 +243,19 @@ export default function EditDialog({ draft, templates, onClose, onSaved }: Props
               onChange={(e) => setIsActive(e.target.checked)}
               className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
             />
-            <span className="text-xs text-gray-600">有効</span>
+            <span className="text-xs text-gray-600">{t('有効')}</span>
           </label>
           {error && <p className="text-xs text-red-600">{error}</p>}
         </div>
         <div className="px-5 py-3 border-t flex gap-2 justify-end">
-          <button onClick={onClose} className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md">キャンセル</button>
+          <button onClick={onClose} className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md">{t('キャンセル')}</button>
           <button
             onClick={handleSave}
             disabled={saving}
             className="px-3 py-1.5 text-xs font-medium text-white rounded-md disabled:opacity-50"
             style={{ backgroundColor: '#06C755' }}
           >
-            {saving ? '保存中...' : '保存'}
+            {saving ? t('保存中...') : t('保存')}
           </button>
         </div>
       </div>

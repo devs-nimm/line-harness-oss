@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Header from '@/components/layout/header'
 import { api } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 import CcPromptButton from '@/components/cc-prompt-button'
 import type { IncomingWebhook, OutgoingWebhook } from '@line-crm/shared'
 
@@ -49,6 +50,7 @@ function isHttpsUrl(value: string): boolean {
 }
 
 export default function WebhooksPage() {
+  const { t } = useI18n()
   const [tab, setTab] = useState<Tab>('incoming')
   const [incoming, setIncoming] = useState<IncomingWebhook[]>([])
   const [outgoing, setOutgoing] = useState<OutgoingWebhook[]>([])
@@ -85,7 +87,7 @@ export default function WebhooksPage() {
       if (outRes.success) setOutgoing(outRes.data)
       else setError(outRes.error)
     } catch {
-      setError('データの読み込みに失敗しました。もう一度お試しください。')
+      setError(t('データの読み込みに失敗しました。もう一度お試しください。'))
     } finally {
       setLoading(false)
     }
@@ -98,7 +100,7 @@ export default function WebhooksPage() {
       await api.webhooks.incoming.update(id, { isActive: !currentActive })
       load()
     } catch {
-      setError('更新に失敗しました')
+      setError(t('更新に失敗しました'))
     }
   }
 
@@ -107,27 +109,27 @@ export default function WebhooksPage() {
       await api.webhooks.outgoing.update(id, { isActive: !currentActive })
       load()
     } catch {
-      setError('更新に失敗しました')
+      setError(t('更新に失敗しました'))
     }
   }
 
   const handleDeleteIncoming = async (id: string) => {
-    if (!confirm('この受信Webhookを削除しますか？')) return
+    if (!confirm(t('この受信Webhookを削除しますか？'))) return
     try {
       await api.webhooks.incoming.delete(id)
       load()
     } catch {
-      setError('削除に失敗しました')
+      setError(t('削除に失敗しました'))
     }
   }
 
   const handleDeleteOutgoing = async (id: string) => {
-    if (!confirm('この送信Webhookを削除しますか？')) return
+    if (!confirm(t('この送信Webhookを削除しますか？'))) return
     try {
       await api.webhooks.outgoing.delete(id)
       load()
     } catch {
-      setError('削除に失敗しました')
+      setError(t('削除に失敗しました'))
     }
   }
 
@@ -136,7 +138,7 @@ export default function WebhooksPage() {
     setError('')
     if (!inForm.name) return
     if (inForm.secret.length < MIN_SECRET_LENGTH) {
-      setError(`シークレットは最低${MIN_SECRET_LENGTH}文字必要です`)
+      setError(`${t('シークレットは最低')}${MIN_SECRET_LENGTH}${t('文字必要です')}`)
       return
     }
     try {
@@ -155,7 +157,7 @@ export default function WebhooksPage() {
       setShowCreate(false)
       load()
     } catch {
-      setError('作成に失敗しました')
+      setError(t('作成に失敗しました'))
     }
   }
 
@@ -164,11 +166,11 @@ export default function WebhooksPage() {
     setError('')
     if (!outForm.name || !outForm.url) return
     if (!isHttpsUrl(outForm.url)) {
-      setError('URLは https:// から始まる必要があります')
+      setError(t('URLは https:// から始まる必要があります'))
       return
     }
     if (outForm.secret.length < MIN_SECRET_LENGTH) {
-      setError(`シークレットは最低${MIN_SECRET_LENGTH}文字必要です`)
+      setError(`${t('シークレットは最低')}${MIN_SECRET_LENGTH}${t('文字必要です')}`)
       return
     }
     try {
@@ -192,7 +194,7 @@ export default function WebhooksPage() {
       setShowCreate(false)
       load()
     } catch {
-      setError('作成に失敗しました')
+      setError(t('作成に失敗しました'))
     }
   }
 
@@ -210,7 +212,7 @@ export default function WebhooksPage() {
     setError('')
     if (!rotateTarget) return
     if (rotateSecretValue.length < MIN_SECRET_LENGTH) {
-      setError(`シークレットは最低${MIN_SECRET_LENGTH}文字必要です`)
+      setError(`${t('シークレットは最低')}${MIN_SECRET_LENGTH}${t('文字必要です')}`)
       return
     }
     try {
@@ -227,7 +229,7 @@ export default function WebhooksPage() {
       setRotateSecretValue('')
       load()
     } catch {
-      setError('シークレットの更新に失敗しました')
+      setError(t('シークレットの更新に失敗しました'))
     }
   }
 
@@ -237,14 +239,14 @@ export default function WebhooksPage() {
   return (
     <div>
       <Header
-        title="Webhook管理"
+        title={t('Webhook管理')}
         action={
           <button
             onClick={() => setShowCreate(!showCreate)}
             className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
             style={{ backgroundColor: '#06C755' }}
           >
-            {showCreate ? 'キャンセル' : '+ 新規Webhook'}
+            {showCreate ? t('キャンセル') : `+ ${t('新規Webhook')}`}
           </button>
         }
       />
@@ -254,19 +256,19 @@ export default function WebhooksPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <form onSubmit={handleRotateSubmit} className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-2">
-              「{rotateTarget.name}」のシークレットを{rotateTarget.activate ? '設定して有効化' : '更新'}
+              「{rotateTarget.name}」{t('のシークレットを')}{rotateTarget.activate ? t('設定して有効化') : t('更新')}
             </h2>
             <p className="text-sm text-gray-600 mb-4">
-              新しいシークレットを設定します。
-              <strong className="text-red-600">設定後は今回限り画面に表示されません。</strong>
-              控えておいてから「保存」を押してください。
+              {t('新しいシークレットを設定します。')}
+              <strong className="text-red-600">{t('設定後は今回限り画面に表示されません。')}</strong>
+              {t('控えておいてから「保存」を押してください。')}
             </p>
             <div className="flex gap-2 mb-4">
               <input
                 value={rotateSecretValue}
                 onChange={(e) => setRotateSecretValue(e.target.value)}
                 className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
-                placeholder="ランダムな英数字32文字以上"
+                placeholder={t('ランダムな英数字32文字以上')}
                 required
                 minLength={MIN_SECRET_LENGTH}
                 autoFocus
@@ -276,7 +278,7 @@ export default function WebhooksPage() {
                 onClick={() => setRotateSecretValue(generateSecret())}
                 className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 whitespace-nowrap"
               >
-                自動生成
+                {t('自動生成')}
               </button>
             </div>
             <div className="flex gap-2 justify-end">
@@ -288,14 +290,14 @@ export default function WebhooksPage() {
                 }}
                 className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
               >
-                キャンセル
+                {t('キャンセル')}
               </button>
               <button
                 type="submit"
                 className="px-4 py-2 text-sm rounded-lg text-white font-medium"
                 style={{ backgroundColor: '#06C755' }}
               >
-                保存
+                {t('保存')}
               </button>
             </div>
           </form>
@@ -307,12 +309,12 @@ export default function WebhooksPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-2">
-              シークレットを保存してください
+              {t('シークレットを保存してください')}
             </h2>
             <p className="text-sm text-gray-600 mb-4">
-              「{createdSecret.name}」を作成しました。
-              <strong className="text-red-600">このシークレットは今後二度と表示されません。</strong>
-              閉じる前に必ず安全な場所に保存してください。
+              「{createdSecret.name}」{t('を作成しました。')}
+              <strong className="text-red-600">{t('このシークレットは今後二度と表示されません。')}</strong>
+              {t('閉じる前に必ず安全な場所に保存してください。')}
             </p>
             <div className="bg-gray-50 border border-gray-200 rounded p-3 mb-4">
               <code className="text-sm break-all">{createdSecret.secret}</code>
@@ -322,7 +324,7 @@ export default function WebhooksPage() {
                 onClick={() => copySecret(createdSecret.secret)}
                 className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
               >
-                {secretCopied ? 'コピー済み' : 'クリップボードにコピー'}
+                {secretCopied ? t('コピー済み') : t('クリップボードにコピー')}
               </button>
               <button
                 onClick={() => {
@@ -332,7 +334,7 @@ export default function WebhooksPage() {
                 className="px-4 py-2 text-sm rounded-lg text-white font-medium"
                 style={{ backgroundColor: '#06C755' }}
               >
-                保存しました
+                {t('保存しました')}
               </button>
             </div>
           </div>
@@ -356,7 +358,7 @@ export default function WebhooksPage() {
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          受信 (Incoming)
+          {t('受信 (Incoming)')}
         </button>
         <button
           onClick={() => { setTab('outgoing'); setShowCreate(false) }}
@@ -366,27 +368,27 @@ export default function WebhooksPage() {
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          送信 (Outgoing)
+          {t('送信 (Outgoing)')}
         </button>
       </div>
 
       {/* Create forms */}
       {showCreate && tab === 'incoming' && (
         <form onSubmit={handleCreateIncoming} className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">受信Webhook作成</h3>
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">{t('受信Webhook作成')}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">名前</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('名前')}</label>
               <input
                 value={inForm.name}
                 onChange={(e) => setInForm({ ...inForm, name: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                placeholder="LINE公式アカウント"
+                placeholder={t('LINE公式アカウント')}
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">ソースタイプ</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('ソースタイプ')}</label>
               <input
                 value={inForm.sourceType}
                 onChange={(e) => setInForm({ ...inForm, sourceType: e.target.value })}
@@ -396,14 +398,14 @@ export default function WebhooksPage() {
             </div>
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                シークレット (最低{MIN_SECRET_LENGTH}文字)
+                {t('シークレット (最低')}{MIN_SECRET_LENGTH}{t('文字)')}
               </label>
               <div className="flex gap-2">
                 <input
                   value={inForm.secret}
                   onChange={(e) => setInForm({ ...inForm, secret: e.target.value })}
                   className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
-                  placeholder="ランダムな英数字32文字以上"
+                  placeholder={t('ランダムな英数字32文字以上')}
                   required
                   minLength={MIN_SECRET_LENGTH}
                 />
@@ -416,7 +418,7 @@ export default function WebhooksPage() {
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                外部システムが Webhook 受信時に X-Webhook-Signature ヘッダで HMAC-SHA256 署名する際に使用します。
+                {t('外部システムが Webhook 受信時に X-Webhook-Signature ヘッダで HMAC-SHA256 署名する際に使用します。')}
               </p>
             </div>
           </div>
@@ -425,27 +427,27 @@ export default function WebhooksPage() {
             className="mt-4 px-4 py-2 rounded-lg text-white text-sm font-medium"
             style={{ backgroundColor: '#06C755' }}
           >
-            作成
+            {t('作成')}
           </button>
         </form>
       )}
 
       {showCreate && tab === 'outgoing' && (
         <form onSubmit={handleCreateOutgoing} className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">送信Webhook作成</h3>
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">{t('送信Webhook作成')}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">名前</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('名前')}</label>
               <input
                 value={outForm.name}
                 onChange={(e) => setOutForm({ ...outForm, name: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                placeholder="外部CRM連携"
+                placeholder={t('外部CRM連携')}
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">URL (https:// 必須)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('URL (https:// 必須)')}</label>
               <input
                 type="url"
                 value={outForm.url}
@@ -457,7 +459,7 @@ export default function WebhooksPage() {
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">イベントタイプ (カンマ区切り、* で全イベント)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('イベントタイプ (カンマ区切り、* で全イベント)')}</label>
               <input
                 value={outForm.eventTypes}
                 onChange={(e) => setOutForm({ ...outForm, eventTypes: e.target.value })}
@@ -467,14 +469,14 @@ export default function WebhooksPage() {
             </div>
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                シークレット (最低{MIN_SECRET_LENGTH}文字)
+                {t('シークレット (最低')}{MIN_SECRET_LENGTH}{t('文字)')}
               </label>
               <div className="flex gap-2">
                 <input
                   value={outForm.secret}
                   onChange={(e) => setOutForm({ ...outForm, secret: e.target.value })}
                   className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
-                  placeholder="ランダムな英数字32文字以上"
+                  placeholder={t('ランダムな英数字32文字以上')}
                   required
                   minLength={MIN_SECRET_LENGTH}
                 />
@@ -487,7 +489,7 @@ export default function WebhooksPage() {
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                送信時に X-Webhook-Signature ヘッダで HMAC-SHA256 署名するために使われます。受信側で同じシークレットで検証してください。
+                {t('送信時に X-Webhook-Signature ヘッダで HMAC-SHA256 署名するために使われます。受信側で同じシークレットで検証してください。')}
               </p>
             </div>
           </div>
@@ -496,7 +498,7 @@ export default function WebhooksPage() {
             className="mt-4 px-4 py-2 rounded-lg text-white text-sm font-medium"
             style={{ backgroundColor: '#06C755' }}
           >
-            作成
+            {t('作成')}
           </button>
         </form>
       )}
@@ -519,7 +521,7 @@ export default function WebhooksPage() {
         /* Incoming table */
         incoming.length === 0 && !showCreate ? (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-            <p className="text-gray-500">受信Webhookがありません。「新規Webhook」から作成してください。</p>
+            <p className="text-gray-500">{t('受信Webhookがありません。「新規Webhook」から作成してください。')}</p>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -527,12 +529,12 @@ export default function WebhooksPage() {
             <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">名前</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ソースタイプ</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">エンドポイントURL</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">シークレット</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ステータス</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">作成日</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('名前')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('ソースタイプ')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('エンドポイントURL')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('シークレット')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('ステータス')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('作成日')}</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -549,11 +551,11 @@ export default function WebhooksPage() {
                     <td className="px-4 py-3">
                       {wh.hasSecret ? (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                          設定済
+                          {t('設定済')}
                         </span>
                       ) : (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                          未設定
+                          {t('未設定')}
                         </span>
                       )}
                     </td>
@@ -566,9 +568,9 @@ export default function WebhooksPage() {
                             ? 'bg-green-100 text-green-700'
                             : 'bg-gray-100 text-gray-500'
                         }`}
-                        title={!wh.hasSecret && !wh.isActive ? 'シークレット未設定のため有効化できません' : ''}
+                        title={!wh.hasSecret && !wh.isActive ? t('シークレット未設定のため有効化できません') : ''}
                       >
-                        {wh.isActive ? '有効' : '無効'}
+                        {wh.isActive ? t('有効') : t('無効')}
                       </button>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500">
@@ -587,13 +589,13 @@ export default function WebhooksPage() {
                         }}
                         className="text-xs text-gray-600 hover:text-gray-900 mr-3"
                       >
-                        {wh.hasSecret ? 'シークレット更新' : 'シークレット設定'}
+                        {wh.hasSecret ? t('シークレット更新') : t('シークレット設定')}
                       </button>
                       <button
                         onClick={() => handleDeleteIncoming(wh.id)}
                         className="text-red-500 hover:text-red-700 text-sm"
                       >
-                        削除
+                        {t('削除')}
                       </button>
                     </td>
                   </tr>
@@ -607,7 +609,7 @@ export default function WebhooksPage() {
         /* Outgoing table */
         outgoing.length === 0 && !showCreate ? (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-            <p className="text-gray-500">送信Webhookがありません。「新規Webhook」から作成してください。</p>
+            <p className="text-gray-500">{t('送信Webhookがありません。「新規Webhook」から作成してください。')}</p>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -615,12 +617,12 @@ export default function WebhooksPage() {
             <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">名前</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('名前')}</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">URL</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">イベントタイプ</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">シークレット</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ステータス</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">作成日</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('イベントタイプ')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('シークレット')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('ステータス')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('作成日')}</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -630,10 +632,10 @@ export default function WebhooksPage() {
                   const canActivate = wh.hasSecret && hasValidUrl
                   const blockedReason = !canActivate
                     ? !wh.hasSecret && !hasValidUrl
-                      ? 'シークレット未設定 + URL が https:// ではないため有効化できません'
+                      ? t('シークレット未設定 + URL が https:// ではないため有効化できません')
                       : !wh.hasSecret
-                        ? 'シークレット未設定のため有効化できません'
-                        : 'URL が https:// ではないため有効化できません'
+                        ? t('シークレット未設定のため有効化できません')
+                        : t('URL が https:// ではないため有効化できません')
                     : ''
                   return (
                   <tr key={wh.id} className="hover:bg-gray-50 transition-colors">
@@ -644,7 +646,7 @@ export default function WebhooksPage() {
                       </code>
                       {!hasValidUrl && (
                         <p className="text-xs text-amber-700 mt-1">
-                          ※ https:// で始まる完全な URL に作り直してください
+                          {t('※ https:// で始まる完全な URL に作り直してください')}
                         </p>
                       )}
                     </td>
@@ -663,11 +665,11 @@ export default function WebhooksPage() {
                     <td className="px-4 py-3">
                       {wh.hasSecret ? (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                          設定済
+                          {t('設定済')}
                         </span>
                       ) : (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                          未設定
+                          {t('未設定')}
                         </span>
                       )}
                     </td>
@@ -682,7 +684,7 @@ export default function WebhooksPage() {
                         }`}
                         title={blockedReason}
                       >
-                        {wh.isActive ? '有効' : '無効'}
+                        {wh.isActive ? t('有効') : t('無効')}
                       </button>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500">
@@ -701,13 +703,13 @@ export default function WebhooksPage() {
                         }}
                         className="text-xs text-gray-600 hover:text-gray-900 mr-3"
                       >
-                        {wh.hasSecret ? 'シークレット更新' : 'シークレット設定'}
+                        {wh.hasSecret ? t('シークレット更新') : t('シークレット設定')}
                       </button>
                       <button
                         onClick={() => handleDeleteOutgoing(wh.id)}
                         className="text-red-500 hover:text-red-700 text-sm"
                       >
-                        削除
+                        {t('削除')}
                       </button>
                     </td>
                   </tr>

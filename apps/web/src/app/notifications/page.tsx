@@ -6,6 +6,7 @@ import InboxFilters from '@/components/inbox/inbox-filters'
 import InboxList from '@/components/inbox/inbox-list'
 import InboxSummaryBar from '@/components/inbox/inbox-summary-bar'
 import { api } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 import type { InboxRowData } from '@/components/inbox/inbox-row'
 
 const PAGE_SIZE = 50
@@ -21,6 +22,7 @@ interface AccountOption {
 }
 
 export default function InboxPage() {
+  const { t } = useI18n()
   const [allRows, setAllRows] = useState<InboxRowData[]>([])
   // サーバが返す真の総件数 (2000件超のとき allRows は capped されるので別途保持)。
   // Codex Round 2 指摘: summary.total を allRows.length から取ると under-report。
@@ -74,7 +76,7 @@ export default function InboxPage() {
         // rows.length < total なら上限ヒット (capped)。バナーで明示。
         setTruncated(res.data.total > res.data.rows.length)
       } else {
-        setError('取得に失敗しました')
+        setError(t('取得に失敗しました'))
         // allRows は前回値を保持して stale-while-error
       }
     } catch {
@@ -136,8 +138,8 @@ export default function InboxPage() {
   return (
     <div className="space-y-6">
       <Header
-        title="未対応インボックス"
-        description="人間が返事してない LINE 会話の triage。auto_reply は人間の返事に数えない。"
+        title={t('未対応インボックス')}
+        description={t('人間が返事してない LINE 会話の triage。auto_reply は人間の返事に数えない。')}
       />
 
       <InboxSummaryBar
@@ -166,7 +168,7 @@ export default function InboxPage() {
 
       {truncated && (
         <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
-          未対応が {FETCH_PAGE_SIZE} 件の表示上限に到達しました。古いデータが見えていない可能性があります。サーバ側ページネーション復帰を検討してください。
+          {t('未対応が')} {FETCH_PAGE_SIZE} {t('件の表示上限に到達しました。古いデータが見えていない可能性があります。サーバ側ページネーション復帰を検討してください。')}
         </div>
       )}
 
