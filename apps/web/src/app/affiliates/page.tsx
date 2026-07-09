@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Header from '@/components/layout/header'
+import { useI18n } from '@/lib/i18n'
 import { api, type AffiliateOffer, type ConversionApprovalItem } from '@/lib/api'
 import type { Tag, Scenario, LineAccount } from '@line-crm/shared'
 
@@ -133,6 +134,7 @@ function parseTab(raw: string | null): PageTab {
 }
 
 export default function AffiliatesPage() {
+  const { t } = useI18n()
   // ?tab= で選択タブを保持（リロードで維持）。chats ページの unanswered=1 と同じく
   // useSearchParams (Suspense 要) を避け、window.location + history.replaceState で扱う。
   const [tab, setTab] = useState<PageTab>(() => {
@@ -153,23 +155,23 @@ export default function AffiliatesPage() {
   return (
     <div>
       <Header
-        title="アフィリエイト"
-        description="アフィリエイター管理・ASP 案件・成果承認"
+        title={t('アフィリエイト')}
+        description={t('アフィリエイター管理・ASP 案件・成果承認')}
       />
 
       {/* Tab switcher */}
       <div className="mb-4 flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
-        {(['affiliates', 'offers', 'approvals'] as const).map((t) => (
+        {(['affiliates', 'offers', 'approvals'] as const).map((tabKey) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={tabKey}
+            onClick={() => setTab(tabKey)}
             className={`px-4 py-1.5 text-sm rounded-md font-medium transition-colors ${
-              tab === t
+              tab === tabKey
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            {TAB_LABELS[t]}
+            {t(TAB_LABELS[tabKey])}
           </button>
         ))}
       </div>
@@ -186,6 +188,7 @@ export default function AffiliatesPage() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function AffiliatorsTab() {
+  const { t } = useI18n()
   // ── list ───────────────────────────────────────────────────────────────────
   const [rows, setRows] = useState<AffiliateListRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -239,11 +242,11 @@ function AffiliatorsTab() {
       })
       setRows(merged)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '読み込みエラー')
+      setError(e instanceof Error ? e.message : t('読み込みエラー'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => { void loadList() }, [loadList])
 
@@ -326,7 +329,7 @@ function AffiliatorsTab() {
           onClick={() => setCreateOpen(true)}
           className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
         >
-          + 新規作成
+          {t('+ 新規作成')}
         </button>
       </div>
 
@@ -345,28 +348,28 @@ function AffiliatorsTab() {
 
       {loading ? (
         <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">
-          読み込み中...
+          {t('読み込み中...')}
         </div>
       ) : rows.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">
-          アフィリエイターがまだ登録されていません
+          {t('アフィリエイターがまだ登録されていません')}
         </div>
       ) : (
         <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
           <table className="w-full min-w-[900px]">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">名前</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">コード</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">友だち紐付</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">リンク数</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">クリック</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">友だち追加</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">CV</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">売上</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">参考報酬</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">率</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">状態</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('名前')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('コード')}</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">{t('友だち紐付')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('リンク数')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('クリック')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('友だち追加')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('CV')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('売上')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('参考報酬')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('率')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('状態')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -383,8 +386,8 @@ function AffiliatorsTab() {
                       <td className="px-4 py-3 text-sm font-mono text-blue-600">{row.code}</td>
                       <td className="px-4 py-3 text-sm text-center">
                         {row.friendId
-                          ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">あり</span>
-                          : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">なし</span>
+                          ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">{t('あり')}</span>
+                          : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">{t('なし')}</span>
                         }
                       </td>
                       <td className="px-4 py-3 text-sm text-right text-gray-700">{row.linkCount.toLocaleString()}</td>
@@ -396,8 +399,8 @@ function AffiliatorsTab() {
                       <td className="px-4 py-3 text-sm text-right text-gray-500">{row.commissionRate}%</td>
                       <td className="px-4 py-3 text-sm">
                         {row.isActive
-                          ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">有効</span>
-                          : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">無効</span>
+                          ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">{t('有効')}</span>
+                          : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">{t('無効')}</span>
                         }
                       </td>
                     </tr>
@@ -407,7 +410,7 @@ function AffiliatorsTab() {
                       <tr key={`${row.id}-detail`}>
                         <td colSpan={11} className="px-6 py-5 bg-blue-50 border-t border-blue-100">
                           {detailLoading ? (
-                            <p className="text-sm text-gray-400">読み込み中...</p>
+                            <p className="text-sm text-gray-400">{t('読み込み中...')}</p>
                           ) : (
                             <div className="space-y-6">
 
@@ -415,22 +418,22 @@ function AffiliatorsTab() {
                               {report && (
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                   <div className="bg-white rounded-lg p-4 border border-gray-100">
-                                    <p className="text-xs text-gray-500">クリック (ref_tracking)</p>
+                                    <p className="text-xs text-gray-500">{t('クリック (ref_tracking)')}</p>
                                     <p className="text-2xl font-bold text-gray-900 mt-1">{report.clicks.toLocaleString()}</p>
                                   </div>
                                   <div className="bg-white rounded-lg p-4 border border-gray-100">
-                                    <p className="text-xs text-gray-500">友だち追加</p>
+                                    <p className="text-xs text-gray-500">{t('友だち追加')}</p>
                                     <p className="text-2xl font-bold text-blue-600 mt-1">{report.friendAdds.toLocaleString()}</p>
                                   </div>
                                   <div className="bg-white rounded-lg p-4 border border-gray-100">
-                                    <p className="text-xs text-gray-500">CV 件数（却下除く）</p>
+                                    <p className="text-xs text-gray-500">{t('CV 件数（却下除く）')}</p>
                                     <p className="text-2xl font-bold text-gray-900 mt-1">{report.conversions.toLocaleString()}</p>
                                   </div>
                                   <div className="bg-white rounded-lg p-4 border border-emerald-100 bg-emerald-50/40">
-                                    <p className="text-xs text-gray-500">確定報酬</p>
+                                    <p className="text-xs text-gray-500">{t('確定報酬')}</p>
                                     <p className="text-2xl font-bold text-emerald-600 mt-1">{formatYen(report.confirmedReward)}</p>
                                     <p className="text-[11px] text-gray-500 mt-1">
-                                      承認済み {report.conversionsApproved.toLocaleString()}件 / 審査中 {report.conversionsPending.toLocaleString()}件 / 却下 {report.conversionsRejected.toLocaleString()}件
+                                      {t('承認済み')} {report.conversionsApproved.toLocaleString()}{t('件 / 審査中')} {report.conversionsPending.toLocaleString()}{t('件 / 却下')} {report.conversionsRejected.toLocaleString()}{t('件')}
                                     </p>
                                   </div>
                                 </div>
@@ -439,16 +442,16 @@ function AffiliatorsTab() {
                               {/* Per-offer breakdown */}
                               {report && report.byOffer.length > 0 && (
                                 <div>
-                                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">案件別内訳</p>
+                                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">{t('案件別内訳')}</p>
                                   <div className="overflow-x-auto">
                                     <table className="min-w-[560px] text-sm">
                                       <thead>
                                         <tr className="text-left text-xs text-gray-400">
-                                          <th className="pb-1 pr-4">案件</th>
-                                          <th className="pb-1 pr-4 text-right">報酬単価</th>
-                                          <th className="pb-1 pr-4 text-right">承認済み</th>
-                                          <th className="pb-1 pr-4 text-right">審査中</th>
-                                          <th className="pb-1 text-right">確定報酬</th>
+                                          <th className="pb-1 pr-4">{t('案件')}</th>
+                                          <th className="pb-1 pr-4 text-right">{t('報酬単価')}</th>
+                                          <th className="pb-1 pr-4 text-right">{t('承認済み')}</th>
+                                          <th className="pb-1 pr-4 text-right">{t('審査中')}</th>
+                                          <th className="pb-1 text-right">{t('確定報酬')}</th>
                                         </tr>
                                       </thead>
                                       <tbody className="divide-y divide-gray-100">
@@ -471,7 +474,7 @@ function AffiliatorsTab() {
                               {report && report.duplicateFlags.length > 0 && (
                                 <div>
                                   <p className="text-xs font-semibold text-amber-700 uppercase mb-2">
-                                    重複 identity_key 検出 ({report.duplicateFlags.length} 件)
+                                    {t('重複 identity_key 検出')} ({report.duplicateFlags.length} {t('件')})
                                   </p>
                                   <div className="flex flex-wrap gap-2">
                                     {report.duplicateFlags.map((f) => (
@@ -489,14 +492,14 @@ function AffiliatorsTab() {
                               {/* CV by point */}
                               {report && report.conversionsByPoint.length > 0 && (
                                 <div>
-                                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">CV ポイント別内訳</p>
+                                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">{t('CV ポイント別内訳')}</p>
                                   <div className="overflow-x-auto">
                                     <table className="min-w-[400px] text-sm">
                                       <thead>
                                         <tr className="text-left text-xs text-gray-400">
-                                          <th className="pb-1 pr-4">ポイント名</th>
-                                          <th className="pb-1 pr-4 text-right">件数</th>
-                                          <th className="pb-1 text-right">売上合計</th>
+                                          <th className="pb-1 pr-4">{t('ポイント名')}</th>
+                                          <th className="pb-1 pr-4 text-right">{t('件数')}</th>
+                                          <th className="pb-1 text-right">{t('売上合計')}</th>
                                         </tr>
                                       </thead>
                                       <tbody className="divide-y divide-gray-100">
@@ -517,17 +520,17 @@ function AffiliatorsTab() {
                               {links.length > 0 && (
                                 <div>
                                   <p className="text-xs font-semibold text-gray-500 uppercase mb-2">
-                                    リンク別クリック ({links.length} 本)
+                                    {t('リンク別クリック')} ({links.length} {t('本')})
                                   </p>
                                   <div className="overflow-x-auto">
                                     <table className="min-w-[560px] text-sm">
                                       <thead>
                                         <tr className="text-left text-xs text-gray-400">
                                           <th className="pb-1 pr-4">ref_code</th>
-                                          <th className="pb-1 pr-4">ラベル</th>
-                                          <th className="pb-1 pr-4">案件</th>
-                                          <th className="pb-1 pr-4 text-right">クリック</th>
-                                          <th className="pb-1">状態</th>
+                                          <th className="pb-1 pr-4">{t('ラベル')}</th>
+                                          <th className="pb-1 pr-4">{t('案件')}</th>
+                                          <th className="pb-1 pr-4 text-right">{t('クリック')}</th>
+                                          <th className="pb-1">{t('状態')}</th>
                                         </tr>
                                       </thead>
                                       <tbody className="divide-y divide-gray-100">
@@ -545,8 +548,8 @@ function AffiliatorsTab() {
                                             <td className="py-1 pr-4 text-right font-semibold text-gray-900">{link.click_count.toLocaleString()}</td>
                                             <td className="py-1">
                                               {link.is_active
-                                                ? <span className="text-xs text-green-600">有効</span>
-                                                : <span className="text-xs text-gray-400">無効</span>
+                                                ? <span className="text-xs text-green-600">{t('有効')}</span>
+                                                : <span className="text-xs text-gray-400">{t('無効')}</span>
                                               }
                                             </td>
                                           </tr>
@@ -560,25 +563,25 @@ function AffiliatorsTab() {
                               {/* Journeys */}
                               <div>
                                 <p className="text-xs font-semibold text-gray-500 uppercase mb-2">
-                                  帰属ジャーニー ({journeys.length} 件{journeyMore ? '+' : ''})
+                                  {t('帰属ジャーニー')} ({journeys.length} {t('件')}{journeyMore ? '+' : ''})
                                 </p>
                                 {journeyLoading ? (
-                                  <p className="text-sm text-gray-400">読み込み中...</p>
+                                  <p className="text-sm text-gray-400">{t('読み込み中...')}</p>
                                 ) : journeys.length === 0 ? (
-                                  <p className="text-sm text-gray-400">帰属された友だちがまだいません</p>
+                                  <p className="text-sm text-gray-400">{t('帰属された友だちがまだいません')}</p>
                                 ) : (
                                   <>
                                     <div className="overflow-x-auto">
                                       <table className="min-w-[640px] text-sm">
                                         <thead>
                                           <tr className="text-left text-xs text-gray-400">
-                                            <th className="pb-1 pr-4">友だち</th>
-                                            <th className="pb-1 pr-4">追加日</th>
+                                            <th className="pb-1 pr-4">{t('友だち')}</th>
+                                            <th className="pb-1 pr-4">{t('追加日')}</th>
                                             <th className="pb-1 pr-4">ref_code</th>
-                                            <th className="pb-1 pr-4 text-right">タッチ</th>
-                                            <th className="pb-1 pr-4 text-right">フォーム</th>
-                                            <th className="pb-1 pr-4 text-right">CV</th>
-                                            <th className="pb-1">最終行動</th>
+                                            <th className="pb-1 pr-4 text-right">{t('タッチ')}</th>
+                                            <th className="pb-1 pr-4 text-right">{t('フォーム')}</th>
+                                            <th className="pb-1 pr-4 text-right">{t('CV')}</th>
+                                            <th className="pb-1">{t('最終行動')}</th>
                                           </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-100">
@@ -588,7 +591,7 @@ function AffiliatorsTab() {
                                               <tr key={j.friendId} className={isDup ? 'bg-amber-50' : ''}>
                                                 <td className="py-1 pr-4 text-gray-800">
                                                   {isDup && <span className="mr-1">⚠</span>}
-                                                  {j.displayName ?? <span className="text-gray-400 italic">不明</span>}
+                                                  {j.displayName ?? <span className="text-gray-400 italic">{t('不明')}</span>}
                                                 </td>
                                                 <td className="py-1 pr-4 text-gray-500">{formatDate(j.addedAt)}</td>
                                                 <td className="py-1 pr-4 font-mono text-xs text-blue-500">{j.refCode ?? '—'}</td>
@@ -608,7 +611,7 @@ function AffiliatorsTab() {
                                         disabled={journeyLoadingMore}
                                         className="mt-3 px-4 py-2 text-sm text-blue-700 hover:bg-blue-100 disabled:opacity-50 rounded-md border border-blue-200"
                                       >
-                                        {journeyLoadingMore ? '読み込み中...' : 'さらに読み込む'}
+                                        {journeyLoadingMore ? t('読み込み中...') : t('さらに読み込む')}
                                       </button>
                                     )}
                                   </>
@@ -647,6 +650,7 @@ function CreateAffiliateModal({
   onClose: () => void
   onCreated: () => void
 }) {
+  const { t } = useI18n()
   const [search, setSearch] = useState('')
   const [options, setOptions] = useState<FriendOption[]>([])
   const [searching, setSearching] = useState(false)
@@ -683,12 +687,12 @@ function CreateAffiliateModal({
     if (submitting) return
     setFormError(null)
     if (!selected) {
-      setFormError('友だちを選択してください')
+      setFormError(t('友だちを選択してください'))
       return
     }
     const rate = commissionRate.trim() === '' ? undefined : Number(commissionRate)
     if (rate !== undefined && (Number.isNaN(rate) || rate < 0)) {
-      setFormError('報酬率は0以上の数値で入力してください')
+      setFormError(t('報酬率は0以上の数値で入力してください'))
       return
     }
     setSubmitting(true)
@@ -699,7 +703,7 @@ function CreateAffiliateModal({
       })
       if (!res.success) {
         // 409 → friend already an affiliate; surface the server message.
-        setFormError(res.error ?? '作成に失敗しました')
+        setFormError(res.error ?? t('作成に失敗しました'))
         setSubmitting(false)
         return
       }
@@ -710,11 +714,11 @@ function CreateAffiliateModal({
         onClose()
       }
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : '作成に失敗しました')
+      setFormError(e instanceof Error ? e.message : t('作成に失敗しました'))
     } finally {
       setSubmitting(false)
     }
-  }, [submitting, selected, commissionRate, onCreated, onClose])
+  }, [submitting, selected, commissionRate, onCreated, onClose, t])
 
   const handleCopy = useCallback(async () => {
     if (!issuedUrl) return
@@ -735,14 +739,14 @@ function CreateAffiliateModal({
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          アフィリエイター新規作成
+          {t('アフィリエイター新規作成')}
         </h2>
 
         {issuedUrl ? (
           // ── Success state: show issued link with a copy button ────────────
           <div className="space-y-4">
             <p className="text-sm text-gray-700">
-              アフィリエイターを作成し、初期リンクを発行しました。
+              {t('アフィリエイターを作成し、初期リンクを発行しました。')}
             </p>
             <div className="flex items-stretch gap-2">
               <input
@@ -754,7 +758,7 @@ function CreateAffiliateModal({
                 onClick={() => { void handleCopy() }}
                 className="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md whitespace-nowrap"
               >
-                {copied ? 'コピー済' : 'コピー'}
+                {copied ? t('コピー済') : t('コピー')}
               </button>
             </div>
             <div className="flex justify-end">
@@ -762,7 +766,7 @@ function CreateAffiliateModal({
                 onClick={onClose}
                 className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
               >
-                閉じる
+                {t('閉じる')}
               </button>
             </div>
           </div>
@@ -772,18 +776,18 @@ function CreateAffiliateModal({
             {/* Friend selector */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                LINE 友だち <span className="text-red-500">*</span>
+                {t('LINE 友だち')} <span className="text-red-500">*</span>
               </label>
               {selected ? (
                 <div className="flex items-center justify-between px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
                   <span className="text-sm text-gray-800">
-                    {selected.displayName ?? <span className="text-gray-400 italic">不明</span>}
+                    {selected.displayName ?? <span className="text-gray-400 italic">{t('不明')}</span>}
                   </span>
                   <button
                     onClick={() => { setSelected(null); setSearch('') }}
                     className="text-xs text-blue-600 hover:underline"
                   >
-                    変更
+                    {t('変更')}
                   </button>
                 </div>
               ) : (
@@ -791,15 +795,15 @@ function CreateAffiliateModal({
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="名前で検索..."
+                    placeholder={t('名前で検索...')}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                   {(searching || options.length > 0) && search.trim() && (
                     <div className="absolute z-10 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg">
                       {searching ? (
-                        <div className="px-3 py-2 text-sm text-gray-400">検索中...</div>
+                        <div className="px-3 py-2 text-sm text-gray-400">{t('検索中...')}</div>
                       ) : options.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-gray-400">該当なし</div>
+                        <div className="px-3 py-2 text-sm text-gray-400">{t('該当なし')}</div>
                       ) : (
                         options.map((f) => (
                           <button
@@ -807,7 +811,7 @@ function CreateAffiliateModal({
                             onClick={() => { setSelected(f); setOptions([]) }}
                             className="block w-full text-left px-3 py-2 text-sm text-gray-800 hover:bg-blue-50"
                           >
-                            {f.displayName ?? <span className="text-gray-400 italic">不明</span>}
+                            {f.displayName ?? <span className="text-gray-400 italic">{t('不明')}</span>}
                           </button>
                         ))
                       )}
@@ -820,7 +824,7 @@ function CreateAffiliateModal({
             {/* Commission rate */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                報酬率（%・省略可）
+                {t('報酬率（%・省略可）')}
               </label>
               <div className="relative">
                 <input
@@ -829,7 +833,7 @@ function CreateAffiliateModal({
                   step="0.1"
                   value={commissionRate}
                   onChange={(e) => setCommissionRate(e.target.value)}
-                  placeholder="例: 10"
+                  placeholder={t('例: 10')}
                   className="w-full px-3 py-2 pr-8 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">%</span>
@@ -838,7 +842,7 @@ function CreateAffiliateModal({
 
             {/* Random-code notice */}
             <p className="text-xs text-gray-500">
-              アフィリコードは推測されないよう自動でランダム生成されます（手入力は不要）。
+              {t('アフィリコードは推測されないよう自動でランダム生成されます（手入力は不要）。')}
             </p>
 
             {formError && (
@@ -852,14 +856,14 @@ function CreateAffiliateModal({
                 onClick={onClose}
                 className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
               >
-                キャンセル
+                {t('キャンセル')}
               </button>
               <button
                 onClick={() => { void handleSubmit() }}
                 disabled={submitting || !selected}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-md"
               >
-                {submitting ? '作成中...' : '作成'}
+                {submitting ? t('作成中...') : t('作成')}
               </button>
             </div>
           </div>
@@ -901,6 +905,7 @@ interface OfferFormProps {
 }
 
 function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }: OfferFormProps) {
+  const { t } = useI18n()
   const isEdit = Boolean(initial)
   const [name, setName] = useState(initial?.name ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
@@ -918,7 +923,7 @@ function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }
     if (submitting) return
     setFormError(null)
     if (!name.trim()) {
-      setFormError('案件名は必須です')
+      setFormError(t('案件名は必須です'))
       return
     }
     const reward =
@@ -926,7 +931,7 @@ function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }
         ? undefined
         : Number(rewardAmount)
     if (reward !== undefined && (!Number.isInteger(reward) || reward < 0)) {
-      setFormError('報酬額は0以上の整数で入力してください')
+      setFormError(t('報酬額は0以上の整数で入力してください'))
       return
     }
 
@@ -943,7 +948,7 @@ function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }
           isActive,
         })
         if (!res.success) {
-          setFormError('更新に失敗しました')
+          setFormError(t('更新に失敗しました'))
           setSubmitting(false)
           return
         }
@@ -957,7 +962,7 @@ function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }
           scenarioId: scenarioId || null,
         })
         if (!res.success) {
-          setFormError('作成に失敗しました')
+          setFormError(t('作成に失敗しました'))
           setSubmitting(false)
           return
         }
@@ -965,23 +970,23 @@ function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }
       onSaved()
       onClose()
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : '保存に失敗しました')
+      setFormError(e instanceof Error ? e.message : t('保存に失敗しました'))
     } finally {
       setSubmitting(false)
     }
-  }, [submitting, name, description, rewardAmount, lineAccountId, tagId, scenarioId, isActive, isEdit, initial, onSaved, onClose])
+  }, [submitting, name, description, rewardAmount, lineAccountId, tagId, scenarioId, isActive, isEdit, initial, onSaved, onClose, t])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <h2 className="text-base font-semibold text-gray-900">
-            {isEdit ? '案件を編集' : '案件を新規作成'}
+            {isEdit ? t('案件を編集') : t('案件を新規作成')}
           </h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
-            aria-label="閉じる"
+            aria-label={t('閉じる')}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -998,49 +1003,49 @@ function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }
 
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              案件名 <span className="text-red-500">*</span>
+              {t('案件名')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例: 無料体験申込"
+              placeholder={t('例: 無料体験申込')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">説明</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">{t('説明')}</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
-              placeholder="案件の説明（任意）"
+              placeholder={t('案件の説明（任意）')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">報酬額（円）</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">{t('報酬額（円）')}</label>
             <input
               type="number"
               min="0"
               step="1"
               value={rewardAmount}
               onChange={(e) => setRewardAmount(e.target.value)}
-              placeholder="例: 3000"
+              placeholder={t('例: 3000')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">誘導 LINE アカウント</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">{t('誘導 LINE アカウント')}</label>
             <select
               value={lineAccountId}
               onChange={(e) => setLineAccountId(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">— 選択しない —</option>
+              <option value="">{t('— 選択しない —')}</option>
               {accounts.map((acc) => (
                 <option key={acc.id} value={acc.id}>
                   {acc.name}
@@ -1050,13 +1055,13 @@ function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">タグ</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">{t('タグ')}</label>
             <select
               value={tagId}
               onChange={(e) => setTagId(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">— 選択しない —</option>
+              <option value="">{t('— 選択しない —')}</option>
               {tags.map((tag) => (
                 <option key={tag.id} value={tag.id}>
                   {tag.name}
@@ -1066,13 +1071,13 @@ function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">シナリオ</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">{t('シナリオ')}</label>
             <select
               value={scenarioId}
               onChange={(e) => setScenarioId(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">— 選択しない —</option>
+              <option value="">{t('— 選択しない —')}</option>
               {scenarios.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -1096,7 +1101,7 @@ function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }
                   }`}
                 />
               </button>
-              <span className="text-sm text-gray-700">{isActive ? '有効' : '無効'}</span>
+              <span className="text-sm text-gray-700">{isActive ? t('有効') : t('無効')}</span>
             </div>
           )}
         </div>
@@ -1106,14 +1111,14 @@ function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
           >
-            キャンセル
+            {t('キャンセル')}
           </button>
           <button
             onClick={() => { void handleSubmit() }}
             disabled={submitting}
             className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg"
           >
-            {submitting ? '保存中...' : isEdit ? '更新' : '作成'}
+            {submitting ? t('保存中...') : isEdit ? t('更新') : t('作成')}
           </button>
         </div>
       </div>
@@ -1126,6 +1131,7 @@ function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }
 type ApprovalStatus = 'pending' | 'approved' | 'rejected'
 
 function ApprovalQueue() {
+  const { t } = useI18n()
   const [status, setStatus] = useState<ApprovalStatus>('pending')
   const [items, setItems] = useState<ConversionApprovalItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -1140,14 +1146,14 @@ function ApprovalQueue() {
       if (res.success) {
         setItems(res.data)
       } else {
-        setError('読み込みに失敗しました')
+        setError(t('読み込みに失敗しました'))
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : '読み込みエラー')
+      setError(e instanceof Error ? e.message : t('読み込みエラー'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => { void loadItems(status) }, [status, loadItems])
 
@@ -1160,13 +1166,13 @@ function ApprovalQueue() {
       if (res.success) {
         setItems((prev) => prev.filter((i) => i.eventId !== eventId))
       } else {
-        setError(res.error ?? '承認に失敗しました')
+        setError(res.error ?? t('承認に失敗しました'))
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : '承認に失敗しました')
+      setError(e instanceof Error ? e.message : t('承認に失敗しました'))
     }
     setActioning(null)
-  }, [actioning])
+  }, [actioning, t])
 
   const handleReject = useCallback(async (eventId: string) => {
     if (actioning) return
@@ -1177,13 +1183,13 @@ function ApprovalQueue() {
       if (res.success) {
         setItems((prev) => prev.filter((i) => i.eventId !== eventId))
       } else {
-        setError(res.error ?? '却下に失敗しました')
+        setError(res.error ?? t('却下に失敗しました'))
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : '却下に失敗しました')
+      setError(e instanceof Error ? e.message : t('却下に失敗しました'))
     }
     setActioning(null)
-  }, [actioning])
+  }, [actioning, t])
 
   return (
     <div>
@@ -1199,7 +1205,7 @@ function ApprovalQueue() {
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            {s === 'pending' ? '承認待ち' : s === 'approved' ? '承認済み' : '却下済み'}
+            {s === 'pending' ? t('承認待ち') : s === 'approved' ? t('承認済み') : t('却下済み')}
           </button>
         ))}
       </div>
@@ -1212,26 +1218,26 @@ function ApprovalQueue() {
 
       {loading ? (
         <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">
-          読み込み中...
+          {t('読み込み中...')}
         </div>
       ) : items.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">
-          {status === 'pending' ? '承認待ちの成果がありません' : `${status === 'approved' ? '承認済み' : '却下済み'}の成果がありません`}
+          {status === 'pending' ? t('承認待ちの成果がありません') : `${status === 'approved' ? t('承認済み') : t('却下済み')}${t('の成果がありません')}`}
         </div>
       ) : (
         <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
           <table className="w-full min-w-[900px]">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">日時</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">友だち</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">アフィリエイター</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">案件</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">CV ポイント</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">金額</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">フラグ</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('日時')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('友だち')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('アフィリエイター')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('案件')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('CV ポイント')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('金額')}</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">{t('フラグ')}</th>
                 {status === 'pending' && (
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">操作</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">{t('操作')}</th>
                 )}
               </tr>
             </thead>
@@ -1242,7 +1248,7 @@ function ApprovalQueue() {
                     {formatDateTime(item.createdAt)}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900">
-                    {item.friendName ?? <span className="text-gray-400 italic">不明</span>}
+                    {item.friendName ?? <span className="text-gray-400 italic">{t('不明')}</span>}
                     <span className="block text-xs font-mono text-gray-400">{item.friendId.slice(0, 8)}…</span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-700">
@@ -1265,7 +1271,7 @@ function ApprovalQueue() {
                   </td>
                   <td className="px-4 py-3 text-center">
                     {item.duplicateFlag ? (
-                      <span className="text-amber-500 text-base" title="重複 identity_key 検出">⚠</span>
+                      <span className="text-amber-500 text-base" title={t('重複 identity_key 検出')}>⚠</span>
                     ) : (
                       <span className="text-gray-300">—</span>
                     )}
@@ -1278,14 +1284,14 @@ function ApprovalQueue() {
                           disabled={actioning === item.eventId}
                           className="px-3 py-1 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-md"
                         >
-                          承認
+                          {t('承認')}
                         </button>
                         <button
                           onClick={() => { void handleReject(item.eventId) }}
                           disabled={actioning === item.eventId}
                           className="px-3 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 rounded-md"
                         >
-                          却下
+                          {t('却下')}
                         </button>
                       </div>
                     </td>
@@ -1321,8 +1327,9 @@ function OffersList({
   onEdit: (offer: AffiliateOffer) => void
   onRefresh: () => void
 }) {
+  const { t } = useI18n()
   const accountMap = new Map(accounts.map((a) => [a.id, a.name]))
-  const tagMap = new Map(tags.map((t) => [t.id, t.name]))
+  const tagMap = new Map(tags.map((tag) => [tag.id, tag.name]))
   const scenarioMap = new Map(scenarios.map((s) => [s.id, s.name]))
 
   return (
@@ -1335,25 +1342,25 @@ function OffersList({
 
       {loading ? (
         <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">
-          読み込み中...
+          {t('読み込み中...')}
         </div>
       ) : offers.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">
-          案件がまだ登録されていません。右上の「+ 新規案件」から作成してください。
+          {t('案件がまだ登録されていません。右上の「+ 新規案件」から作成してください。')}
         </div>
       ) : (
         <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
           <table className="w-full min-w-[800px]">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">案件名</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">説明</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">報酬額</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">LINEアカウント</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">タグ</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">シナリオ</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">状態</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">操作</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('案件名')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('説明')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('報酬額')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('LINEアカウント')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('タグ')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('シナリオ')}</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">{t('状態')}</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">{t('操作')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -1381,9 +1388,9 @@ function OffersList({
                   </td>
                   <td className="px-4 py-3 text-center">
                     {offer.isActive ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">有効</span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">{t('有効')}</span>
                     ) : (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">無効</span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">{t('無効')}</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -1391,7 +1398,7 @@ function OffersList({
                       onClick={() => onEdit(offer)}
                       className="text-xs text-blue-600 hover:text-blue-800 font-medium"
                     >
-                      編集
+                      {t('編集')}
                     </button>
                   </td>
                 </tr>
@@ -1405,7 +1412,7 @@ function OffersList({
           onClick={onRefresh}
           className="text-xs text-gray-400 hover:text-gray-600"
         >
-          更新
+          {t('更新')}
         </button>
       </div>
     </div>
@@ -1415,6 +1422,7 @@ function OffersList({
 // ── Offers tab — list + create/edit modal wiring ─────────────────────────────
 
 function OffersTab() {
+  const { t } = useI18n()
   const [offers, setOffers] = useState<AffiliateOffer[]>([])
   const [offersLoading, setOffersLoading] = useState(true)
   const [offersError, setOffersError] = useState<string | null>(null)
@@ -1434,14 +1442,14 @@ function OffersTab() {
       if (res.success) {
         setOffers(res.data)
       } else {
-        setOffersError('案件の読み込みに失敗しました')
+        setOffersError(t('案件の読み込みに失敗しました'))
       }
     } catch (e) {
-      setOffersError(e instanceof Error ? e.message : '読み込みエラー')
+      setOffersError(e instanceof Error ? e.message : t('読み込みエラー'))
     } finally {
       setOffersLoading(false)
     }
-  }, [])
+  }, [t])
 
   const loadOptions = useCallback(async () => {
     try {
@@ -1478,7 +1486,7 @@ function OffersTab() {
           onClick={handleOpenCreate}
           className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
         >
-          + 新規案件
+          {t('+ 新規案件')}
         </button>
       </div>
 

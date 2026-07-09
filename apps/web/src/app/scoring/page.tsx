@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Header from '@/components/layout/header'
 import { api } from '@/lib/api'
 import CcPromptButton from '@/components/cc-prompt-button'
+import { useI18n } from '@/lib/i18n'
 
 interface ScoringRule {
   id: string
@@ -41,6 +42,7 @@ const ccPrompts = [
 ]
 
 export default function ScoringPage() {
+  const { t } = useI18n()
   const [rules, setRules] = useState<ScoringRule[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -64,7 +66,7 @@ export default function ScoringPage() {
         setError(res.error)
       }
     } catch {
-      setError('スコアリングルールの読み込みに失敗しました。もう一度お試しください。')
+      setError(t('スコアリングルールの読み込みに失敗しました。もう一度お試しください。'))
     } finally {
       setLoading(false)
     }
@@ -76,15 +78,15 @@ export default function ScoringPage() {
 
   const handleCreate = async () => {
     if (!form.name.trim()) {
-      setFormError('ルール名を入力してください')
+      setFormError(t('ルール名を入力してください'))
       return
     }
     if (!form.eventType.trim()) {
-      setFormError('イベントタイプを入力してください')
+      setFormError(t('イベントタイプを入力してください'))
       return
     }
     if (!form.scoreValue || isNaN(Number(form.scoreValue))) {
-      setFormError('スコア値を数値で入力してください')
+      setFormError(t('スコア値を数値で入力してください'))
       return
     }
     setSaving(true)
@@ -103,7 +105,7 @@ export default function ScoringPage() {
         setFormError(res.error)
       }
     } catch {
-      setFormError('作成に失敗しました')
+      setFormError(t('作成に失敗しました'))
     } finally {
       setSaving(false)
     }
@@ -114,17 +116,17 @@ export default function ScoringPage() {
       await api.scoring.updateRule(id, { isActive: !current })
       loadRules()
     } catch {
-      setError('ステータスの変更に失敗しました')
+      setError(t('ステータスの変更に失敗しました'))
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('このスコアリングルールを削除しますか？')) return
+    if (!confirm(t('このスコアリングルールを削除しますか？'))) return
     try {
       await api.scoring.deleteRule(id)
       loadRules()
     } catch {
-      setError('削除に失敗しました')
+      setError(t('削除に失敗しました'))
     }
   }
 
@@ -134,14 +136,14 @@ export default function ScoringPage() {
   return (
     <div>
       <Header
-        title="スコアリングルール"
+        title={t('スコアリングルール')}
         action={
           <button
             onClick={() => setShowCreate(true)}
             className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
             style={{ backgroundColor: '#06C755' }}
           >
-            + 新規ルール
+            + {t('新規ルール')}
           </button>
         }
       />
@@ -150,11 +152,11 @@ export default function ScoringPage() {
       {!loading && (
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <p className="text-xs text-gray-500">ルール総数</p>
+            <p className="text-xs text-gray-500">{t('ルール総数')}</p>
             <p className="text-2xl font-bold text-gray-900">{totalRules}</p>
           </div>
           <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <p className="text-xs text-gray-500">有効なルール</p>
+            <p className="text-xs text-gray-500">{t('有効なルール')}</p>
             <p className="text-2xl font-bold" style={{ color: '#06C755' }}>{activeRules}</p>
           </div>
         </div>
@@ -170,34 +172,34 @@ export default function ScoringPage() {
       {/* Create form */}
       {showCreate && (
         <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-sm font-semibold text-gray-800 mb-4">新規スコアリングルールを作成</h2>
+          <h2 className="text-sm font-semibold text-gray-800 mb-4">{t('新規スコアリングルールを作成')}</h2>
           <div className="space-y-4 max-w-lg">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">ルール名 <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t('ルール名')} <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="例: メッセージ開封"
+                placeholder={t('例: メッセージ開封')}
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">イベントタイプ <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t('イベントタイプ')} <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="例: message_open, url_click, friend_add"
+                placeholder={t('例: message_open, url_click, friend_add')}
                 value={form.eventType}
                 onChange={(e) => setForm({ ...form, eventType: e.target.value })}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">スコア値 <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t('スコア値')} <span className="text-red-500">*</span></label>
               <input
                 type="number"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="例: 10 (正の値で加算、負の値で減算)"
+                placeholder={t('例: 10 (正の値で加算、負の値で減算)')}
                 value={form.scoreValue}
                 onChange={(e) => setForm({ ...form, scoreValue: e.target.value })}
               />
@@ -212,13 +214,13 @@ export default function ScoringPage() {
                 className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50 transition-opacity"
                 style={{ backgroundColor: '#06C755' }}
               >
-                {saving ? '作成中...' : '作成'}
+                {saving ? t('作成中...') : t('作成')}
               </button>
               <button
                 onClick={() => { setShowCreate(false); setFormError('') }}
                 className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
               >
-                キャンセル
+                {t('キャンセル')}
               </button>
             </div>
           </div>
@@ -227,20 +229,20 @@ export default function ScoringPage() {
 
       {/* Loading skeleton */}
       {loading ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">読み込み中...</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">{t('読み込み中...')}</div>
       ) : rules.length === 0 ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">スコアリングルールがまだありません</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">{t('スコアリングルールがまだありません')}</div>
       ) : (
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
           <table className="w-full min-w-[640px]">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ルール名</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">イベントタイプ</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">スコア値</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ステータス</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('ルール名')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('イベントタイプ')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('スコア値')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('ステータス')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('操作')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -274,7 +276,7 @@ export default function ScoringPage() {
                       onClick={() => handleDelete(rule.id)}
                       className="text-red-500 hover:text-red-700 text-sm"
                     >
-                      削除
+                      {t('削除')}
                     </button>
                   </td>
                 </tr>

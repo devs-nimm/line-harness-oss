@@ -5,6 +5,7 @@ import { api } from '@/lib/api'
 import type { ConversionPoint } from '@line-crm/shared'
 import Header from '@/components/layout/header'
 import CcPromptButton from '@/components/cc-prompt-button'
+import { useI18n } from '@/lib/i18n'
 
 interface ConversionReportItem {
   conversionPointId: string
@@ -34,6 +35,7 @@ const ccPrompts = [
 ]
 
 export default function ConversionsPage() {
+  const { t } = useI18n()
   const [points, setPoints] = useState<ConversionPoint[]>([])
   const [report, setReport] = useState<ConversionReportItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -71,7 +73,7 @@ export default function ConversionsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('このCVポイントを削除しますか？')) return
+    if (!confirm(t('このCVポイントを削除しますか？'))) return
     await api.conversions.deletePoint(id)
     load()
   }
@@ -91,15 +93,15 @@ export default function ConversionsPage() {
   return (
     <div>
       <Header
-        title="コンバージョン計測"
-        description="CVポイント定義 & レポート"
+        title={t('コンバージョン計測')}
+        description={t('CVポイント定義 & レポート')}
         action={
           <button
             onClick={() => setShowCreate(!showCreate)}
             className="px-4 py-2 min-h-[44px] rounded-lg text-white text-sm font-medium"
             style={{ backgroundColor: '#06C755' }}
           >
-            {showCreate ? 'キャンセル' : '+ CVポイント作成'}
+            {showCreate ? t('キャンセル') : t('+ CVポイント作成')}
           </button>
         }
       />
@@ -108,31 +110,31 @@ export default function ConversionsPage() {
         <form onSubmit={handleCreate} className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">CV名</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('CV名')}</label>
               <input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                placeholder="購入完了"
+                placeholder={t('購入完了')}
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">イベントタイプ</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('イベントタイプ')}</label>
               <select
                 value={form.eventType}
                 onChange={(e) => setForm({ ...form, eventType: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 required
               >
-                <option value="">選択...</option>
-                {eventTypes.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
+                <option value="">{t('選択...')}</option>
+                {eventTypes.map((et) => (
+                  <option key={et.value} value={et.value}>{t(et.label)}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">金額 (任意)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('金額 (任意)')}</label>
               <input
                 type="number"
                 value={form.value}
@@ -147,7 +149,7 @@ export default function ConversionsPage() {
             className="mt-4 px-4 py-2 min-h-[44px] rounded-lg text-white text-sm font-medium"
             style={{ backgroundColor: '#06C755' }}
           >
-            作成
+            {t('作成')}
           </button>
         </form>
       )}
@@ -164,12 +166,12 @@ export default function ConversionsPage() {
               <div className="flex items-end gap-4">
                 <div>
                   <p className="text-2xl font-bold text-gray-900">{r.totalCount}</p>
-                  <p className="text-xs text-gray-400">CV数</p>
+                  <p className="text-xs text-gray-400">{t('CV数')}</p>
                 </div>
                 {r.totalValue > 0 && (
                   <div>
                     <p className="text-lg font-semibold text-green-600">{r.totalValue.toLocaleString('ja-JP', { style: 'currency', currency: 'JPY' })}</p>
-                    <p className="text-xs text-gray-400">売上</p>
+                    <p className="text-xs text-gray-400">{t('売上')}</p>
                   </div>
                 )}
               </div>
@@ -180,19 +182,19 @@ export default function ConversionsPage() {
 
       {/* Points Table */}
       {loading ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">読み込み中...</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">{t('読み込み中...')}</div>
       ) : points.length === 0 ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">CVポイントがまだありません</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">{t('CVポイントがまだありません')}</div>
       ) : (
         <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
           <table className="w-full min-w-[640px]">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">CV名</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">イベントタイプ</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">金額</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">作成日</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('CV名')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('イベントタイプ')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('金額')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('作成日')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('操作')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -211,7 +213,7 @@ export default function ConversionsPage() {
                       onClick={() => handleDelete(point.id)}
                       className="text-red-500 hover:text-red-700 text-sm"
                     >
-                      削除
+                      {t('削除')}
                     </button>
                   </td>
                 </tr>

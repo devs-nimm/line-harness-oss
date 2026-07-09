@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { fetchApi } from '@/lib/api'
 import { countryFlag } from '@/lib/country-flag'
 import Header from '@/components/layout/header'
+import { useI18n } from '@/lib/i18n'
 
 interface UsedByAccount {
   id: string
@@ -69,6 +70,7 @@ function formatValue(v: unknown): string {
 }
 
 export default function FormSubmissionsPage() {
+  const { t } = useI18n()
   const [forms, setForms] = useState<Form[]>([])
   const [selectedFormId, setSelectedFormId] = useState<string | null>(null)
   const [submissions, setSubmissions] = useState<Submission[]>([])
@@ -150,15 +152,15 @@ export default function FormSubmissionsPage() {
 
   return (
     <div>
-      <Header title="フォーム回答" description="送信されたフォームを件数・配信アカウント・回答内容まで一覧で確認" />
+      <Header title={t('フォーム回答')} description={t('送信されたフォームを件数・配信アカウント・回答内容まで一覧で確認')} />
 
       {/* Form cards */}
       <section className="mb-6">
         {loading ? (
-          <div className="text-sm text-gray-400">読み込み中...</div>
+          <div className="text-sm text-gray-400">{t('読み込み中...')}</div>
         ) : forms.length === 0 ? (
           <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400 text-sm">
-            フォームがまだありません
+            {t('フォームがまだありません')}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -187,7 +189,7 @@ export default function FormSubmissionsPage() {
 
                   <div className="flex items-baseline gap-1 mb-3">
                     <span className="text-2xl font-bold text-gray-900 tabular-nums">{displayCount}</span>
-                    <span className="text-xs text-gray-400">件の回答</span>
+                    <span className="text-xs text-gray-400">{t('件の回答')}</span>
                   </div>
 
                   {form.usedByAccounts.length > 0 ? (
@@ -208,7 +210,7 @@ export default function FormSubmissionsPage() {
                       })}
                     </div>
                   ) : (
-                    <div className="text-[11px] text-gray-300">配信中アカウントなし</div>
+                    <div className="text-[11px] text-gray-300">{t('配信中アカウントなし')}</div>
                   )}
                 </button>
               )
@@ -224,7 +226,7 @@ export default function FormSubmissionsPage() {
             <div className="flex items-baseline gap-2">
               <h2 className="text-base font-semibold text-gray-900">{selectedForm.name}</h2>
               <span className="text-xs text-gray-400">
-                {subLoading ? '読み込み中...' : `${submissions.length}件`}
+                {subLoading ? t('読み込み中...') : `${submissions.length}件`}
               </span>
             </div>
             <button
@@ -235,22 +237,22 @@ export default function FormSubmissionsPage() {
               }}
               className="text-xs text-gray-400 hover:text-gray-600"
             >
-              閉じる ✕
+              {t('閉じる')} ✕
             </button>
           </div>
 
           {subLoading ? (
-            <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400 text-sm">読み込み中...</div>
+            <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400 text-sm">{t('読み込み中...')}</div>
           ) : submissions.length === 0 ? (
-            <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400 text-sm">回答がありません</div>
+            <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400 text-sm">{t('回答がありません')}</div>
           ) : (
             <>
               <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
                 <table className="w-full min-w-[700px]">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">名前</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">日時</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{t('名前')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{t('日時')}</th>
                       {fieldKeys.slice(0, 4).map((key) => (
                         <th key={key} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">
                           {fieldLabels[key] || key}
@@ -275,10 +277,10 @@ export default function FormSubmissionsPage() {
                               onClick={(e) => e.stopPropagation()}
                               className="text-[#06C755] hover:underline"
                             >
-                              {sub.friendName || '不明'}
+                              {sub.friendName || t('不明')}
                             </Link>
                           ) : (
-                            <span>{sub.friendName || '不明'}</span>
+                            <span>{sub.friendName || t('不明')}</span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
@@ -311,7 +313,7 @@ export default function FormSubmissionsPage() {
                       disabled={page === 1}
                       className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 disabled:opacity-30 hover:bg-gray-50"
                     >
-                      前へ
+                      {t('前へ')}
                     </button>
                     <span className="px-3 py-1.5 text-sm text-gray-500">{page} / {totalPages}</span>
                     <button
@@ -319,7 +321,7 @@ export default function FormSubmissionsPage() {
                       disabled={page === totalPages}
                       className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 disabled:opacity-30 hover:bg-gray-50"
                     >
-                      次へ
+                      {t('次へ')}
                     </button>
                   </div>
                 </div>
@@ -339,11 +341,11 @@ export default function FormSubmissionsPage() {
           />
           <aside className="relative h-full w-full max-w-md bg-white shadow-xl overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 px-5 py-4 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900">回答詳細</h3>
+              <h3 className="text-sm font-semibold text-gray-900">{t('回答詳細')}</h3>
               <button
                 onClick={() => setDetailSubmission(null)}
                 className="text-gray-400 hover:text-gray-600 text-lg leading-none"
-                aria-label="閉じる"
+                aria-label={t('閉じる')}
               >
                 ×
               </button>
@@ -351,30 +353,30 @@ export default function FormSubmissionsPage() {
 
             <div className="p-5 space-y-5">
               <div>
-                <div className="text-[11px] text-gray-400 uppercase tracking-wide mb-1">回答者</div>
+                <div className="text-[11px] text-gray-400 uppercase tracking-wide mb-1">{t('回答者')}</div>
                 {detailSubmission.friendId ? (
                   <Link
                     href={`/chats?friend=${encodeURIComponent(detailSubmission.friendId)}`}
                     className="inline-flex items-center gap-2 text-sm text-[#06C755] hover:underline"
                   >
-                    <span className="font-medium">{detailSubmission.friendName || '不明'}</span>
-                    <span className="text-[11px] text-gray-400">→ チャットを開く</span>
+                    <span className="font-medium">{detailSubmission.friendName || t('不明')}</span>
+                    <span className="text-[11px] text-gray-400">→ {t('チャットを開く')}</span>
                   </Link>
                 ) : (
-                  <span className="text-sm text-gray-700">{detailSubmission.friendName || '不明'}</span>
+                  <span className="text-sm text-gray-700">{detailSubmission.friendName || t('不明')}</span>
                 )}
               </div>
 
               <div>
-                <div className="text-[11px] text-gray-400 uppercase tracking-wide mb-1">送信日時</div>
+                <div className="text-[11px] text-gray-400 uppercase tracking-wide mb-1">{t('送信日時')}</div>
                 <div className="text-sm text-gray-700">{formatDateTime(detailSubmission.createdAt)}</div>
               </div>
 
               <div>
-                <div className="text-[11px] text-gray-400 uppercase tracking-wide mb-2">回答内容</div>
+                <div className="text-[11px] text-gray-400 uppercase tracking-wide mb-2">{t('回答内容')}</div>
                 <dl className="space-y-3">
                   {fieldKeys.length === 0 ? (
-                    <div className="text-sm text-gray-400">項目なし</div>
+                    <div className="text-sm text-gray-400">{t('項目なし')}</div>
                   ) : (
                     fieldKeys.map((key) => (
                       <div key={key} className="grid grid-cols-1 gap-1">

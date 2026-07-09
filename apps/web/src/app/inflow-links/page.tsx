@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { api, fetchApi } from '@/lib/api'
 import Header from '@/components/layout/header'
 import { useAccount } from '@/contexts/account-context'
+import { useI18n } from '@/lib/i18n'
 import type { EntryRoute, TrafficPool, Scenario, Tag } from '@line-crm/shared'
 import EditRouteModal from './_components/edit-route-modal'
 
@@ -54,6 +55,7 @@ interface RefDetail {
 const WORKER_BASE = process.env.NEXT_PUBLIC_API_URL ?? ''
 
 export default function InflowLinksPage() {
+  const { t } = useI18n()
   const { selectedAccountId } = useAccount()
   const [routes, setRoutes] = useState<EntryRoute[]>([])
   const [pools, setPools] = useState<TrafficPool[]>([])
@@ -92,7 +94,7 @@ export default function InflowLinksPage() {
     // ref_code のみ」に絞れる。pool_id NULL のリンクが多い現状ではアカ別の
     // pool 紐付け判定よりも、こちらの実流入ベースの方が運用実態に合う。
     const summaryQuery = selectedAccountId ? `?lineAccountId=${selectedAccountId}` : ''
-    const [r, p, s, t, tagRes, sum, tl] = await Promise.all([
+    const [r, p, s, tmpl, tagRes, sum, tl] = await Promise.all([
       api.entryRoutes.list(),
       api.pools.list(),
       api.scenarios.list(),
@@ -104,10 +106,10 @@ export default function InflowLinksPage() {
       api.trackedLinks.list().catch(() => ({ success: false, data: null })),
     ])
     if (r.success) setRoutes(r.data)
-    else setError('リファラルリンクの取得に失敗しました')
+    else setError(t('リファラルリンクの取得に失敗しました'))
     if (p.success) setPools(p.data)
     if (s.success) setScenarios(s.data)
-    if (t.success) setTemplates(t.data)
+    if (tmpl.success) setTemplates(tmpl.data)
     if (tagRes.success) setTags(tagRes.data)
     if ('success' in sum && sum.success && sum.data) setSummary(sum.data)
     if (tl.success && tl.data) {
@@ -283,7 +285,7 @@ export default function InflowLinksPage() {
       source: 'orphan',
       entryRouteId: null,
       refCode: s.refCode,
-      name: s.name ?? '(未登録)',
+      name: s.name ?? t('(未登録)'),
       poolId: null,
       tagId: null,
       scenarioId: null,
@@ -344,26 +346,26 @@ export default function InflowLinksPage() {
   return (
     <div>
       <Header
-        title="リファラルリンク"
-        description="流入経路ごとの URL を発行し、Pool・起動シナリオ・即時 push を設定します。"
+        title={t('リファラルリンク')}
+        description={t('流入経路ごとの URL を発行し、Pool・起動シナリオ・即時 push を設定します。')}
       />
 
       {summary && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-xl p-5 border border-gray-100">
-            <p className="text-sm text-gray-500">総友だち数</p>
+            <p className="text-sm text-gray-500">{t('総友だち数')}</p>
             <p className="text-3xl font-bold text-gray-900 mt-1">{summary.totalFriends}</p>
           </div>
           <div className="bg-white rounded-xl p-5 border border-gray-100">
-            <p className="text-sm text-gray-500">ref 経由</p>
+            <p className="text-sm text-gray-500">{t('ref 経由')}</p>
             <p className="text-3xl font-bold text-green-600 mt-1">{summary.friendsWithRef}</p>
           </div>
           <div className="bg-white rounded-xl p-5 border border-gray-100">
-            <p className="text-sm text-gray-500">ref 不明</p>
+            <p className="text-sm text-gray-500">{t('ref 不明')}</p>
             <p className="text-3xl font-bold text-gray-400 mt-1">{summary.friendsWithoutRef}</p>
           </div>
           <div className="bg-white rounded-xl p-5 border border-gray-100">
-            <p className="text-sm text-gray-500">リンク数</p>
+            <p className="text-sm text-gray-500">{t('リンク数')}</p>
             <p className="text-3xl font-bold text-blue-600 mt-1">{routes.length}</p>
           </div>
         </div>
@@ -371,7 +373,7 @@ export default function InflowLinksPage() {
 
       <div className="flex justify-between items-center mb-4">
         <span className="text-sm text-gray-500">
-          {sortedRows.length} リンク
+          {sortedRows.length} {t('リンク')}
           {selectedAccountId && allRows.length !== sortedRows.length
             ? `（全 ${allRows.length} 件中、選択中アカ）`
             : ''}
@@ -380,7 +382,7 @@ export default function InflowLinksPage() {
           onClick={() => setEditing('new')}
           className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700"
         >
-          + 新規リンク
+          {t('+ 新規リンク')}
         </button>
       </div>
 
@@ -392,13 +394,13 @@ export default function InflowLinksPage() {
 
       {loading ? (
         <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">
-          読み込み中...
+          {t('読み込み中...')}
         </div>
       ) : sortedRows.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">
           {selectedAccountId
-            ? '選択中のアカウントに紐づくリファラルリンクはありません。'
-            : 'リファラルリンクがありません。「+ 新規リンク」から作成してください。'}
+            ? t('選択中のアカウントに紐づくリファラルリンクはありません。')
+            : t('リファラルリンクがありません。「+ 新規リンク」から作成してください。')}
         </div>
       ) : (
         <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
@@ -406,31 +408,31 @@ export default function InflowLinksPage() {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  名前
+                  {t('名前')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  ref コード
+                  {t('ref コード')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  送り先 Pool
+                  {t('送り先 Pool')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  起動シナリオ
+                  {t('起動シナリオ')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  自動付与タグ
+                  {t('自動付与タグ')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  モード
+                  {t('モード')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  友だち数
+                  {t('友だち数')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  クリック数
+                  {t('クリック数')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  最新追加
+                  {t('最新追加')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   URL
@@ -442,7 +444,7 @@ export default function InflowLinksPage() {
               {sortedRows.map((r) => {
                 const pool = pools.find((p) => p.id === r.poolId)
                 const sc = scenarios.find((s) => s.id === r.scenarioId)
-                const tag = tags.find((t) => t.id === r.tagId)
+                const tag = tags.find((item) => item.id === r.tagId)
                 const editTarget =
                   r.source === 'entry_route'
                     ? routes.find((e) => e.id === r.entryRouteId) ?? null
@@ -471,7 +473,7 @@ export default function InflowLinksPage() {
                           {r.name}
                           <span
                             className="ml-2 text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5"
-                            title="tracked_links 登録済み — クリック計測 + シナリオ起動が設定されています。Pool 振り分けは持ちません。"
+                            title={t('tracked_links 登録済み — クリック計測 + シナリオ起動が設定されています。Pool 振り分けは持ちません。')}
                           >
                             Tracked Link
                           </span>
@@ -481,9 +483,9 @@ export default function InflowLinksPage() {
                           {r.name}
                           <span
                             className="ml-2 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5"
-                            title="entry_routes / tracked_links いずれにも未登録 — X Harness など外部システムが発行した ref。流入実績のみ集計。"
+                            title={t('entry_routes / tracked_links いずれにも未登録 — X Harness など外部システムが発行した ref。流入実績のみ集計。')}
                           >
-                            未登録
+                            {t('未登録')}
                           </span>
                         </span>
                       )}
@@ -497,16 +499,16 @@ export default function InflowLinksPage() {
                       ) : r.source === 'tracked_link' ? (
                         <span
                           className="text-gray-400"
-                          title="tracked_links は Pool 振り分けを持ちません (グローバルデフォルトに従う)。"
+                          title={t('tracked_links は Pool 振り分けを持ちません (グローバルデフォルトに従う)。')}
                         >
                           —
                         </span>
                       ) : (
                         <span
                           className="text-gray-400"
-                          title="DB に pool_id 未設定。実行時は URL クエリ ?pool= で振り分けられている可能性あり。"
+                          title={t('DB に pool_id 未設定。実行時は URL クエリ ?pool= で振り分けられている可能性あり。')}
                         >
-                          未設定
+                          {t('未設定')}
                         </span>
                       )}
                     </td>
@@ -529,13 +531,13 @@ export default function InflowLinksPage() {
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {r.source === 'entry_route'
                         ? r.runAccountFriendAddScenarios
-                          ? '並走'
-                          : '上書き'
+                          ? t('並走')
+                          : t('上書き')
                         : r.source === 'tracked_link'
                           ? // tracked_links は account-level friend_add scenarios を
                             // 抑制する仕組みを持たない (runAccountFriendAddScenarios
                             // フラグは entry_routes 専用)。worker 上は常に並走挙動。
-                            '並走'
+                            t('並走')
                           : '—'}
                     </td>
                     <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
@@ -552,7 +554,7 @@ export default function InflowLinksPage() {
                         onClick={() => onCopy(r.refCode, r.refCode)}
                         className="text-xs text-blue-500 hover:text-blue-700"
                       >
-                        {copiedId === r.refCode ? 'コピー済' : 'コピー'}
+                        {copiedId === r.refCode ? t('コピー済') : t('コピー')}
                       </button>
                     </td>
                     <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
@@ -561,7 +563,7 @@ export default function InflowLinksPage() {
                           onClick={() => setEditing(editTarget)}
                           className="text-xs text-gray-600 hover:underline"
                         >
-                          編集
+                          {t('編集')}
                         </button>
                       ) : r.source === 'tracked_link' ? (
                         // tracked_links は別管理 (Web app に編集 UI 未提供)。
@@ -574,9 +576,9 @@ export default function InflowLinksPage() {
                         <button
                           onClick={() => setEditing({ register: r.refCode })}
                           className="text-xs text-blue-600 hover:underline"
-                          title="未登録 ref を entry_routes に登録します。流入実績はそのまま引き継がれます。"
+                          title={t('未登録 ref を entry_routes に登録します。流入実績はそのまま引き継がれます。')}
                         >
-                          登録
+                          {t('登録')}
                         </button>
                       )}
                     </td>
@@ -636,6 +638,7 @@ function FragmentRow({
   refCode: string
   children: ReactNode
 }) {
+  const { t } = useI18n()
   const friends = isExpanded && refDetail?.refCode === refCode ? refDetail.friends : null
   return (
     <Fragment>
@@ -646,15 +649,15 @@ function FragmentRow({
         <tr>
           <td colSpan={11} className="px-6 py-4 bg-gray-50 border-t border-gray-100">
             {refDetailLoading ? (
-              <p className="text-sm text-gray-400">読み込み中…</p>
+              <p className="text-sm text-gray-400">{t('読み込み中…')}</p>
             ) : !friends ? (
-              <p className="text-sm text-gray-400">読み込めませんでした</p>
+              <p className="text-sm text-gray-400">{t('読み込めませんでした')}</p>
             ) : friends.length === 0 ? (
-              <p className="text-sm text-gray-400">この ref から追加した友だちはまだいません</p>
+              <p className="text-sm text-gray-400">{t('この ref から追加した友だちはまだいません')}</p>
             ) : (
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase mb-3">
-                  この ref から追加した友だち ({friends.length}人)
+                  {t('この ref から追加した友だち (')}{friends.length}{t('人)')}
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                   {friends.map((f) => (

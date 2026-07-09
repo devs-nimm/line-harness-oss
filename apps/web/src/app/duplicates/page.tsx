@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Header from '@/components/layout/header'
 import { api } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 
 interface PerAccountStat {
   accountId: string
@@ -51,6 +52,7 @@ export default function DuplicatesPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
+  const { t } = useI18n()
 
   const load = useCallback(async (opts?: { forceRefresh?: boolean }) => {
     if (opts?.forceRefresh) setRefreshing(true)
@@ -60,7 +62,7 @@ export default function DuplicatesPage() {
       if (res.success) {
         setData(res.data)
       } else {
-        setError('集計の取得に失敗しました')
+        setError(t('集計の取得に失敗しました'))
       }
     } catch {
       setError('集計の取得に失敗しました')
@@ -79,24 +81,24 @@ export default function DuplicatesPage() {
   // on the next render via formatRelative.
   const [, setTick] = useState(0)
   useEffect(() => {
-    const interval = setInterval(() => setTick((t) => t + 1), 60_000)
+    const interval = setInterval(() => setTick((n) => n + 1), 60_000)
     return () => clearInterval(interval)
   }, [])
 
   return (
     <div className="space-y-8">
       <Header
-        title="重複検出"
-        description="複数アカウントに重複している友だちを把握し、配信コストの無駄を減らすためのビューです。"
+        title={t('重複検出')}
+        description={t('複数アカウントに重複している友だちを把握し、配信コストの無駄を減らすためのビューです。')}
       />
 
       {loading && !data ? (
         <div className="rounded-lg bg-white p-8 text-center text-gray-500 shadow-sm">
-          読み込み中…
+          {t('読み込み中…')}
         </div>
       ) : !data ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error || '集計の取得に失敗しました'}
+          {error || t('集計の取得に失敗しました')}
         </div>
       ) : (
         <>
@@ -106,19 +108,19 @@ export default function DuplicatesPage() {
               showing slightly stale numbers with a warning. */}
           {error && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-              再計算に失敗しました: {error}
+              {t('再計算に失敗しました')}: {error}
             </div>
           )}
           <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <StatCard label="友だち総数" value={fmt.format(data.totalFollowing)} />
-            <StatCard label="ユニーク人数" value={fmt.format(data.uniquePeople)} />
+            <StatCard label={t('友だち総数')} value={fmt.format(data.totalFollowing)} />
+            <StatCard label={t('ユニーク人数')} value={fmt.format(data.uniquePeople)} />
             <StatCard
-              label="余分な配信回数"
+              label={t('余分な配信回数')}
               value={fmt.format(data.friendDups)}
-              hint="重複ぶんの送信"
+              hint={t('重複ぶんの送信')}
             />
             <StatCard
-              label="1配信あたり浪費"
+              label={t('1配信あたり浪費')}
               value={`¥${fmt.format(data.wastedPerBroadcastYen)}`}
               hint={`¥${data.msgUnitYen}/通 換算`}
             />
@@ -126,16 +128,16 @@ export default function DuplicatesPage() {
 
           <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-gray-500">
             <p>
-              月10本配信なら約{' '}
+              {t('月10本配信なら約')}{' '}
               <span className="font-medium text-gray-700">
                 ¥{fmt.format(data.wastedPerBroadcastYen * 10)}
               </span>{' '}
-              の浪費です。
+              {t('の浪費です。')}
             </p>
             <div className="flex items-center gap-3">
               {data.computedAt && (
                 <span className="text-xs text-gray-400">
-                  {formatRelative(data.computedAt)}に計算
+                  {formatRelative(data.computedAt)}{t('に計算')}
                 </span>
               )}
               <button
@@ -144,24 +146,24 @@ export default function DuplicatesPage() {
                 disabled={refreshing}
                 className="rounded-md border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
-                {refreshing ? '再計算中…' : '再計算'}
+                {refreshing ? t('再計算中…') : t('再計算')}
               </button>
             </div>
           </div>
 
           <section>
-            <h2 className="text-lg font-semibold text-gray-900">アカウント別ブレイクダウン</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{t('アカウント別ブレイクダウン')}</h2>
             {data.perAccount.length === 0 ? (
-              <p className="mt-3 text-sm text-gray-500">アカウントが登録されていません。</p>
+              <p className="mt-3 text-sm text-gray-500">{t('アカウントが登録されていません。')}</p>
             ) : (
               <div className="mt-3 overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-gray-200">
                 <table className="min-w-full divide-y divide-gray-200 text-sm">
                   <thead className="bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
                     <tr>
-                      <th className="px-4 py-3">アカウント</th>
-                      <th className="px-4 py-3 text-right">友だち数</th>
-                      <th className="px-4 py-3 text-right">うち重複</th>
-                      <th className="px-4 py-3 text-right">重複率</th>
+                      <th className="px-4 py-3">{t('アカウント')}</th>
+                      <th className="px-4 py-3 text-right">{t('友だち数')}</th>
+                      <th className="px-4 py-3 text-right">{t('うち重複')}</th>
+                      <th className="px-4 py-3 text-right">{t('重複率')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-white">
@@ -187,15 +189,15 @@ export default function DuplicatesPage() {
             const pairwise = data.pairwiseOverlap
             return (
             <section>
-              <h2 className="text-lg font-semibold text-gray-900">アカウント間 重複マトリックス</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t('アカウント間 重複マトリックス')}</h2>
               <p className="mt-1 text-sm text-gray-500">
-                行アカウントの友だちのうち、列アカウントにも居る人数 (行アカに対する割合)。
+                {t('行アカウントの友だちのうち、列アカウントにも居る人数 (行アカに対する割合)。')}
               </p>
               <div className="mt-3 overflow-x-auto rounded-lg bg-white shadow-sm ring-1 ring-gray-200">
                 <table className="min-w-full divide-y divide-gray-200 text-sm">
                   <thead className="bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
                     <tr>
-                      <th className="px-4 py-3">行 \ 列</th>
+                      <th className="px-4 py-3">{t('行 \\ 列')}</th>
                       {data.perAccount.map((col) => (
                         <th
                           key={col.accountId}

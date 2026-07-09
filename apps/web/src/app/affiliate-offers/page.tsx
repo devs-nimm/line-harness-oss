@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useI18n } from '@/lib/i18n'
 
 /**
  * 旧「案件・承認」ページ。機能は /affiliates?tab=offers に統合された。
@@ -11,6 +12,7 @@ import { useRouter } from 'next/navigation'
  */
 export default function AffiliateOffersRedirectPage() {
   const router = useRouter()
+  const { t } = useI18n()
 
   useEffect(() => {
     router.replace('/affiliates?tab=offers')
@@ -18,7 +20,7 @@ export default function AffiliateOffersRedirectPage() {
 
   return (
     <div className="p-8 text-center text-gray-400 text-sm">
-      移動中...
+      {t('移動中...')}
     </div>
   )
 }
