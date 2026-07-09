@@ -1,6 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import { useI18n } from '@/lib/i18n'
+
+type TFn = (key: string) => string
 
 export interface InboxRowData {
   friendId: string
@@ -23,24 +26,28 @@ const TYPE_LABELS: Record<string, string> = {
   location: '📍 位置情報',
 }
 
-function formatPreview(type: string, content: string): string {
-  if (type !== 'text') return TYPE_LABELS[type] ?? `(${type})`
+function formatPreview(type: string, content: string, t: TFn): string {
+  if (type !== 'text') {
+    const label = TYPE_LABELS[type]
+    return label ? t(label) : `(${type})`
+  }
   return content.length > 80 ? `${content.slice(0, 80)}…` : content
 }
 
-function formatElapsed(iso: string): string {
+function formatElapsed(iso: string, t: TFn): string {
   const ms = Date.now() - new Date(iso).getTime()
-  if (ms < 0) return 'たった今'
+  if (ms < 0) return t('たった今')
   const min = Math.floor(ms / 60_000)
-  if (min < 1) return 'たった今'
-  if (min < 60) return `${min}分前`
+  if (min < 1) return t('たった今')
+  if (min < 60) return `${min}${t('分前')}`
   const hr = Math.floor(min / 60)
-  if (hr < 24) return `${hr}時間前`
+  if (hr < 24) return `${hr}${t('時間前')}`
   const day = Math.floor(hr / 24)
-  return `${day}日前`
+  return `${day}${t('日前')}`
 }
 
 function ImageThumb({ raw }: { raw: string }) {
+  const { t } = useI18n()
   // webhook 経由の image は {previewImageUrl, originalContentUrl} JSON。
   // 過去 incoming の `[画像]` ラベルは parse 失敗 → label fallback。
   let src: string | undefined
@@ -53,7 +60,7 @@ function ImageThumb({ raw }: { raw: string }) {
   } catch {
     // ignore
   }
-  if (!src) return <span className="text-sm text-gray-600">🖼 画像</span>
+  if (!src) return <span className="text-sm text-gray-600">{t('🖼 画像')}</span>
   return (
     <span className="inline-flex items-center gap-2">
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -63,7 +70,7 @@ function ImageThumb({ raw }: { raw: string }) {
         loading="lazy"
         className="h-12 w-12 flex-shrink-0 rounded object-cover ring-1 ring-gray-200"
       />
-      <span className="text-sm text-gray-500">🖼 画像</span>
+      <span className="text-sm text-gray-500">{t('🖼 画像')}</span>
     </span>
   )
 }
@@ -73,6 +80,7 @@ interface Props {
 }
 
 export default function InboxRow({ row }: Props) {
+  const { t } = useI18n()
   const machineAfterIncoming =
     row.lastMachineAt &&
     new Date(row.lastMachineAt).getTime() > new Date(row.lastIncomingAt).getTime()
@@ -98,14 +106,14 @@ export default function InboxRow({ row }: Props) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="truncate text-sm font-medium text-gray-900">
-            {row.displayName || '(名前なし)'}
+            {row.displayName || t('(名前なし)')}
           </span>
           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
             {row.accountName}
           </span>
           {machineAfterIncoming && (
             <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-700">
-              auto 返答済
+              {t('auto 返答済')}
             </span>
           )}
         </div>
@@ -115,7 +123,7 @@ export default function InboxRow({ row }: Props) {
           </div>
         ) : (
           <p className="mt-0.5 truncate text-sm text-gray-600">
-            {formatPreview(row.lastIncomingType, row.lastIncomingContent)}
+            {formatPreview(row.lastIncomingType, row.lastIncomingContent, t)}
           </p>
         )}
       </div>
@@ -125,7 +133,7 @@ export default function InboxRow({ row }: Props) {
             isOverdue ? 'font-semibold text-rose-600' : 'text-gray-500'
           }`}
         >
-          {formatElapsed(row.lastIncomingAt)}
+          {formatElapsed(row.lastIncomingAt, t)}
         </span>
       </div>
     </Link>

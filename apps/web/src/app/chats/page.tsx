@@ -5,6 +5,7 @@ import { parseStickerMessageContent, stickerFallback } from '@line-crm/shared'
 import { api, fetchApi } from '@/lib/api'
 import { UNANSWERED_REFRESH_EVENT } from '@/lib/events'
 import { useAccount } from '@/contexts/account-context'
+import { useI18n } from '@/lib/i18n'
 import Header from '@/components/layout/header'
 import CcPromptButton from '@/components/cc-prompt-button'
 import FlexPreviewComponent from '@/components/flex-preview'
@@ -146,6 +147,7 @@ function DirectMessagePanel({ friendId, friend, onBack, onSent }: {
   onBack: () => void
   onSent: () => void
 }) {
+  const { t } = useI18n()
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [messages, setMessages] = useState<MessageLog[]>([])
@@ -199,8 +201,8 @@ function DirectMessagePanel({ friendId, friend, onBack, onSent }: {
         const collectText = (obj: Record<string, unknown>) => {
           if (texts.join(' ').length > 200) return
           if (obj.type === 'text' && typeof obj.text === 'string') {
-            const t = (obj.text as string).trim()
-            if (t && !t.startsWith('{{')) texts.push(t)
+            const txt = (obj.text as string).trim()
+            if (txt && !txt.startsWith('{{')) texts.push(txt)
           }
           for (const key of ['header', 'body', 'footer']) {
             if (obj[key]) collectText(obj[key] as Record<string, unknown>)
@@ -235,15 +237,15 @@ function DirectMessagePanel({ friendId, friend, onBack, onSent }: {
           </div>
         )}
         <div>
-          <p className="text-sm font-bold text-gray-900">{friend?.displayName || '不明'}</p>
-          <p className="text-xs text-gray-400">メッセージ履歴</p>
+          <p className="text-sm font-bold text-gray-900">{friend?.displayName || t('不明')}</p>
+          <p className="text-xs text-gray-400">{t('メッセージ履歴')}</p>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {loadingMessages ? (
-          <p className="text-center text-gray-400 text-sm">読み込み中...</p>
+          <p className="text-center text-gray-400 text-sm">{t('読み込み中...')}</p>
         ) : messages.length === 0 ? (
-          <p className="text-center text-gray-400 text-sm">メッセージ履歴がありません</p>
+          <p className="text-center text-gray-400 text-sm">{t('メッセージ履歴がありません')}</p>
         ) : (
           messages.map((msg) => (
             <div key={msg.id} className={`flex ${msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}>
@@ -277,7 +279,7 @@ function DirectMessagePanel({ friendId, friend, onBack, onSent }: {
                 handleSend()
               }
             }}
-            placeholder="メッセージを入力..."
+            placeholder={t('メッセージを入力...')}
             className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
           />
           <button
@@ -286,7 +288,7 @@ function DirectMessagePanel({ friendId, friend, onBack, onSent }: {
             className="px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
             style={{ backgroundColor: '#06C755' }}
           >
-            {sending ? '...' : '送信'}
+            {sending ? '...' : t('送信')}
           </button>
         </div>
       </div>
@@ -296,6 +298,7 @@ function DirectMessagePanel({ friendId, friend, onBack, onSent }: {
 
 export default function ChatsPage() {
   const { selectedAccountId } = useAccount()
+  const { t } = useI18n()
   const [chats, setChats] = useState<Chat[]>([])
   const [allFriends, setAllFriends] = useState<FriendItem[]>([])
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null)
@@ -398,7 +401,7 @@ export default function ChatsPage() {
         setHasMoreChats(!unansweredOnly && rows.length === CHAT_PAGE_SIZE)
       }
     } catch {
-      setError('チャットの読み込みに失敗しました。もう一度お試しください。')
+      setError(t('チャットの読み込みに失敗しました。もう一度お試しください。'))
     } finally {
       setLoading(false)
     }
@@ -427,7 +430,7 @@ export default function ChatsPage() {
         setHasMoreChats(rows.length === CHAT_PAGE_SIZE)
       }
     } catch {
-      setError('チャットの追加読み込みに失敗しました。')
+      setError(t('チャットの追加読み込みに失敗しました。'))
     } finally {
       setLoadingMore(false)
     }
@@ -471,13 +474,13 @@ export default function ChatsPage() {
         setNotes((res.data as unknown as ChatDetail).notes || '')
       } else {
         // API は 200 で success:false を返す可能性 (例: 404 lookup)。詳細を画面に出す。
-        const errMsg = (res as { error?: string }).error ?? '不明なエラー'
-        setError(`チャット詳細の読み込みに失敗しました: ${errMsg}`)
+        const errMsg = (res as { error?: string }).error ?? t('不明なエラー')
+        setError(`${t('チャット詳細の読み込みに失敗しました:')} ${errMsg}`)
       }
     } catch (err) {
       // ネットワーク / parse / auth fail などの例外。empty catch だと原因不明だったので詳細を出す。
       const msg = err instanceof Error ? err.message : String(err)
-      setError(`チャット詳細の読み込みに失敗しました: ${msg}`)
+      setError(`${t('チャット詳細の読み込みに失敗しました:')} ${msg}`)
     } finally {
       setDetailLoading(false)
     }
@@ -598,7 +601,7 @@ export default function ChatsPage() {
       })
     } catch (err) {
       const detail = err instanceof Error ? err.message : 'unknown'
-      setError(`ローディング表示の開始に失敗しました: ${detail}`)
+      setError(`${t('ローディング表示の開始に失敗しました:')} ${detail}`)
     }
   }, [showLoadingIndicator, loadingSeconds])
 
@@ -722,7 +725,7 @@ export default function ChatsPage() {
       // 手動返信で未対応が 1 件減るので、サイドバーのバッジを即時更新させる
       window.dispatchEvent(new Event(UNANSWERED_REFRESH_EVENT))
     } catch {
-      setError('メッセージの送信に失敗しました。')
+      setError(t('メッセージの送信に失敗しました。'))
     } finally {
       setSending(false)
       sendLockRef.current = false
@@ -738,7 +741,7 @@ export default function ChatsPage() {
       // 解決済/未読の切替は未対応バッジに影響するので即時更新させる
       window.dispatchEvent(new Event(UNANSWERED_REFRESH_EVENT))
     } catch {
-      setError('ステータスの更新に失敗しました。')
+      setError(t('ステータスの更新に失敗しました。'))
     }
   }
 
@@ -749,7 +752,7 @@ export default function ChatsPage() {
       await api.chats.update(selectedChatId, { notes })
       loadChatDetail(selectedChatId)
     } catch {
-      setError('メモの保存に失敗しました。')
+      setError(t('メモの保存に失敗しました。'))
     } finally {
       setSavingNotes(false)
     }
@@ -770,7 +773,7 @@ export default function ChatsPage() {
 
   return (
     <div>
-      <Header title="オペレーターチャット" />
+      <Header title={t('オペレーターチャット')} />
 
       {/* Error */}
       {error && (
@@ -797,7 +800,7 @@ export default function ChatsPage() {
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 } ${unansweredOnly ? 'opacity-40 cursor-not-allowed' : ''}`}
               >
-                {f.label}
+                {t(f.label)}
               </button>
             ))}
             <label className="flex items-center gap-1.5 text-xs font-medium whitespace-nowrap ml-auto cursor-pointer select-none">
@@ -807,7 +810,7 @@ export default function ChatsPage() {
                 onChange={(e) => setUnansweredOnly(e.target.checked)}
                 className="rounded"
               />
-              🔥 未対応のみ
+              {t('🔥 未対応のみ')}
             </label>
           </div>
 
@@ -840,13 +843,13 @@ export default function ChatsPage() {
                   // 最新メッセージの本文 preview。flex/image は文字列で見せても意味が薄いので type 表記に置換。
                   const previewRaw = chat.lastMessageContent ?? ''
                   const preview = (() => {
-                    if (chat.lastMessageType === 'image') return '📷 画像'
-                    if (chat.lastMessageType === 'flex') return '📋 Flexメッセージ'
-                    if (chat.lastMessageType === 'sticker') return '🎨 スタンプ'
-                    if (chat.lastMessageType === 'video') return '🎥 動画'
-                    if (chat.lastMessageType === 'audio') return '🎤 音声'
-                    if (chat.lastMessageType === 'file') return '📎 ファイル'
-                    if (chat.lastMessageType === 'location') return '📍 位置情報'
+                    if (chat.lastMessageType === 'image') return t('📷 画像')
+                    if (chat.lastMessageType === 'flex') return t('📋 Flexメッセージ')
+                    if (chat.lastMessageType === 'sticker') return t('🎨 スタンプ')
+                    if (chat.lastMessageType === 'video') return t('🎥 動画')
+                    if (chat.lastMessageType === 'audio') return t('🎤 音声')
+                    if (chat.lastMessageType === 'file') return t('📎 ファイル')
+                    if (chat.lastMessageType === 'location') return t('📍 位置情報')
                     return previewRaw.replace(/\n+/g, ' ').slice(0, 60)
                   })()
                   return (
@@ -869,7 +872,7 @@ export default function ChatsPage() {
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-1.5 min-w-0 flex-1">
                               {chat.status === 'unread' && (
-                                <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" aria-label="未読" />
+                                <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" aria-label={t('未読')} />
                               )}
                               <p className="text-sm font-medium text-gray-900 truncate">{chat.friendName}</p>
                             </div>
@@ -886,7 +889,7 @@ export default function ChatsPage() {
                             {chat.lastMessageDirection === 'outgoing' && (
                               <span className="text-gray-400 mr-1">↪</span>
                             )}
-                            {preview || <span className="italic text-gray-300">(まだメッセージなし)</span>}
+                            {preview || <span className="italic text-gray-300">{t('(まだメッセージなし)')}</span>}
                           </p>
                         </div>
                       </div>
@@ -899,7 +902,7 @@ export default function ChatsPage() {
                     disabled={loadingMore}
                     className="w-full px-4 py-3 text-sm text-green-700 hover:bg-green-50 disabled:opacity-50 border-b border-gray-100"
                   >
-                    {loadingMore ? '読み込み中...' : 'さらに読み込む'}
+                    {loadingMore ? t('読み込み中...') : t('さらに読み込む')}
                   </button>
                 )}
               </>
@@ -919,11 +922,11 @@ export default function ChatsPage() {
             />
           ) : !selectedChatId ? (
             <div className="flex-1 flex items-center justify-center">
-              <p className="text-gray-400 text-sm">チャットを選択してください</p>
+              <p className="text-gray-400 text-sm">{t('チャットを選択してください')}</p>
             </div>
           ) : detailLoading ? (
             <div className="flex-1 flex items-center justify-center">
-              <p className="text-gray-400 text-sm">読み込み中...</p>
+              <p className="text-gray-400 text-sm">{t('読み込み中...')}</p>
             </div>
           ) : chatDetail ? (
             <>
@@ -933,7 +936,7 @@ export default function ChatsPage() {
                   <button
                     onClick={() => setSelectedChatId(null)}
                     className="lg:hidden flex-shrink-0 p-1 -ml-1 text-gray-500 hover:text-gray-700"
-                    aria-label="戻る"
+                    aria-label={t('戻る')}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -949,7 +952,7 @@ export default function ChatsPage() {
                     <span
                       className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${statusConfig[chatDetail.status].className}`}
                     >
-                      {statusConfig[chatDetail.status].label}
+                      {t(statusConfig[chatDetail.status].label)}
                     </span>
                   </div>
                 </div>
@@ -968,9 +971,9 @@ export default function ChatsPage() {
                         }
                       }}
                       className="rounded-md bg-emerald-600 px-3 py-1.5 min-h-[44px] lg:min-h-0 text-sm font-medium text-white hover:bg-emerald-700"
-                      title="次の未対応 friend に進む"
+                      title={t('次の未対応 friend に進む')}
                     >
-                      次の未対応 →
+                      {t('次の未対応 →')}
                     </button>
                   )}
                   {chatDetail.status !== 'unread' && (
@@ -978,7 +981,7 @@ export default function ChatsPage() {
                       onClick={() => handleStatusUpdate('unread')}
                       className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
                     >
-                      未読に戻す
+                      {t('未読に戻す')}
                     </button>
                   )}
                   {chatDetail.status !== 'in_progress' && (
@@ -986,7 +989,7 @@ export default function ChatsPage() {
                       onClick={() => handleStatusUpdate('in_progress')}
                       className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-yellow-700 bg-yellow-50 hover:bg-yellow-100 rounded-md transition-colors"
                     >
-                      対応中にする
+                      {t('対応中にする')}
                     </button>
                   )}
                   {chatDetail.status !== 'resolved' && (
@@ -994,7 +997,7 @@ export default function ChatsPage() {
                       onClick={() => handleStatusUpdate('resolved')}
                       className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md transition-colors"
                     >
-                      解決済にする
+                      {t('解決済にする')}
                     </button>
                   )}
                 </div>
@@ -1004,7 +1007,7 @@ export default function ChatsPage() {
               <div ref={messagesScrollRef} className="flex-1 overflow-y-auto p-4 space-y-2" style={{ backgroundColor: '#7494C0' }}>
                 {(!chatDetail.messages || chatDetail.messages.length === 0) ? (
                   <div className="text-center py-8">
-                    <p className="text-white/60 text-sm">メッセージはまだありません。</p>
+                    <p className="text-white/60 text-sm">{t('メッセージはまだありません。')}</p>
                   </div>
                 ) : (
                   (chatDetail.messages ?? []).map((msg, idx) => {
@@ -1027,7 +1030,7 @@ export default function ChatsPage() {
                           <img src={parsed.originalContentUrl || parsed.previewImageUrl} alt="" className="max-w-[200px] rounded" />
                         )
                       } catch {
-                        bubbleContent = <span>🖼️ [画像]</span>
+                        bubbleContent = <span>{t('🖼️ [画像]')}</span>
                       }
                     } else if (msg.messageType === 'sticker') {
                       bubbleContent = <StickerMessageImage content={msg.content} />
@@ -1087,7 +1090,7 @@ export default function ChatsPage() {
                     type="text"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    placeholder="メモを入力..."
+                    placeholder={t('メモを入力...')}
                     className="flex-1 text-xs border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-green-500"
                   />
                   <button
@@ -1095,7 +1098,7 @@ export default function ChatsPage() {
                     disabled={savingNotes}
                     className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors disabled:opacity-50"
                   >
-                    {savingNotes ? '保存中...' : 'メモ保存'}
+                    {savingNotes ? t('保存中...') : t('メモ保存')}
                   </button>
                 </div>
               </div>
@@ -1110,7 +1113,7 @@ export default function ChatsPage() {
                       onChange={(e) => setShowLoadingIndicator(e.target.checked)}
                       className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
                     />
-                    入力中ローディングを表示
+                    {t('入力中ローディングを表示')}
                   </label>
                   <select
                     value={loadingSeconds}
@@ -1119,10 +1122,10 @@ export default function ChatsPage() {
                     className="border border-gray-300 rounded-md px-2 py-1 bg-white disabled:bg-gray-100 disabled:text-gray-400"
                   >
                     {[5, 10, 15, 20, 30, 45, 60].map((sec) => (
-                      <option key={sec} value={sec}>{sec}秒</option>
+                      <option key={sec} value={sec}>{sec}{t('秒')}</option>
                     ))}
                   </select>
-                  <span className="text-gray-500">送信キー:</span>
+                  <span className="text-gray-500">{t('送信キー:')}</span>
                   <label className="flex items-center gap-1 cursor-pointer">
                     <input
                       type="radio"
@@ -1147,7 +1150,7 @@ export default function ChatsPage() {
                     mode="line-image"
                     value={pendingImage}
                     onChange={setPendingImage}
-                    label="画像を送る (任意)"
+                    label={t('画像を送る (任意)')}
                   />
                 </div>
                 <div className="flex items-end gap-2">
@@ -1173,7 +1176,7 @@ export default function ChatsPage() {
                     }}
                     onBlur={() => setIsMessageInputFocused(false)}
                     onKeyDown={handleKeyDown}
-                    placeholder="メッセージを入力..."
+                    placeholder={t('メッセージを入力...')}
                     className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 resize-none overflow-y-auto"
                   />
                   <button
@@ -1182,7 +1185,7 @@ export default function ChatsPage() {
                     className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ backgroundColor: '#06C755' }}
                   >
-                    {sending ? '送信中...' : '送信'}
+                    {sending ? t('送信中...') : t('送信')}
                   </button>
                 </div>
               </div>

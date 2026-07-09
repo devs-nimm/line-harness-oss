@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { api } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 
 interface FriendDetail {
   id: string
@@ -52,6 +53,7 @@ function renderValue(value: unknown): string {
 }
 
 export default function FriendInfoSidebar({ friendId, chatStatus, operatorName }: Props) {
+  const { t } = useI18n()
   const [friend, setFriend] = useState<FriendDetail | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -69,7 +71,7 @@ export default function FriendInfoSidebar({ friendId, chatStatus, operatorName }
       if (res.success && res.data) {
         setFriend(res.data as unknown as FriendDetail)
       } else {
-        setError((res as { error?: string }).error ?? '友だち情報を取得できませんでした')
+        setError((res as { error?: string }).error ?? t('友だち情報を取得できませんでした'))
       }
     }).catch((err) => {
       if (cancelled) return
@@ -114,7 +116,7 @@ export default function FriendInfoSidebar({ friendId, chatStatus, operatorName }
   return (
     <div className="w-full lg:w-80 lg:flex-shrink-0 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-        <h3 className="text-sm font-semibold text-gray-700">友だち詳細</h3>
+        <h3 className="text-sm font-semibold text-gray-700">{t('友だち詳細')}</h3>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -142,13 +144,13 @@ export default function FriendInfoSidebar({ friendId, chatStatus, operatorName }
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-gray-900 truncate">{friend.displayName || '名前なし'}</p>
+                <p className="text-sm font-semibold text-gray-900 truncate">{friend.displayName || t('名前なし')}</p>
                 <p className="text-[11px] text-gray-400 mt-0.5">
-                  登録日: {formatDate(friend.createdAt)}
+                  {t('登録日:')} {formatDate(friend.createdAt)}
                 </p>
                 {!friend.isFollowing && (
                   <span className="inline-block mt-1 px-1.5 py-0 rounded text-[10px] font-medium bg-gray-100 text-gray-500">
-                    ブロック済
+                    {t('ブロック済')}
                   </span>
                 )}
               </div>
@@ -159,15 +161,15 @@ export default function FriendInfoSidebar({ friendId, chatStatus, operatorName }
               <div className="p-4 space-y-2">
                 {chatStatus?.status && statusLabels[chatStatus.status] && (
                   <div className="flex justify-between items-center">
-                    <span className="text-[11px] text-gray-500">対応状況</span>
+                    <span className="text-[11px] text-gray-500">{t('対応状況')}</span>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusLabels[chatStatus.status].className}`}>
-                      {statusLabels[chatStatus.status].label}
+                      {t(statusLabels[chatStatus.status].label)}
                     </span>
                   </div>
                 )}
                 {operatorName && (
                   <div className="flex justify-between items-center">
-                    <span className="text-[11px] text-gray-500">担当者</span>
+                    <span className="text-[11px] text-gray-500">{t('担当者')}</span>
                     <span className="text-xs text-gray-700">{operatorName}</span>
                   </div>
                 )}
@@ -177,16 +179,16 @@ export default function FriendInfoSidebar({ friendId, chatStatus, operatorName }
             {/* Notes */}
             {chatStatus?.notes && (
               <div className="p-4">
-                <h4 className="text-[11px] font-medium text-gray-500 mb-1.5">個別メモ</h4>
+                <h4 className="text-[11px] font-medium text-gray-500 mb-1.5">{t('個別メモ')}</h4>
                 <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{chatStatus.notes}</p>
               </div>
             )}
 
             {/* Tags */}
             <div className="p-4">
-              <h4 className="text-[11px] font-medium text-gray-500 mb-1.5">タグ</h4>
+              <h4 className="text-[11px] font-medium text-gray-500 mb-1.5">{t('タグ')}</h4>
               {friend.tags.length === 0 ? (
-                <p className="text-[11px] text-gray-400 italic">タグなし</p>
+                <p className="text-[11px] text-gray-400 italic">{t('タグなし')}</p>
               ) : (
                 <div className="flex flex-wrap gap-1">
                   {friend.tags.map((tag) => (
@@ -207,19 +209,19 @@ export default function FriendInfoSidebar({ friendId, chatStatus, operatorName }
 
             {/* Rich Menu */}
             <div className="p-4">
-              <h4 className="text-[11px] font-medium text-gray-500 mb-1.5">リッチメニュー</h4>
+              <h4 className="text-[11px] font-medium text-gray-500 mb-1.5">{t('リッチメニュー')}</h4>
               {richMenu.kind === 'loading' ? (
-                <p className="text-[11px] text-gray-400 italic">読み込み中...</p>
+                <p className="text-[11px] text-gray-400 italic">{t('読み込み中...')}</p>
               ) : richMenu.kind === 'error' ? (
-                <p className="text-[11px] text-red-500 italic">取得に失敗しました</p>
+                <p className="text-[11px] text-red-500 italic">{t('取得に失敗しました')}</p>
               ) : richMenu.id === null ? (
-                <p className="text-[11px] text-gray-400 italic">未設定</p>
+                <p className="text-[11px] text-gray-400 italic">{t('未設定')}</p>
               ) : (
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs text-gray-700">{richMenu.name ?? '(名前なし)'}</span>
+                  <span className="text-xs text-gray-700">{richMenu.name ?? t('(名前なし)')}</span>
                   {richMenu.isDefault && (
                     <span className="px-1.5 py-0 rounded text-[10px] font-medium bg-gray-100 text-gray-500">
-                      デフォルト
+                      {t('デフォルト')}
                     </span>
                   )}
                 </div>
@@ -229,7 +231,7 @@ export default function FriendInfoSidebar({ friendId, chatStatus, operatorName }
             {/* Metadata custom fields */}
             {friend.metadata && Object.keys(friend.metadata).length > 0 && (
               <div className="p-4">
-                <h4 className="text-[11px] font-medium text-gray-500 mb-2">友だち情報</h4>
+                <h4 className="text-[11px] font-medium text-gray-500 mb-2">{t('友だち情報')}</h4>
                 <dl className="space-y-2 text-xs">
                   {Object.entries(friend.metadata).map(([key, value]) => (
                     <div key={key}>
@@ -248,7 +250,7 @@ export default function FriendInfoSidebar({ friendId, chatStatus, operatorName }
             */}
           </div>
         ) : (
-          <div className="p-4 text-xs text-gray-400">友だち情報がありません</div>
+          <div className="p-4 text-xs text-gray-400">{t('友だち情報がありません')}</div>
         )}
       </div>
     </div>

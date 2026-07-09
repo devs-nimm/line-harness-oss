@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import type { FriendListItem } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 import TagBadge from './tag-badge'
 
 interface Props {
@@ -21,6 +22,7 @@ interface Props {
 // last column opens an inline tag editor (handled by the parent table).
 export default function FriendListRow({ friend, onTagEditClick }: Props) {
   const router = useRouter()
+  const { t } = useI18n()
   const navigateToChat = () => router.push(`/chats?friend=${friend.id}`)
   const incoming = friend.latestIncomingMessage
   const scenario = friend.activeScenario
@@ -48,15 +50,15 @@ export default function FriendListRow({ friend, onTagEditClick }: Props) {
       <div className="pt-1">
         {friend.chatStatus === 'unread' ? (
           <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-red-100 text-red-700">
-            未対応
+            {t('未対応')}
           </span>
         ) : friend.chatStatus === 'in_progress' ? (
           <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-yellow-100 text-yellow-700">
-            対応中
+            {t('対応中')}
           </span>
         ) : (
           <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-500">
-            対応済み
+            {t('対応済み')}
           </span>
         )}
       </div>
@@ -76,9 +78,9 @@ export default function FriendListRow({ friend, onTagEditClick }: Props) {
         )}
         <div className="min-w-0">
           <p className="text-sm font-medium text-gray-900 truncate">{friend.displayName}</p>
-          <p className="text-[10px] text-gray-400 mt-0.5">登録: {formatJstDate(friend.createdAt)}</p>
+          <p className="text-[10px] text-gray-400 mt-0.5">{t('登録:')} {formatJstDate(friend.createdAt)}</p>
           {!isFollowing && (
-            <p className="text-[10px] text-red-400 mt-0.5">ブロック / 退会</p>
+            <p className="text-[10px] text-red-400 mt-0.5">{t('ブロック / 退会')}</p>
           )}
         </div>
       </div>
@@ -91,11 +93,11 @@ export default function FriendListRow({ friend, onTagEditClick }: Props) {
               {scenario.name}
             </p>
             <p className="text-[10px] text-gray-400 mt-0.5">
-              {scenario.status === 'active' ? '配信中' : scenario.status === 'delivering' ? '配信処理中' : scenario.status}
+              {scenario.status === 'active' ? t('配信中') : scenario.status === 'delivering' ? t('配信処理中') : scenario.status}
             </p>
           </div>
         ) : (
-          <span className="text-xs text-gray-400">停止中</span>
+          <span className="text-xs text-gray-400">{t('停止中')}</span>
         )}
       </div>
 
@@ -111,7 +113,7 @@ export default function FriendListRow({ friend, onTagEditClick }: Props) {
             </p>
           </>
         ) : (
-          <span className="text-xs text-gray-400">受信なし</span>
+          <span className="text-xs text-gray-400">{t('受信なし')}</span>
         )}
       </div>
 
@@ -126,13 +128,13 @@ export default function FriendListRow({ friend, onTagEditClick }: Props) {
         )}
         {friend.firstTrackedLinkName && (
           <p className="text-[10px] text-gray-500">
-            <span className="text-gray-400">ASP_LP名：</span>
+            <span className="text-gray-400">{t('ASP_LP名：')}</span>
             {friend.firstTrackedLinkName}
           </p>
         )}
         {friend.refCode && !friend.firstTrackedLinkName && (
           <p className="text-[10px] text-gray-500">
-            <span className="text-gray-400">流入：</span>
+            <span className="text-gray-400">{t('流入：')}</span>
             {friend.refCode}
           </p>
         )}
@@ -144,7 +146,7 @@ export default function FriendListRow({ friend, onTagEditClick }: Props) {
           if (!igUsername && !igAccountId) return null
           return (
             <p className="text-[10px] text-pink-600">
-              <span className="text-gray-400">IG流入：</span>
+              <span className="text-gray-400">{t('IG流入：')}</span>
               {igUsername ? `@${igUsername}` : igAccountId}
             </p>
           )
@@ -160,7 +162,7 @@ export default function FriendListRow({ friend, onTagEditClick }: Props) {
             onClick={(e) => { e.stopPropagation(); onTagEditClick() }}
             className="text-[10px] text-blue-600 hover:text-blue-800 underline mt-0.5"
           >
-            タグ編集
+            {t('タグ編集')}
           </button>
         )}
       </div>

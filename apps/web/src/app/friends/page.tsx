@@ -8,6 +8,7 @@ import Header from '@/components/layout/header'
 import FriendListTable from '@/components/friends/friend-list-table'
 import CcPromptButton from '@/components/cc-prompt-button'
 import { useAccount } from '@/contexts/account-context'
+import { useI18n } from '@/lib/i18n'
 
 const ccPrompts = [
   {
@@ -35,6 +36,7 @@ type ResponseFilter = 'all' | 'unhandled'
 
 export default function FriendsPage() {
   const { selectedAccountId } = useAccount()
+  const { t } = useI18n()
   const [friends, setFriends] = useState<FriendListItem[]>([])
   const [allTags, setAllTags] = useState<Tag[]>([])
   const [total, setTotal] = useState(0)
@@ -79,7 +81,7 @@ export default function FriendsPage() {
         setError(res.error)
       }
     } catch {
-      setError('友だちの読み込みに失敗しました。もう一度お試しください。')
+      setError(t('友だちの読み込みに失敗しました。もう一度お試しください。'))
     } finally {
       setLoading(false)
     }
@@ -131,8 +133,8 @@ export default function FriendsPage() {
   return (
     <div>
       <Header
-        title="友だちリスト"
-        description="友だちの検索や、詳細情報の確認ができます。"
+        title={t('友だちリスト')}
+        description={t('友だちの検索や、詳細情報の確認ができます。')}
       />
 
       {/* Search + sort bar — L-step style */}
@@ -142,7 +144,7 @@ export default function FriendsPage() {
             type="text"
             value={searchInput}
             onChange={(e) => handleSearchInputChange(e.target.value)}
-            placeholder="友だち名を検索"
+            placeholder={t('友だち名を検索')}
             className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
           />
           <select
@@ -150,46 +152,46 @@ export default function FriendsPage() {
             onChange={(e) => handleSortChange(e.target.value as SortMode)}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
           >
-            <option value="recent">友だち追加の新しい順</option>
-            <option value="oldest">友だち追加の古い順</option>
+            <option value="recent">{t('友だち追加の新しい順')}</option>
+            <option value="oldest">{t('友だち追加の古い順')}</option>
           </select>
           <button
             type="submit"
             className="px-4 py-2 rounded-lg text-white text-sm font-medium"
             style={{ backgroundColor: '#06C755' }}
           >
-            検索
+            {t('検索')}
           </button>
         </form>
 
         {/* Secondary filters — タグ + 対応マーク */}
         <div className="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-gray-100">
           <div className="flex items-center gap-2">
-            <label className="text-xs text-gray-600 font-medium whitespace-nowrap">タグ:</label>
+            <label className="text-xs text-gray-600 font-medium whitespace-nowrap">{t('タグ:')}</label>
             <select
               className="text-xs border border-gray-300 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
               value={selectedTagId}
               onChange={(e) => handleTagFilterChange(e.target.value)}
             >
-              <option value="">すべて</option>
+              <option value="">{t('すべて')}</option>
               {allTags.map((tag) => (
                 <option key={tag.id} value={tag.id}>{tag.name}</option>
               ))}
             </select>
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-xs text-gray-600 font-medium whitespace-nowrap">対応マーク:</label>
+            <label className="text-xs text-gray-600 font-medium whitespace-nowrap">{t('対応マーク:')}</label>
             <select
               className="text-xs border border-gray-300 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
               value={responseFilter}
               onChange={(e) => handleResponseFilterChange(e.target.value as ResponseFilter)}
             >
-              <option value="all">すべて</option>
-              <option value="unhandled">未対応のみ</option>
+              <option value="all">{t('すべて')}</option>
+              <option value="unhandled">{t('未対応のみ')}</option>
             </select>
           </div>
           <span className="text-xs text-gray-500 ml-auto">
-            {loading ? '読み込み中...' : `${total.toLocaleString('ja-JP')} 件`}
+            {loading ? t('読み込み中...') : `${total.toLocaleString('ja-JP')} ${t('件')}`}
           </span>
         </div>
       </div>
@@ -225,7 +227,7 @@ export default function FriendsPage() {
       {!loading && total > 0 && (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mt-4">
           <p className="text-sm text-gray-500">
-            {((page - 1) * PAGE_SIZE) + 1}〜{Math.min(page * PAGE_SIZE, total)} 件 / 全{total.toLocaleString('ja-JP')}件
+            {((page - 1) * PAGE_SIZE) + 1}〜{Math.min(page * PAGE_SIZE, total)} {t('件')} / {t('全')}{total.toLocaleString('ja-JP')}{t('件')}
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -233,15 +235,15 @@ export default function FriendsPage() {
               disabled={page === 1}
               className="px-3 py-2 min-h-[44px] text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              前へ
+              {t('前へ')}
             </button>
-            <span className="text-sm text-gray-600 px-1">{page} ページ</span>
+            <span className="text-sm text-gray-600 px-1">{page} {t('ページ')}</span>
             <button
               onClick={() => setPage((p) => p + 1)}
               disabled={!hasNextPage}
               className="px-3 py-2 min-h-[44px] text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              次へ
+              {t('次へ')}
             </button>
           </div>
         </div>

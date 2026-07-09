@@ -1,6 +1,7 @@
 'use client'
 
 import InboxRow, { type InboxRowData } from './inbox-row'
+import { useI18n } from '@/lib/i18n'
 
 const fmt = new Intl.NumberFormat('ja-JP')
 
@@ -21,6 +22,7 @@ export default function InboxList({
   loading,
   onPageChange,
 }: Props) {
+  const { t } = useI18n()
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1
   const end = Math.min(total, page * pageSize)
@@ -29,7 +31,7 @@ export default function InboxList({
     <div className="overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-gray-200">
       {rows.length === 0 && !loading ? (
         <div className="px-4 py-12 text-center text-sm text-gray-400">
-          未対応はありません 🎉
+          {t('未対応はありません 🎉')}
         </div>
       ) : (
         <div>
@@ -41,7 +43,7 @@ export default function InboxList({
       {total > 0 && (
         <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3 text-sm text-gray-600">
           <span>
-            {fmt.format(total)} 件中 {fmt.format(start)}–{fmt.format(end)} 件
+            {fmt.format(total)} {t('件中')} {fmt.format(start)}–{fmt.format(end)} {t('件')}
           </span>
           <div className="flex items-center gap-2">
             <button
@@ -50,7 +52,7 @@ export default function InboxList({
               disabled={page <= 1 || loading}
               className="rounded-md border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
-              前へ
+              {t('前へ')}
             </button>
             <span className="tabular-nums text-xs text-gray-500">
               {page} / {totalPages}
@@ -61,7 +63,7 @@ export default function InboxList({
               disabled={page >= totalPages || loading}
               className="rounded-md border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
-              次へ
+              {t('次へ')}
             </button>
           </div>
         </div>

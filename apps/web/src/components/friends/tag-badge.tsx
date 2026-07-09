@@ -1,4 +1,7 @@
+'use client'
+
 import type { Tag } from '@line-crm/shared'
+import { useI18n } from '@/lib/i18n'
 
 interface TagBadgeProps {
   tag: Tag
@@ -6,6 +9,7 @@ interface TagBadgeProps {
 }
 
 export default function TagBadge({ tag, onRemove }: TagBadgeProps) {
+  const { t } = useI18n()
   // Determine text color based on background brightness
   const hex = tag.color.replace('#', '')
   const r = parseInt(hex.substring(0, 2), 16)
@@ -24,7 +28,7 @@ export default function TagBadge({ tag, onRemove }: TagBadgeProps) {
         <button
           onClick={onRemove}
           className="ml-0.5 hover:opacity-70 transition-opacity"
-          aria-label={`タグ「${tag.name}」を削除`}
+          aria-label={`${t('タグ「')}${tag.name}${t('」を削除')}`}
         >
           <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd"
