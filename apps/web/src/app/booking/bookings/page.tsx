@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Header from '@/components/layout/header'
 import { bookingApi, type BookingRequest } from '@/lib/api'
 import { useAccount } from '@/contexts/account-context'
+import { useI18n } from '@/lib/i18n'
 
 const STATUS_TABS: Array<{ key: string; label: string }> = [
   { key: 'requested', label: '未承認' },
@@ -56,6 +57,7 @@ function formatJpDateTime(iso: string): string {
 
 export default function BookingsPage() {
   const { selectedAccountId, selectedAccount } = useAccount()
+  const { t } = useI18n()
   const [tab, setTab] = useState<string>('requested')
   const [items, setItems] = useState<BookingRequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -85,7 +87,7 @@ export default function BookingsPage() {
         setCopiedUrl((cur) => (cur === url ? null : cur))
       }, 2000)
     } catch {
-      window.prompt('コピーしてください:', url)
+      window.prompt(t('コピーしてください:'), url)
     }
   }
 
@@ -112,20 +114,20 @@ export default function BookingsPage() {
 
   async function handleDecide(id: string, action: 'approve' | 'reject' | 'cancel' | 'no_show' | 'complete') {
     if (!selectedAccountId) return
-    if (!confirm(`この予約を「${actionLabel[action]}」しますか？`)) return
+    if (!confirm(`${t('この予約を「')}${t(actionLabel[action])}${t('」しますか？')}`)) return
     try {
       await bookingApi.decideRequest(selectedAccountId, id, action)
       await load()
     } catch (e) {
-      alert(`操作に失敗しました: ${e instanceof Error ? e.message : String(e)}`)
+      alert(`${t('操作に失敗しました: ')}${e instanceof Error ? e.message : String(e)}`)
     }
   }
 
   return (
     <div>
       <Header
-        title="予約管理"
-        description="顧客からの予約リクエストを承認・拒否します"
+        title={t('予約管理')}
+        description={t('顧客からの予約リクエストを承認・拒否します')}
       />
 
       {selectedAccountId && (
@@ -145,7 +147,7 @@ export default function BookingsPage() {
                 d="M13.828 10.172a4 4 0 015.656 0l1.414 1.414a4 4 0 010 5.656l-3 3a4 4 0 01-5.656 0L10 18.343M10.172 13.828a4 4 0 01-5.656 0L3.1 12.414a4 4 0 010-5.656l3-3a4 4 0 015.656 0L14 5.657"
               />
             </svg>
-            お客様向け 予約フォーム LIFF URL
+            {t('お客様向け 予約フォーム LIFF URL')}
           </div>
           {shareUrl ? (
             <>
@@ -161,17 +163,17 @@ export default function BookingsPage() {
                   onClick={() => copyUrl(shareUrl)}
                   className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
-                  {copied ? 'コピー済' : 'コピー'}
+                  {copied ? t('コピー済') : t('コピー')}
                 </button>
               </div>
               <p className="text-xs text-blue-700 mt-2">
-                LINE / OpenChat / IG DM どこでも貼れます。受信者がタップすると LINE で予約画面が開きます。
+                {t('LINE / OpenChat / IG DM どこでも貼れます。受信者がタップすると LINE で予約画面が開きます。')}
               </p>
             </>
           ) : (
             <p className="text-xs text-amber-700">
-              このアカウントには LIFF ID が未設定です。
-              <a href="/accounts" className="underline ml-1">アカウント設定</a> で LIFF ID を登録してください。
+              {t('このアカウントには LIFF ID が未設定です。')}
+              <a href="/accounts" className="underline ml-1">{t('アカウント設定')}</a> {t('で LIFF ID を登録してください。')}
             </p>
           )}
         </div>
@@ -193,22 +195,22 @@ export default function BookingsPage() {
             }`}
             style={tab === key ? { backgroundColor: '#06C755' } : undefined}
           >
-            {label}
+            {t(label)}
           </button>
         ))}
       </div>
 
       {!selectedAccountId ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center text-sm text-gray-500">
-          サイドバーでアカウントを選択してください
+          {t('サイドバーでアカウントを選択してください')}
         </div>
       ) : loading ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center text-sm text-gray-500">
-          読み込み中…
+          {t('読み込み中…')}
         </div>
       ) : items.length === 0 ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center text-sm text-gray-500">
-          該当する予約はありません
+          {t('該当する予約はありません')}
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -216,14 +218,14 @@ export default function BookingsPage() {
             <table className="w-full min-w-[800px]">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">日時</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">顧客</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">メニュー</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">担当</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">要望</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">料金</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">状態</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">操作</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('日時')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('顧客')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('メニュー')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('担当')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('要望')}</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{t('料金')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('状態')}</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{t('操作')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -246,7 +248,7 @@ export default function BookingsPage() {
                     <td className="px-4 py-3 text-sm text-right tabular-nums">¥{b.price_at_booking.toLocaleString()}</td>
                     <td className="px-4 py-3 text-sm">
                       <span className={`inline-block px-2 py-0.5 rounded text-xs ${statusBadgeColor[b.status] ?? 'bg-gray-100'}`}>
-                        {statusLabel[b.status] ?? b.status}
+                        {t(statusLabel[b.status] ?? b.status)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -270,6 +272,7 @@ function ActionButtons({
   status: string
   onAction: (a: 'approve' | 'reject' | 'cancel' | 'no_show' | 'complete') => void
 }) {
+  const { t } = useI18n()
   if (status === 'requested') {
     return (
       <div className="inline-flex gap-1">
@@ -278,13 +281,13 @@ function ActionButtons({
           className="px-3 py-1 text-xs font-medium text-white rounded-md transition-opacity hover:opacity-90"
           style={{ backgroundColor: '#06C755' }}
         >
-          承認
+          {t('承認')}
         </button>
         <button
           onClick={() => onAction('reject')}
           className="px-3 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-md"
         >
-          拒否
+          {t('拒否')}
         </button>
       </div>
     )
@@ -296,19 +299,19 @@ function ActionButtons({
           onClick={() => onAction('complete')}
           className="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md"
         >
-          完了
+          {t('完了')}
         </button>
         <button
           onClick={() => onAction('no_show')}
           className="px-3 py-1 text-xs font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-md"
         >
-          無断
+          {t('無断')}
         </button>
         <button
           onClick={() => onAction('cancel')}
           className="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md"
         >
-          取消
+          {t('取消')}
         </button>
       </div>
     )
