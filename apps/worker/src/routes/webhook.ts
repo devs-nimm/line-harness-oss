@@ -165,7 +165,7 @@ webhook.post('/webhook', async (c) => {
   const processingPromise = (async () => {
     for (const event of body.events) {
       try {
-        await handleEvent(db, lineClient, event, channelAccessToken, matchedAccountId, c.env.WORKER_URL || new URL(c.req.url).origin, c.env.LIFF_URL, c.env.IMAGES);
+        await handleEvent(db, lineClient, event, channelAccessToken, matchedAccountId, c.env, c.env.WORKER_URL || new URL(c.req.url).origin, c.env.LIFF_URL, c.env.IMAGES);
       } catch (err) {
         console.error('Error handling webhook event:', err);
       }
@@ -183,6 +183,7 @@ async function handleEvent(
   event: WebhookEvent,
   lineAccessToken: string,
   lineAccountId: string | null = null,
+  env: Env['Bindings'],
   workerUrl?: string,
   liffUrl?: string,
   r2?: R2Bucket,
@@ -672,7 +673,7 @@ async function handleEvent(
       try {
         const aiResult = await maybeSendOpenAIAutoReply({
           db,
-          env: c.env,
+          env,
           lineClient,
           friendId: friend.id,
           lineUserId: friend.line_user_id,
