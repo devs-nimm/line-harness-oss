@@ -93,19 +93,23 @@ accountSettings.put('/api/account-settings/link-base-url', async (c) => {
   }
 });
 
-function normalizeBaseUrl(input: string): { value: string | null; error: string | null } {
+type NormalizedBaseUrl =
+  | { success: true; value: string | null }
+  | { success: false; error: string };
+
+function validateAndNormalizeBaseUrl(input: string): NormalizedBaseUrl {
   const trimmed = input.trim();
-  if (trimmed === '') return { value: null, error: null };
+  if (trimmed === '') return { success: true, value: null };
   let parsed: URL;
   try {
     parsed = new URL(trimmed);
   } catch {
-    return { value: null, error: 'OPENAI_BASE_URL must be a valid URL (https://...)' };
+    return { success: false, error: 'OPENAI_BASE_URL must be a valid URL (https://...)' };
   }
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-    return { value: null, error: 'OPENAI_BASE_URL must start with http:// or https://' };
+    return { success: false, error: 'OPENAI_BASE_URL must start with http:// or https://' };
   }
-  return { value: parsed.toString().replace(/\/$/, ''), error: null };
+  return { success: true, value: parsed.toString().replace(/\/$/, '') };
 }
 
 function normalizeModel(input: string): string | null {
@@ -137,8 +141,8 @@ accountSettings.put('/api/account-settings/openai', async (c) => {
     clearApiKey?: boolean;
   }>().catch(() => ({}));
 
-  const normalizedBaseUrl = normalizeBaseUrl(typeof body.baseUrl === 'string' ? body.baseUrl : '');
-  if (normalizedBaseUrl.error) {
+  const normalizedBaseUrl = validateAndNormalizeBaseUrl(typeof body.baseUrl === 'string' ? body.baseUrl : '');
+  if (!normalizedBaseUrl.success) {
     return c.json({ success: false, error: normalizedBaseUrl.error }, 400);
   }
   const normalizedModel = normalizeModel(typeof body.model === 'string' ? body.model : '');
