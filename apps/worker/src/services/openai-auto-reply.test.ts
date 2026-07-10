@@ -87,6 +87,22 @@ describe('generateOpenAIReply', () => {
 
     await expect(generateOpenAIReply({} as D1Database, {}, 'hello')).resolves.toBe('Hello world');
   });
+
+  test('returns null when upstream returns malformed JSON', async () => {
+    openAISettingsMocks.getEffectiveOpenAISettings.mockResolvedValue({
+      baseUrl: 'https://api.openai.com/v1',
+      apiKey: 'sk-test',
+      model: 'gpt-4o-mini',
+    });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('not-json', {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    await expect(generateOpenAIReply({} as D1Database, {}, 'hello')).resolves.toBeNull();
+  });
 });
 
 describe('maybeSendOpenAIAutoReply', () => {

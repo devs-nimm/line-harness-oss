@@ -38,6 +38,20 @@ function extractText(content: string | ChatCompletionContentPart[] | undefined):
   return joined === '' ? null : joined;
 }
 
+function isReplyTokenExpiredError(err: unknown): boolean {
+  if (typeof err === 'object' && err !== null && 'status' in err && err.status === 400) {
+    return true;
+  }
+
+  const errMsg = err instanceof Error ? err.message : String(err);
+  const statusMatch = /^LINE API error: (\d+)/.exec(errMsg);
+  if (statusMatch) {
+    return statusMatch[1] === '400';
+  }
+
+  return errMsg.includes('Invalid reply token');
+}
+
 export async function generateOpenAIReply(
   db: D1Database,
   env: OpenAIEnvFallback,
@@ -75,7 +89,13 @@ export async function generateOpenAIReply(
     return null;
   }
 
-  const payload = await response.json() as ChatCompletionsResponse;
+  let payload: ChatCompletionsResponse;
+  try {
+    payload = await response.json() as ChatCompletionsResponse;
+  } catch (err) {
+    console.error('[openai-auto-reply] failed to parse upstream JSON', err);
+    return null;
+  }
   const text = extractText(payload.choices?.[0]?.message?.content);
   return text ? text.slice(0, MAX_OUTPUT_CHARS) : null;
 }
@@ -105,9 +125,7 @@ export async function maybeSendOpenAIAutoReply(args: {
   try {
     await args.lineClient.replyMessage(args.replyToken, [{ type: 'text', text: aiReply }]);
   } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err);
-    const isTokenError = errMsg.includes('400') || errMsg.includes('Invalid reply token');
-    if (!isTokenError) throw err;
+    if (!isReplyTokenExpiredError(err)) throw err;
     await args.lineClient.pushMessage(args.lineUserId, [{ type: 'text', text: aiReply }]);
     deliveryType = 'push';
   }
