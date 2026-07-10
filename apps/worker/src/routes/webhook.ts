@@ -22,6 +22,7 @@ import {
 } from '@line-crm/db';
 import type { EntryRoute, Friend } from '@line-crm/db';
 import { fireEvent } from '../services/event-bus.js';
+import { maybeSendOpenAIAutoReply } from '../services/openai-auto-reply.js';
 import { buildMessage, expandVariables } from '../services/step-delivery.js';
 import type { Env } from '../index.js';
 
@@ -664,6 +665,28 @@ async function handleEvent(
 
         matched = true;
         break;
+      }
+    }
+
+    if (!matched) {
+      try {
+        const aiResult = await maybeSendOpenAIAutoReply({
+          db,
+          env: c.env,
+          lineClient,
+          friendId: friend.id,
+          lineUserId: friend.line_user_id,
+          incomingText,
+          replyToken: event.replyToken,
+          lineAccountId,
+          createdAt: jstNow(),
+        });
+        if (aiResult.matched) {
+          matched = true;
+          replyTokenConsumed = aiResult.replyTokenConsumed;
+        }
+      } catch (err) {
+        console.error('Failed to send OpenAI auto-reply', err);
       }
     }
 
