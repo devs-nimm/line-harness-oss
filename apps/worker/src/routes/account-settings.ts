@@ -117,6 +117,13 @@ function normalizeModel(input: string): string | null {
   return trimmed === '' ? null : trimmed;
 }
 
+type OpenAISettingsBody = {
+  baseUrl?: string;
+  model?: string;
+  apiKey?: string;
+  clearApiKey?: boolean;
+};
+
 accountSettings.get('/api/account-settings/openai', async (c) => {
   const persisted = await getOpenAIConnectionSettings(c.env.DB, GLOBAL_ACCOUNT_ID);
   const effective = await getEffectiveOpenAISettings(c.env.DB, c.env);
@@ -134,12 +141,9 @@ accountSettings.get('/api/account-settings/openai', async (c) => {
 });
 
 accountSettings.put('/api/account-settings/openai', async (c) => {
-  const body = await c.req.json<{
-    baseUrl?: string;
-    model?: string;
-    apiKey?: string;
-    clearApiKey?: boolean;
-  }>().catch(() => ({}));
+  const body: OpenAISettingsBody = await c.req
+    .json<OpenAISettingsBody>()
+    .catch((): OpenAISettingsBody => ({}));
 
   const normalizedBaseUrl = validateAndNormalizeBaseUrl(typeof body.baseUrl === 'string' ? body.baseUrl : '');
   if (!normalizedBaseUrl.success) {
