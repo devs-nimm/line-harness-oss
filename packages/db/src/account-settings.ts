@@ -48,6 +48,9 @@ export async function setAccountSetting(
 // ── link_base_url ─────────────────────────────────────────────────────────────
 
 const LINK_BASE_URL_KEY = 'link_base_url';
+const OPENAI_BASE_URL_KEY = 'openai_base_url';
+const OPENAI_API_KEY_KEY = 'openai_api_key';
+const OPENAI_MODEL_KEY = 'openai_model';
 
 /**
  * Get the configured short-link base URL for an account.
@@ -101,4 +104,77 @@ export async function setLinkBaseUrl(
 
   const normalized = trimmed.replace(/\/$/, '');
   await setAccountSetting(db, accountId, LINK_BASE_URL_KEY, JSON.stringify(normalized));
+}
+
+async function getStringSetting(
+  db: D1Database,
+  accountId: string,
+  key: string,
+): Promise<string | null> {
+  const raw = await getAccountSetting(db, accountId, key);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return typeof parsed === 'string' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function setOrDeleteStringSetting(
+  db: D1Database,
+  accountId: string,
+  key: string,
+  value: string | null,
+): Promise<void> {
+  if (value === null) {
+    await db
+      .prepare(
+        `DELETE FROM account_settings WHERE line_account_id = ? AND key = ?`,
+      )
+      .bind(accountId, key)
+      .run();
+    return;
+  }
+  await setAccountSetting(db, accountId, key, JSON.stringify(value));
+}
+
+export interface OpenAIConnectionSettings {
+  baseUrl: string | null;
+  model: string | null;
+  apiKey: string | null;
+}
+
+export async function getOpenAIConnectionSettings(
+  db: D1Database,
+  accountId: string,
+): Promise<OpenAIConnectionSettings> {
+  const [baseUrl, model, apiKey] = await Promise.all([
+    getStringSetting(db, accountId, OPENAI_BASE_URL_KEY),
+    getStringSetting(db, accountId, OPENAI_MODEL_KEY),
+    getStringSetting(db, accountId, OPENAI_API_KEY_KEY),
+  ]);
+  return { baseUrl, model, apiKey };
+}
+
+export async function setOpenAIConnectionSettings(
+  db: D1Database,
+  accountId: string,
+  input: {
+    baseUrl?: string | null;
+    model?: string | null;
+    apiKey?: string | null;
+  },
+): Promise<void> {
+  const tasks: Promise<void>[] = [];
+  if ('baseUrl' in input) {
+    tasks.push(setOrDeleteStringSetting(db, accountId, OPENAI_BASE_URL_KEY, input.baseUrl ?? null));
+  }
+  if ('model' in input) {
+    tasks.push(setOrDeleteStringSetting(db, accountId, OPENAI_MODEL_KEY, input.model ?? null));
+  }
+  if ('apiKey' in input) {
+    tasks.push(setOrDeleteStringSetting(db, accountId, OPENAI_API_KEY_KEY, input.apiKey ?? null));
+  }
+  await Promise.all(tasks);
 }

@@ -125,6 +125,9 @@ export type Env = {
     WORKER_PUBLIC_URL?: string;
     ADMIN_PUBLIC_URL?: string;
     LIFF_PUBLIC_URL?: string;
+    OPENAI_BASE_URL?: string;
+    OPENAI_API_KEY?: string;
+    OPENAI_MODEL?: string;
   };
   Variables: {
     staff: { id: string; name: string; role: 'owner' | 'admin' | 'staff' };

@@ -16,6 +16,7 @@ import {
 import AccountSetupUrls from '@/components/accounts/account-setup-urls'
 import AccountEditModal from '@/components/accounts/account-edit-modal'
 import LinkBaseUrlSetting from '@/components/accounts/link-base-url-setting'
+import OpenAIConnectionSetting from '@/components/accounts/openai-connection-setting'
 
 interface LineAccountListItem {
   id: string
@@ -348,6 +349,7 @@ export default function AccountsPage() {
       <div className="mt-8">
         <h2 className="text-sm font-semibold text-gray-700 mb-3">{t('グローバル設定')}</h2>
         <LinkBaseUrlSetting />
+        <OpenAIConnectionSetting />
       </div>
       <CcPromptButton prompts={ccPrompts} />
       {showReorder && (

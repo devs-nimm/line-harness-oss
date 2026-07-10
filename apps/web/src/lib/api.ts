@@ -426,6 +426,25 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify({ value }),
       }),
+    getOpenAIConnection: () =>
+      fetchApi<{ success: boolean; data: {
+        baseUrl: string | null;
+        model: string | null;
+        hasApiKey: boolean;
+        effectiveBaseUrl: string | null;
+        effectiveModel: string | null;
+        hasEffectiveApiKey: boolean;
+      } }>('/api/account-settings/openai'),
+    updateOpenAIConnection: (input: {
+      baseUrl: string;
+      model: string;
+      apiKey?: string;
+      clearApiKey?: boolean;
+    }) =>
+      fetchApi<{ success: boolean; error?: string }>('/api/account-settings/openai', {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      }),
   },
 
   // ── Round 2 APIs ─────────────────────────────────────────────────────────

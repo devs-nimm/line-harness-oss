@@ -95,6 +95,7 @@ Takes about 5 minutes. Once done, the dashboard at `https://<your-name>-admin.pa
 ### Automation
 - **IF-THEN rules** — 7 trigger types × 6 action types
 - **Auto-replies** — exact / partial keyword matching
+- **OpenAI connection settings (Admin UI)** — configure `OPENAI_BASE_URL`, `OPENAI_API_KEY`, `OPENAI_MODEL` in **LINE Accounts → Global settings** (env vars remain fallback when unset)
 - **Webhook in/out** — integration with Stripe, Slack, etc.
 - **Notification rules** — conditional alerts
 - **Delivery timing** — fully controlled by `delay_minutes` and `scheduled_at` (v0.13.2 removed all system-side time gates; you control timing operationally)
