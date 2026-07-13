@@ -13,7 +13,7 @@ import { authHeader, throwHttpError, workersApiBase } from './_shared.js';
  * binding type so we don't silently drop it on update.
  */
 export interface WorkerBinding {
-  type: 'plain_text' | 'secret_text' | 'd1' | 'r2_bucket' | 'kv_namespace' | 'assets';
+  type: 'plain_text' | 'secret_text' | 'secret_key' | 'd1' | 'r2_bucket' | 'kv_namespace' | 'assets';
   name: string;
   database_id?: string;
   bucket_name?: string;
@@ -22,6 +22,14 @@ export interface WorkerBinding {
 }
 
 const DEFAULT_COMPATIBILITY_DATE = '2024-12-01';
+
+/**
+ * Binding types whose values can never be read back via the API. They are
+ * dropped from the upload's bindings array (re-sending them value-less
+ * fails with error 10021) and carried across uploads with
+ * `metadata.keep_bindings` instead.
+ */
+const SECRET_BINDING_TYPES: string[] = ['secret_text', 'secret_key'];
 
 /**
  * Upload (create or overwrite) a Worker script via the Cloudflare API.
@@ -56,10 +64,23 @@ export async function putWorkerScript(opts: {
   const { creds, scriptName, scriptContent, bindings } = opts;
   const compatibility_date = opts.compatibilityDate ?? DEFAULT_COMPATIBILITY_DATE;
 
+  // Secret-typed bindings come back from GET /bindings WITHOUT their
+  // values, and the upload API rejects a value-less secret binding with
+  // error 10021 ("invalid or missing text property for binding <NAME>").
+  // Drop them from the upload and carry the existing secrets over via
+  // `keep_bindings` instead (the same mechanism wrangler uses). A
+  // secret_text binding WITH a text value is a caller explicitly setting
+  // a new secret — sent as-is, and it takes precedence over the
+  // inherited one.
+  const sendableBindings = bindings.filter(
+    (b) => !SECRET_BINDING_TYPES.includes(b.type) || typeof b.text === 'string',
+  );
+
   const metadata: Record<string, unknown> = {
     main_module: 'worker.js',
-    bindings,
+    bindings: sendableBindings,
     compatibility_date,
+    keep_bindings: SECRET_BINDING_TYPES,
   };
   if (opts.compatibilityFlags && opts.compatibilityFlags.length > 0) {
     metadata.compatibility_flags = opts.compatibilityFlags;

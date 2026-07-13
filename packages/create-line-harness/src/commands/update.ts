@@ -592,21 +592,7 @@ export async function runUpdate(repoDir: string): Promise<void> {
   });
 
   // 13) Health check (non-fatal)
-  s.start("Health チェック中");
-  try {
-    const hRes = await fetch(
-      `${cfg.workerPublicUrl.replace(/\/$/, "")}/health`,
-    );
-    if (!hRes.ok) throw new Error(`HTTP ${hRes.status}`);
-    s.stop("Health OK");
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    s.stop(
-      pc.yellow(
-        `Health 確認失敗: ${msg} (アップデート自体は完了しています)`,
-      ),
-    );
-  }
+  await checkWorkerHealth(cfg.workerPublicUrl, s, "アップデート自体は完了しています");
 
   // 14) Refresh the local release artifact + record bundle mode so a later
   // manual `wrangler deploy` from the clone re-deploys THIS version instead
@@ -620,6 +606,33 @@ export async function runUpdate(repoDir: string): Promise<void> {
 // ─── Shared deploy steps (normal update + adoption) ──────────────────────────
 
 type Spinner = ReturnType<typeof p.spinner>;
+
+/**
+ * Post-deploy liveness check (non-fatal — the deploy already succeeded).
+ *
+ * Probes `/api/health` and treats ANY response below 500 as alive: worker
+ * bundles released before the public health route existed answer 401
+ * (auth middleware) or 404, and a Worker that routes a request to either
+ * has provably booted. Only network errors and 5xx are reported, with
+ * `doneNote` clarifying that the update itself still completed.
+ */
+export async function checkWorkerHealth(
+  workerPublicUrl: string,
+  s: Spinner,
+  doneNote: string,
+): Promise<void> {
+  s.start("Health チェック中");
+  try {
+    const hRes = await fetch(
+      `${workerPublicUrl.replace(/\/$/, "")}/api/health`,
+    );
+    if (hRes.status >= 500) throw new Error(`HTTP ${hRes.status}`);
+    s.stop("Health OK");
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    s.stop(pc.yellow(`Health 確認失敗: ${msg} (${doneNote})`));
+  }
+}
 
 /**
  * Pre-download gate: releases without `worker_bundle_hash` shipped a broken
@@ -984,15 +997,7 @@ async function runAdoption(opts: {
     adminUrl: cfg.adminPublicUrl,
   });
 
-  s.start("Health チェック中");
-  try {
-    const hRes = await fetch(`${cfg.workerPublicUrl.replace(/\/$/, "")}/health`);
-    if (!hRes.ok) throw new Error(`HTTP ${hRes.status}`);
-    s.stop("Health OK");
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    s.stop(pc.yellow(`Health 確認失敗: ${msg} (導入自体は完了しています)`));
-  }
+  await checkWorkerHealth(cfg.workerPublicUrl, s, "導入自体は完了しています");
 
   writeLocalWorkerArtifact(repoDir, bundle);
   persistBundleMode(repoDir, target.version);

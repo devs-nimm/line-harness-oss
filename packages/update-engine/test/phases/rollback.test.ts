@@ -169,7 +169,12 @@ describe('runRollback', () => {
     const fd = putCall![1]!.body as FormData;
     const metadataBlob = fd.get('metadata') as Blob;
     const metadata = JSON.parse(await metadataBlob.text());
-    expect(metadata.bindings).toEqual(existingBindings);
+    // Textless secret_text bindings can't be re-sent (CF rejects them with
+    // 10021) — they're carried over via keep_bindings instead.
+    expect(metadata.bindings).toEqual([
+      { type: 'd1', name: 'DB', database_id: D1_ID },
+    ]);
+    expect(metadata.keep_bindings).toEqual(['secret_text', 'secret_key']);
 
     // Both Pages rollbacks were invoked.
     const adminRb = calls.find(([url]) =>

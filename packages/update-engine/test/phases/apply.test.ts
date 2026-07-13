@@ -519,6 +519,12 @@ describe('runApply', () => {
     const metadataBlob = fd.get('metadata') as Blob;
     const metadataText = await metadataBlob.text();
     const metadata = JSON.parse(metadataText);
-    expect(metadata.bindings).toEqual(existingBindings);
+    // Textless secret_text bindings can't be re-sent (CF rejects them with
+    // 10021) — they're carried over via keep_bindings instead.
+    expect(metadata.bindings).toEqual([
+      { type: 'd1', name: 'DB', database_id: D1_ID },
+      { type: 'plain_text', name: 'ENV', text: 'prod' },
+    ]);
+    expect(metadata.keep_bindings).toEqual(['secret_text', 'secret_key']);
   });
 });
