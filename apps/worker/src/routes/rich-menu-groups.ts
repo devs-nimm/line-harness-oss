@@ -30,9 +30,9 @@ import {
   unpublishRichMenuGroup,
   linkRichMenuBulkChunked,
   type LineRichMenuClient,
-  type R2Like,
   type GroupInput,
 } from '../lib/rich-menu-publisher.js';
+import { getImageStore } from '../lib/storage.js';
 
 export const richMenuGroups = new Hono<Env>();
 
@@ -421,7 +421,7 @@ richMenuGroups.post('/api/rich-menu-groups/import', async (c) => {
 
   // 6. 画像を R2 に保存して page に紐付け
   const r2Key = `rich-menus/${accountId}/${created.id}/${newPage.id}/${Date.now()}.${ext}`;
-  await c.env.IMAGES.put(r2Key, imageBytes, { httpMetadata: { contentType } });
+  await getImageStore(c.env).put(r2Key, imageBytes, { httpMetadata: { contentType } });
   await setRichMenuPageImage(c.env.DB, newPage.id, r2Key, contentType);
 
   // 7. line_richmenu_id を埋めて status='published' に
@@ -722,7 +722,7 @@ richMenuGroups.post('/api/rich-menu-groups/:groupId/pages/:pageId/image', async 
 
   const ext = contentType === 'image/png' ? 'png' : 'jpg';
   const key = `rich-menus/${group.account_id}/${groupId}/${pageId}/${Date.now()}.${ext}`;
-  await c.env.IMAGES.put(key, buf, { httpMetadata: { contentType } });
+  await getImageStore(c.env).put(key, buf, { httpMetadata: { contentType } });
   await setRichMenuPageImage(c.env.DB, pageId, key, contentType);
 
   return c.json({
@@ -734,7 +734,7 @@ richMenuGroups.post('/api/rich-menu-groups/:groupId/pages/:pageId/image', async 
 // 画像取得 — エディタからの <img src="..."> 用。private cache でアクセス制御は auth に委ねる。
 richMenuGroups.get('/api/rich-menu-images/:key{.+}', async (c) => {
   const key = c.req.param('key');
-  const obj = await c.env.IMAGES.get(key);
+  const obj = await getImageStore(c.env).get(key);
   if (!obj) return c.notFound();
   return new Response(obj.body, {
     headers: {
@@ -850,13 +850,7 @@ richMenuGroups.post('/api/rich-menu-groups/:groupId/publish', async (c) => {
 
   try {
     const line = createLineClient(account.channel_access_token);
-    const r2Adapter: R2Like = {
-      async get(key) {
-        const obj = await c.env.IMAGES.get(key);
-        if (!obj) return null;
-        return { body: obj.body as ReadableStream };
-      },
-    };
+    const store = getImageStore(c.env);
     const groupInput: GroupInput = {
       id: group.id,
       size: group.size,
@@ -876,7 +870,7 @@ richMenuGroups.post('/api/rich-menu-groups/:groupId/publish', async (c) => {
         })),
       })),
     };
-    const result = await publishRichMenuGroup(groupInput, line, r2Adapter);
+    const result = await publishRichMenuGroup(groupInput, line, store);
     for (const r of result.pages) {
       await setPageRichMenuId(c.env.DB, r.pageId, r.newRichMenuId);
     }

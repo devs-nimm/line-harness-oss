@@ -1,3 +1,5 @@
+import type { ImageStore } from '../lib/storage.js';
+
 const LINE_CONTENT_API_BASE = 'https://api-data.line.me/v2/bot/message';
 
 const CONTENT_TYPE_TO_EXT: Record<string, string> = {
@@ -9,7 +11,7 @@ const CONTENT_TYPE_TO_EXT: Record<string, string> = {
 };
 
 export interface FetchAndStoreOptions {
-  r2: R2Bucket;
+  r2: ImageStore;
   /** workers 環境では globalThis.fetch を使う。テスト時に注入する。 */
   fetch?: typeof fetch;
   /** 公開 URL のベース (例: https://your-worker.your-subdomain.workers.dev) */

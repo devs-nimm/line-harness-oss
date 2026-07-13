@@ -25,6 +25,7 @@ import { fireEvent } from '../services/event-bus.js';
 import { maybeSendOpenAIAutoReply } from '../services/openai-auto-reply.js';
 import { buildMessage, expandVariables } from '../services/step-delivery.js';
 import type { Env } from '../index.js';
+import { getImageStore, type ImageStore } from '../lib/storage.js';
 
 const webhook = new Hono<Env>();
 
@@ -165,7 +166,7 @@ webhook.post('/webhook', async (c) => {
   const processingPromise = (async () => {
     for (const event of body.events) {
       try {
-        await handleEvent(db, lineClient, event, channelAccessToken, matchedAccountId, c.env, c.env.WORKER_URL || new URL(c.req.url).origin, c.env.LIFF_URL, c.env.IMAGES);
+        await handleEvent(db, lineClient, event, channelAccessToken, matchedAccountId, c.env, c.env.WORKER_URL || new URL(c.req.url).origin, c.env.LIFF_URL, getImageStore(c.env));
       } catch (err) {
         console.error('Error handling webhook event:', err);
       }
@@ -186,7 +187,7 @@ async function handleEvent(
   env: Env['Bindings'],
   workerUrl?: string,
   liffUrl?: string,
-  r2?: R2Bucket,
+  r2?: ImageStore,
 ): Promise<void> {
   if (event.type === 'follow') {
     const userId =

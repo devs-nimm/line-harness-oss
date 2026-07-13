@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import type { Env } from '../index.js';
+import { getImageStore } from '../lib/storage.js';
 
 const images = new Hono<Env>();
 
@@ -54,7 +55,7 @@ images.post('/api/images', async (c) => {
     const id = crypto.randomUUID();
     const key = `${id}.${ext}`;
 
-    await c.env.IMAGES.put(key, data, {
+    await getImageStore(c.env).put(key, data, {
       httpMetadata: { contentType: mimeType },
       customMetadata: { originalFilename: filename ?? key },
     });
@@ -75,7 +76,7 @@ images.post('/api/images', async (c) => {
 // GET /images/:key — serve image (public, no auth)
 images.get('/images/:key', async (c) => {
   const key = c.req.param('key');
-  const object = await c.env.IMAGES.get(key);
+  const object = await getImageStore(c.env).get(key);
 
   if (!object) {
     return c.json({ success: false, error: 'Image not found' }, 404);
@@ -93,7 +94,7 @@ images.get('/images/:key', async (c) => {
 images.delete('/api/images/:key', async (c) => {
   try {
     const key = c.req.param('key');
-    await c.env.IMAGES.delete(key);
+    await getImageStore(c.env).delete(key);
     return c.json({ success: true, data: null });
   } catch (err) {
     console.error('DELETE /api/images/:key error:', err);

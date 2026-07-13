@@ -1,0 +1,43 @@
+# Self-hosted object storage for LINE Harness (MIN-258).
+#
+#   docker compose up -d minio minio-init
+#
+# MinIO speaks the S3 API; the worker reaches it via S3_ENDPOINT/S3_BUCKET/
+# S3_ACCESS_KEY/S3_SECRET_KEY (see .env.example). minio-init creates the bucket
+# on boot so a fresh volume is immediately usable. The named volume is the only
+# durability boundary — back it up alongside Postgres.
+services:
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # web console
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # One-shot: wait for MinIO, then create the bucket (idempotent).
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${S3_ACCESS_KEY:-minioadmin} ${S3_SECRET_KEY:-minioadmin} &&
+      mc mb --ignore-existing local/${S3_BUCKET:-line-harness-images} &&
+      echo 'bucket ready: ${S3_BUCKET:-line-harness-images}'
+      "
+    restart: "no"
+
+volumes:
+  minio-data:

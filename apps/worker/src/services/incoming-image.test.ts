@@ -1,5 +1,6 @@
 import { describe, test, expect, vi } from 'vitest';
 import { fetchAndStoreIncomingImage } from './incoming-image.js';
+import type { ImageStore } from '../lib/storage.js';
 
 function makeR2Stub() {
   const store = new Map<string, { data: ArrayBuffer; contentType: string }>();
@@ -23,7 +24,7 @@ describe('fetchAndStoreIncomingImage', () => {
     );
 
     const result = await fetchAndStoreIncomingImage({
-      r2: r2 as unknown as R2Bucket,
+      r2: r2 as unknown as ImageStore,
       fetch: fetchMock,
       workerUrl: 'https://worker.example.com',
       channelAccessToken: 'token-abc',
@@ -50,7 +51,7 @@ describe('fetchAndStoreIncomingImage', () => {
     const fetchMock = vi.fn(async () => new Response(null, { status: 401 }));
 
     const result = await fetchAndStoreIncomingImage({
-      r2: r2 as unknown as R2Bucket,
+      r2: r2 as unknown as ImageStore,
       fetch: fetchMock,
       workerUrl: 'https://worker.example.com',
       channelAccessToken: 'token-bad',
@@ -73,7 +74,7 @@ describe('fetchAndStoreIncomingImage', () => {
     );
 
     const result = await fetchAndStoreIncomingImage({
-      r2: r2 as unknown as R2Bucket,
+      r2: r2 as unknown as ImageStore,
       fetch: fetchMock,
       workerUrl: 'https://worker.example.com',
       channelAccessToken: 'token-abc',
@@ -94,7 +95,7 @@ describe('fetchAndStoreIncomingImage', () => {
     );
 
     await fetchAndStoreIncomingImage({
-      r2: r2 as unknown as R2Bucket,
+      r2: r2 as unknown as ImageStore,
       fetch: fetchMock,
       workerUrl: 'https://worker.example.com',
       channelAccessToken: 'token-abc',

@@ -24,9 +24,9 @@ binding = "DB"
 database_name = "line-harness"
 database_id = "YOUR_DEV_D1_DATABASE_ID"
 
-[[r2_buckets]]
-binding = "IMAGES"
-bucket_name = "line-harness-images"
+# Object storage is S3-compatible (MinIO by default) — see docker-compose.yml
+# and docs/storage-migration.md. Non-secret S3 config lives in [vars] below;
+# S3_ACCESS_KEY / S3_SECRET_KEY are secrets set via `wrangler secret put`.
 
 [triggers]
 crons = ["*/5 * * * *", "0 */6 * * *"]
@@ -40,6 +40,11 @@ crons = ["*/5 * * * *", "0 */6 * * *"]
 # 不活性になる (本番挙動を変えないための判断, 2026-07-07)。
 # ═══════════════════════════════════════════════════════════════
 [vars]
+# S3-compatible object storage (non-secret config; keys via `wrangler secret put`)
+S3_ENDPOINT = "http://localhost:9000"
+S3_BUCKET = "line-harness-images"
+S3_REGION = "auto"
+S3_FORCE_PATH_STYLE = "true"
 WORKER_NAME = "line-harness"
 ADMIN_PAGES_PROJECT = "line-harness-admin"
 LIFF_PAGES_PROJECT = "line-harness-liff"
@@ -69,9 +74,9 @@ binding = "DB"
 database_name = "line-crm"
 database_id = "YOUR_D1_DATABASE_ID"
 
-[[env.production.r2_buckets]]
-binding = "IMAGES"
-bucket_name = "line-harness-images"
+# Production S3 storage: set non-secret S3_* in [env.production.vars] and the
+# keys via `wrangler secret put S3_ACCESS_KEY --env production` (same for
+# S3_SECRET_KEY). Point S3_ENDPOINT at your MinIO/AWS S3 endpoint.
 
 [env.production.triggers]
 crons = ["*/5 * * * *", "0 */6 * * *"]

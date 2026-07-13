@@ -91,7 +91,16 @@ import {
 export type Env = {
   Bindings: {
     DB: D1Database;
-    IMAGES: R2Bucket;
+    // Object storage is S3-compatible (MinIO by default) via getImageStore()
+    // in lib/storage.ts. IMAGES is only an injection seam for tests/legacy
+    // bindings; production reads the S3_* vars below.
+    IMAGES?: import('./lib/storage.js').ImageStore;
+    S3_ENDPOINT?: string;
+    S3_BUCKET?: string;
+    S3_ACCESS_KEY?: string;   // secret — `wrangler secret put S3_ACCESS_KEY`
+    S3_SECRET_KEY?: string;   // secret — `wrangler secret put S3_SECRET_KEY`
+    S3_REGION?: string;       // default 'auto'
+    S3_FORCE_PATH_STYLE?: string; // 'false' for AWS S3 vhost addressing
     ASSETS: Fetcher;
     LINE_CHANNEL_SECRET: string;
     LINE_CHANNEL_ACCESS_TOKEN: string;

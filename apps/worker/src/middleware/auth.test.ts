@@ -19,7 +19,6 @@ const WORKERS = 'https://your-worker.your-subdomain.workers.dev';
 function env(overrides: Partial<Env['Bindings']> = {}): Env['Bindings'] {
   return {
     DB: {} as D1Database,
-    IMAGES: {} as R2Bucket,
     ASSETS: {} as Fetcher,
     LINE_CHANNEL_SECRET: 'secret',
     LINE_CHANNEL_ACCESS_TOKEN: 'line-token',
