@@ -105,6 +105,14 @@ CREATE TABLE affiliates (
   created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 );
 
+CREATE TABLE ai_chat_sessions (
+  friend_id TEXT PRIMARY KEY,
+  line_account_id TEXT,
+  last_response_id TEXT NOT NULL,
+  turn_count INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE auto_replies (
   id               TEXT PRIMARY KEY,
   keyword          TEXT NOT NULL,
