@@ -118,6 +118,9 @@ importers:
       '@aws-sdk/client-s3':
         specifier: ^3.700.0
         version: 3.1085.0
+      '@hono/node-server':
+        specifier: ^1.13.7
+        version: 1.19.11(hono@4.12.8)
       '@line-crm/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -139,6 +142,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.2.4(react@19.2.4)
+      tsx:
+        specifier: ^4.21.0
+        version: 4.23.0
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: ^1.0.0
@@ -161,9 +167,6 @@ importers:
       tailwindcss:
         specifier: ^4.0.0
         version: 4.2.2
-      tsx:
-        specifier: ^4.21.0
-        version: 4.23.0
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -6050,14 +6053,6 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 1.2.0
 
-  '@vitest/mocker@2.1.9(vite@5.4.21(@types/node@22.19.15)(lightningcss@1.32.0))':
-    dependencies:
-      '@vitest/spy': 2.1.9
-      estree-walker: 3.0.3
-      magic-string: 0.30.21
-    optionalDependencies:
-      vite: 5.4.21(@types/node@22.19.15)(lightningcss@1.32.0)
-
   '@vitest/mocker@2.1.9(vite@5.4.21(@types/node@25.5.0)(lightningcss@1.32.0))':
     dependencies:
       '@vitest/spy': 2.1.9
@@ -7691,7 +7686,7 @@ snapshots:
   vitest@2.1.9(@types/node@22.19.15)(lightningcss@1.32.0):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@22.19.15)(lightningcss@1.32.0))
+      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@25.5.0)(lightningcss@1.32.0))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9

@@ -1,6 +1,7 @@
 {
   "name": "@line-crm/shared",
   "version": "0.2.0",
+  "type": "module",
   "description": "Shared types and constants for LINE CRM",
   "license": "MIT",
   "main": "./dist/index.js",

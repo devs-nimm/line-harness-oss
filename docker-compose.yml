@@ -1,21 +1,36 @@
-# Self-hosted infrastructure for LINE Harness.
-# The backend service joins this file in MIN-259.
+# Self-hosted LINE Harness: backend (Node) + PostgreSQL + MinIO.
 #
-# PostgreSQL (MIN-257, replaces Cloudflare D1):
-#   cp .env.example .env   # set POSTGRES_PASSWORD
-#   docker compose up -d postgres
-#   DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD}@localhost:5432/linecrm \
-#     node packages/db/scripts/pg-migrate.mjs
+# Quickstart (full guide: docs/DOCKER.md):
+#   cp .env.example .env   # set POSTGRES_PASSWORD, LINE_*, API_KEY, S3 keys
+#   docker compose up -d --build
 #
-# MinIO (MIN-258, replaces Cloudflare R2):
-#   docker compose up -d minio minio-init
+# The backend applies schema migrations on boot (idempotent) and listens on
+# ${BACKEND_PORT:-8787}. Put a TLS reverse proxy (Caddy/nginx) in front —
+# LINE webhooks require valid HTTPS (docs/DOCKER.md has a Caddy example).
 #
-# MinIO speaks the S3 API; the worker reaches it via S3_ENDPOINT/S3_BUCKET/
+# MinIO speaks the S3 API; the backend reaches it via S3_ENDPOINT/S3_BUCKET/
 # S3_ACCESS_KEY/S3_SECRET_KEY (see .env.example). minio-init creates the bucket
 # on boot so a fresh volume is immediately usable. The named volumes are the
 # only durability boundary — back up pgdata and minio-data together.
 
 services:
+  backend:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # In-network hosts override the localhost values .env carries for
+      # host-run dev (pnpm --filter worker start:node).
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-linecrm}
+      S3_ENDPOINT: http://minio:9000
+    ports:
+      - '${BACKEND_PORT:-8787}:8787'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped

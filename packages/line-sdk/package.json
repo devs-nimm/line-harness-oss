@@ -1,6 +1,7 @@
 {
   "name": "@line-crm/line-sdk",
   "version": "0.2.0",
+  "type": "module",
   "description": "Typed LINE Messaging API wrapper with rich message builders",
   "license": "MIT",
   "main": "./dist/index.js",
