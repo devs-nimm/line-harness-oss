@@ -394,8 +394,8 @@ export async function enrollFriendInScenario(
   if (!firstStep) {
     const result = await db
       .prepare(
-        `INSERT OR IGNORE INTO friend_scenarios (id, friend_id, scenario_id, current_step_order, status, started_at, next_delivery_at, updated_at)
-         VALUES (?, ?, ?, 0, 'completed', ?, NULL, ?)`,
+        `INSERT INTO friend_scenarios (id, friend_id, scenario_id, current_step_order, status, started_at, next_delivery_at, updated_at)
+         VALUES (?, ?, ?, 0, 'completed', ?, NULL, ?) ON CONFLICT DO NOTHING`,
       )
       .bind(id, friendId, scenarioId, now, now)
       .run();
@@ -425,8 +425,8 @@ export async function enrollFriendInScenario(
   // ~10 friend_scenarios silently completed for a 46-hour window.
   const result = await db
     .prepare(
-      `INSERT OR IGNORE INTO friend_scenarios (id, friend_id, scenario_id, current_step_order, status, started_at, next_delivery_at, updated_at)
-       VALUES (?, ?, ?, -1, 'active', ?, ?, ?)`,
+      `INSERT INTO friend_scenarios (id, friend_id, scenario_id, current_step_order, status, started_at, next_delivery_at, updated_at)
+       VALUES (?, ?, ?, -1, 'active', ?, ?, ?) ON CONFLICT DO NOTHING`,
     )
     .bind(id, friendId, scenarioId, now, nextDeliveryAt, now)
     .run();

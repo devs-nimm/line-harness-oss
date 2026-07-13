@@ -15,7 +15,8 @@
     "deploy:update": "node packages/create-line-harness/dist/index.js update",
     "sandbox:create-line-harness": "bash scripts/run-create-line-harness-sandbox.sh",
     "test:scripts": "vitest run --config vitest.config.ts",
-    "build:bundle": "tsx scripts/release/build-bundle.ts"
+    "build:bundle": "tsx scripts/release/build-bundle.ts",
+    "db:migrate:pg": "node packages/db/scripts/pg-migrate.mjs"
   },
   "packageManager": "pnpm@9.15.4",
   "engines": {

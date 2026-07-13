@@ -155,7 +155,7 @@ export async function getDueReminderDeliveries(db: D1Database, now: string): Pro
 /** 配信済みを記録 */
 export async function markReminderStepDelivered(db: D1Database, friendReminderId: string, reminderStepId: string): Promise<void> {
   const id = crypto.randomUUID();
-  await db.prepare(`INSERT OR IGNORE INTO friend_reminder_deliveries (id, friend_reminder_id, reminder_step_id) VALUES (?, ?, ?)`)
+  await db.prepare(`INSERT INTO friend_reminder_deliveries (id, friend_reminder_id, reminder_step_id) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`)
     .bind(id, friendReminderId, reminderStepId).run();
 }
 

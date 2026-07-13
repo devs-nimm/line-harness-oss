@@ -56,48 +56,59 @@ export interface FormWithStats extends Form {
 }
 
 export async function getFormsWithStats(db: D1Database): Promise<FormWithStats[]> {
-  // Single query: forms + last submission + per-account submission counts.
-  // json_group_array returns '[]' (not NULL) when subquery yields no rows.
+  // Two flat queries composed in JS. This used to be one query with
+  // json_group_array(json_object(...)), but that is SQLite-only syntax and the
+  // codebase now has to run on both SQLite (D1) and PostgreSQL (MIN-257).
   const result = await db
     .prepare(
       `SELECT
          f.*,
-         (SELECT MAX(created_at) FROM form_submissions WHERE form_id = f.id) AS last_submitted_at,
-         (SELECT json_group_array(
-                   json_object(
-                     'id', la.id,
-                     'name', la.name,
-                     'country', la.country,
-                     'displayOrder', la.display_order,
-                     'count', sub.cnt
-                   )
-                 )
-            FROM (
-              SELECT fr.line_account_id, COUNT(*) AS cnt
-              FROM form_submissions fs
-              JOIN friends fr ON fr.id = fs.friend_id
-              WHERE fs.form_id = f.id AND fr.line_account_id IS NOT NULL
-              GROUP BY fr.line_account_id
-            ) sub
-            JOIN line_accounts la ON la.id = sub.line_account_id) AS used_by_accounts_json
+         (SELECT MAX(created_at) FROM form_submissions WHERE form_id = f.id) AS last_submitted_at
        FROM forms f
        ORDER BY f.created_at DESC`,
     )
-    .all<Form & { last_submitted_at: string | null; used_by_accounts_json: string | null }>();
+    .all<Form & { last_submitted_at: string | null }>();
 
-  return result.results.map((row) => {
-    const { used_by_accounts_json, ...rest } = row;
-    let parsed: FormUsedByAccount[] = [];
-    if (used_by_accounts_json) {
-      try {
-        const arr = JSON.parse(used_by_accounts_json) as FormUsedByAccount[];
-        parsed = arr.sort((a, b) => a.displayOrder - b.displayOrder);
-      } catch {
-        parsed = [];
-      }
-    }
-    return { ...rest, used_by_accounts: parsed };
-  });
+  const accountRows = await db
+    .prepare(
+      `SELECT
+         fs.form_id,
+         la.id,
+         la.name,
+         la.country,
+         la.display_order,
+         COUNT(*) AS count
+       FROM form_submissions fs
+       JOIN friends fr ON fr.id = fs.friend_id
+       JOIN line_accounts la ON la.id = fr.line_account_id
+       GROUP BY fs.form_id, la.id, la.name, la.country, la.display_order`,
+    )
+    .all<{
+      form_id: string;
+      id: string;
+      name: string;
+      country: string | null;
+      display_order: number;
+      count: number;
+    }>();
+
+  const byForm = new Map<string, FormUsedByAccount[]>();
+  for (const row of accountRows.results) {
+    const list = byForm.get(row.form_id) ?? [];
+    list.push({
+      id: row.id,
+      name: row.name,
+      country: row.country,
+      displayOrder: row.display_order,
+      count: row.count,
+    });
+    byForm.set(row.form_id, list);
+  }
+
+  return result.results.map((row) => ({
+    ...row,
+    used_by_accounts: (byForm.get(row.id) ?? []).sort((a, b) => a.displayOrder - b.displayOrder),
+  }));
 }
 
 export async function getFormById(db: D1Database, id: string): Promise<Form | null> {

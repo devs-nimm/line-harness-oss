@@ -95,8 +95,8 @@ export async function createTrafficPool(
   // makes a follow-up explicit add idempotent.
   await db
     .prepare(
-      `INSERT OR IGNORE INTO pool_accounts (id, pool_id, line_account_id, is_active, created_at)
-       VALUES (?, ?, ?, 1, ?)`,
+      `INSERT INTO pool_accounts (id, pool_id, line_account_id, is_active, created_at)
+       VALUES (?, ?, ?, 1, ?) ON CONFLICT DO NOTHING`,
     )
     .bind(crypto.randomUUID(), id, input.activeAccountId, now)
     .run();

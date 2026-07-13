@@ -1,0 +1,1154 @@
+-- PostgreSQL schema for LINE OSS CRM.
+-- GENERATED FILE — do not edit by hand.
+-- Regenerate with: node packages/db/scripts/generate-pg-schema.mjs
+-- Sources: packages/db/bootstrap.sql + packages/db/postgres/compat-functions.sql
+
+-- SQLite → PostgreSQL compatibility functions.
+--
+-- The application SQL was written for Cloudflare D1 (SQLite) and uses
+-- strftime()/julianday()/datetime()/date() with SQLite semantics. Rather than
+-- rewriting every query, these functions reproduce the exact SQLite behavior
+-- the codebase relies on (see packages/db/README notes in MIN-257):
+--
+--   * 'now' means the current time.
+--   * A timestamp string with a Z / ±HH:MM suffix is an absolute instant.
+--   * A naive timestamp string is interpreted as UTC (SQLite's rule).
+--   * Modifiers: interval offsets ('+9 hours', '-30 days', ...) and
+--     'start of day/month/year'. Unsupported modifiers raise an error
+--     instead of silently returning NULL, so drift is caught in tests.
+--   * All text output is rendered as UTC wall-clock time, matching SQLite,
+--     which does all datetime math in UTC.
+
+CREATE OR REPLACE FUNCTION sqlite_ts(value text, mods text[] DEFAULT '{}')
+RETURNS timestamptz
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  ts timestamptz;
+  m text;
+BEGIN
+  IF value IS NULL THEN
+    RETURN NULL;
+  END IF;
+  IF lower(trim(value)) = 'now' THEN
+    ts := now();
+  ELSIF trim(value) ~ '(Z|z|[+-][0-9]{2}:?[0-9]{2})$' THEN
+    ts := trim(value)::timestamptz;
+  ELSE
+    -- Naive timestamp: SQLite treats it as UTC.
+    ts := trim(value)::timestamp AT TIME ZONE 'UTC';
+  END IF;
+
+  FOREACH m IN ARRAY mods LOOP
+    m := lower(trim(m));
+    IF m ~ '^[+-]?[0-9]' THEN
+      ts := ts + m::interval;
+    ELSIF m = 'start of day' THEN
+      ts := date_trunc('day', ts AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
+    ELSIF m = 'start of month' THEN
+      ts := date_trunc('month', ts AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
+    ELSIF m = 'start of year' THEN
+      ts := date_trunc('year', ts AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
+    ELSE
+      RAISE EXCEPTION 'sqlite_ts: unsupported datetime modifier %', m;
+    END IF;
+  END LOOP;
+
+  RETURN ts;
+END
+$$;
+
+-- Translate a SQLite strftime() format string to a to_char() pattern.
+-- Non-token characters are double-quoted so to_char() treats them literally.
+CREATE OR REPLACE FUNCTION sqlite_strftime_pattern(fmt text)
+RETURNS text
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+  out text := '';
+  i int := 1;
+  c text;
+  tok text;
+BEGIN
+  WHILE i <= length(fmt) LOOP
+    c := substr(fmt, i, 1);
+    IF c = '%' AND i < length(fmt) THEN
+      tok := substr(fmt, i + 1, 1);
+      out := out || CASE tok
+        WHEN 'Y' THEN 'YYYY'
+        WHEN 'm' THEN 'MM'
+        WHEN 'd' THEN 'DD'
+        WHEN 'H' THEN 'HH24'
+        WHEN 'M' THEN 'MI'
+        WHEN 'S' THEN 'SS'
+        WHEN 'f' THEN 'SS.MS'
+        WHEN 'j' THEN 'DDD'
+        WHEN '%' THEN '"%"'
+        ELSE NULL
+      END;
+      IF out IS NULL THEN
+        RAISE EXCEPTION 'sqlite_strftime_pattern: unsupported token %%%', tok;
+      END IF;
+      i := i + 2;
+    ELSE
+      out := out || '"' || replace(c, '"', '') || '"';
+      i := i + 1;
+    END IF;
+  END LOOP;
+  RETURN out;
+END
+$$;
+
+CREATE OR REPLACE FUNCTION sqlite_strftime(fmt text, value text, mods text[])
+RETURNS text
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  ts timestamptz := sqlite_ts(value, mods);
+BEGIN
+  IF ts IS NULL THEN
+    RETURN NULL;
+  END IF;
+  IF fmt = '%s' THEN
+    RETURN floor(extract(epoch FROM ts))::bigint::text;
+  END IF;
+  RETURN to_char(ts AT TIME ZONE 'UTC', sqlite_strftime_pattern(fmt));
+END
+$$;
+
+CREATE OR REPLACE FUNCTION strftime(fmt text, value text)
+RETURNS text LANGUAGE sql AS $$ SELECT sqlite_strftime(fmt, value, '{}') $$;
+
+CREATE OR REPLACE FUNCTION strftime(fmt text, value text, m1 text)
+RETURNS text LANGUAGE sql AS $$ SELECT sqlite_strftime(fmt, value, ARRAY[m1]) $$;
+
+CREATE OR REPLACE FUNCTION strftime(fmt text, value text, m1 text, m2 text)
+RETURNS text LANGUAGE sql AS $$ SELECT sqlite_strftime(fmt, value, ARRAY[m1, m2]) $$;
+
+CREATE OR REPLACE FUNCTION julianday(value text)
+RETURNS double precision
+LANGUAGE sql AS $$
+  SELECT extract(epoch FROM sqlite_ts(value, '{}')) / 86400.0 + 2440587.5
+$$;
+
+CREATE OR REPLACE FUNCTION julianday(value text, m1 text)
+RETURNS double precision
+LANGUAGE sql AS $$
+  SELECT extract(epoch FROM sqlite_ts(value, ARRAY[m1])) / 86400.0 + 2440587.5
+$$;
+
+CREATE OR REPLACE FUNCTION julianday(value text, m1 text, m2 text)
+RETURNS double precision
+LANGUAGE sql AS $$
+  SELECT extract(epoch FROM sqlite_ts(value, ARRAY[m1, m2])) / 86400.0 + 2440587.5
+$$;
+
+CREATE OR REPLACE FUNCTION datetime(value text)
+RETURNS text LANGUAGE sql AS $$
+  SELECT to_char(sqlite_ts(value, '{}') AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')
+$$;
+
+CREATE OR REPLACE FUNCTION datetime(value text, m1 text)
+RETURNS text LANGUAGE sql AS $$
+  SELECT to_char(sqlite_ts(value, ARRAY[m1]) AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')
+$$;
+
+-- Only the two-argument form is defined: a one-argument date(text) would be
+-- ambiguous with pg_catalog's date() cast for unknown-typed literals.
+CREATE OR REPLACE FUNCTION date(value text, m1 text)
+RETURNS text LANGUAGE sql AS $$
+  SELECT to_char(sqlite_ts(value, ARRAY[m1]) AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+$$;
+
+-- SQLite JSON functions used by the schema (CHECK constraints) and queries.
+
+CREATE OR REPLACE FUNCTION json_valid(value text)
+RETURNS boolean
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+BEGIN
+  IF value IS NULL THEN
+    RETURN NULL;
+  END IF;
+  PERFORM value::jsonb;
+  RETURN true;
+EXCEPTION WHEN others THEN
+  RETURN false;
+END
+$$;
+
+-- SQLite's json_each() over a text column, restricted to the columns the
+-- codebase uses (key, value). Handles both JSON arrays and objects.
+CREATE OR REPLACE FUNCTION json_each(doc text)
+RETURNS TABLE(key text, value text)
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+BEGIN
+  IF doc IS NULL OR NOT json_valid(doc) THEN
+    RETURN;
+  END IF;
+  IF jsonb_typeof(doc::jsonb) = 'array' THEN
+    RETURN QUERY
+      SELECT (t.ord - 1)::text, t.val
+      FROM jsonb_array_elements_text(doc::jsonb) WITH ORDINALITY AS t(val, ord);
+  ELSIF jsonb_typeof(doc::jsonb) = 'object' THEN
+    RETURN QUERY SELECT t.k, t.v FROM jsonb_each_text(doc::jsonb) AS t(k, v);
+  END IF;
+END
+$$;
+
+-- SQLite's json_extract() for simple '$.a.b' object paths (the only form the
+-- codebase uses). Scalars come back as unquoted text, like SQLite.
+CREATE OR REPLACE FUNCTION json_extract(doc text, path text)
+RETURNS text
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+BEGIN
+  IF doc IS NULL OR path IS NULL OR NOT json_valid(doc) THEN
+    RETURN NULL;
+  END IF;
+  IF path !~ '^\$\.' THEN
+    RAISE EXCEPTION 'json_extract: unsupported path %', path;
+  END IF;
+  RETURN doc::jsonb #>> string_to_array(substr(path, 3), '.');
+END
+$$;
+
+-- Generated from schema.sql + migrations by scripts/generate-bootstrap.mjs.
+-- Do not edit manually. Run `pnpm --dir packages/db generate:bootstrap`.
+CREATE TABLE account_health_logs (
+  id              TEXT PRIMARY KEY,
+  line_account_id TEXT NOT NULL,
+  error_code      INTEGER,
+  error_count     INTEGER NOT NULL DEFAULT 0,
+  check_period    TEXT NOT NULL,
+  risk_level      TEXT NOT NULL DEFAULT 'normal' CHECK (risk_level IN ('normal', 'warning', 'danger')),
+  created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE account_migrations (
+  id               TEXT PRIMARY KEY,
+  from_account_id  TEXT NOT NULL,
+  to_account_id    TEXT NOT NULL,
+  status           TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed', 'failed')),
+  migrated_count   INTEGER NOT NULL DEFAULT 0,
+  total_count      INTEGER NOT NULL DEFAULT 0,
+  created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  completed_at     TEXT
+);
+CREATE TABLE account_settings (
+  id              TEXT PRIMARY KEY,
+  line_account_id TEXT NOT NULL,
+  key             TEXT NOT NULL,
+  value           TEXT NOT NULL,
+  created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  UNIQUE(line_account_id, key)
+);
+CREATE TABLE ad_conversion_logs (
+  id                  TEXT PRIMARY KEY,
+  ad_platform_id      TEXT NOT NULL,
+  friend_id           TEXT NOT NULL,
+  conversion_point_id TEXT,
+  event_name          TEXT NOT NULL,
+  click_id            TEXT,
+  click_id_type       TEXT,
+  status              TEXT DEFAULT 'pending',
+  request_body        TEXT,
+  response_body       TEXT,
+  error_message       TEXT,
+  created_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE ad_platforms (
+  id           TEXT PRIMARY KEY,
+  name         TEXT NOT NULL,
+  display_name TEXT,
+  config       TEXT NOT NULL DEFAULT '{}',
+  is_active    INTEGER DEFAULT 1,
+  created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE admin_users (
+  id            TEXT PRIMARY KEY,
+  email         TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE affiliate_clicks (
+  id           TEXT PRIMARY KEY,
+  affiliate_id TEXT NOT NULL,
+  url          TEXT,
+  ip_address   TEXT,
+  created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE affiliate_links (
+  id              TEXT PRIMARY KEY,
+  affiliate_id    TEXT NOT NULL,
+  ref_code        TEXT NOT NULL UNIQUE,
+  label           TEXT,
+  line_account_id TEXT,
+  offer_id        TEXT,
+  is_active       INTEGER NOT NULL DEFAULT 1,
+  created_at      TEXT NOT NULL,
+  click_count     INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE affiliate_offers (
+  id              TEXT PRIMARY KEY,
+  name            TEXT NOT NULL,
+  description     TEXT,
+  reward_amount   INTEGER NOT NULL DEFAULT 0,
+  line_account_id TEXT,
+  tag_id          TEXT,
+  scenario_id     TEXT,
+  is_active       INTEGER NOT NULL DEFAULT 1,
+  created_at      TEXT NOT NULL
+);
+CREATE TABLE affiliates (
+  id              TEXT PRIMARY KEY,
+  name            TEXT NOT NULL,
+  code            TEXT NOT NULL UNIQUE,
+  commission_rate REAL NOT NULL DEFAULT 0,
+  is_active       INTEGER NOT NULL DEFAULT 1,
+  friend_id       TEXT,
+  created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE ai_chat_sessions (
+  friend_id TEXT PRIMARY KEY,
+  line_account_id TEXT,
+  last_response_id TEXT NOT NULL,
+  turn_count INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL
+);
+CREATE TABLE auto_replies (
+  id               TEXT PRIMARY KEY,
+  keyword          TEXT NOT NULL,
+  match_type       TEXT NOT NULL CHECK (match_type IN ('exact', 'contains')) DEFAULT 'exact',
+  response_type    TEXT NOT NULL DEFAULT 'text',
+  response_content TEXT NOT NULL,
+  template_id      TEXT,
+  line_account_id  TEXT DEFAULT NULL,
+  is_active        INTEGER NOT NULL DEFAULT 1,
+  created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE automation_logs (
+  id             TEXT PRIMARY KEY,
+  automation_id  TEXT NOT NULL,
+  friend_id      TEXT,
+  event_data     TEXT,
+  actions_result TEXT,
+  status         TEXT NOT NULL DEFAULT 'success' CHECK (status IN ('success', 'partial', 'failed')),
+  created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE automations (
+  id          TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  description TEXT,
+  event_type  TEXT NOT NULL,
+  conditions  TEXT NOT NULL DEFAULT '{}',
+  actions     TEXT NOT NULL DEFAULT '[]',
+  is_active   INTEGER NOT NULL DEFAULT 1,
+  priority    INTEGER NOT NULL DEFAULT 0,
+  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+, line_account_id TEXT);
+CREATE TABLE booking_idempotency_keys (
+  key              TEXT PRIMARY KEY,
+  line_account_id  TEXT NOT NULL,
+  friend_id        TEXT NOT NULL,
+  response_status  INTEGER NOT NULL,
+  response_body    TEXT NOT NULL,
+  created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  expires_at       TEXT NOT NULL                  -- UTC ISO8601
+);
+CREATE TABLE booking_reminders (
+  id            TEXT PRIMARY KEY,
+  booking_id    TEXT NOT NULL,
+  kind          TEXT NOT NULL CHECK (kind IN ('day_before','hours_before')),
+  scheduled_at  TEXT NOT NULL,                                -- UTC ISO8601
+  sent_at       TEXT,                                         -- UTC ISO8601
+  status        TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','sent','failed','failed_permanent','cancelled')),
+  retry_count   INTEGER NOT NULL DEFAULT 0,
+  last_error    TEXT
+);
+CREATE TABLE bookings (
+  id                      TEXT PRIMARY KEY,
+  line_account_id         TEXT NOT NULL,
+  friend_id               TEXT NOT NULL,        -- friends.id
+  staff_id                TEXT NOT NULL,
+  menu_id                 TEXT NOT NULL,
+  starts_at               TEXT NOT NULL,        -- UTC ISO8601 (Z)
+  ends_at                 TEXT NOT NULL,        -- UTC ISO8601 (Z)
+  block_ends_at           TEXT NOT NULL,        -- ends_at + buffer_after。衝突判定
+  status                  TEXT NOT NULL CHECK (status IN ('requested','confirmed','rejected','expired','cancelled','completed','no_show')),
+  customer_note           TEXT,
+  internal_note           TEXT,
+  price_at_booking        INTEGER NOT NULL,
+  requested_at            TEXT NOT NULL,        -- UTC ISO8601
+  decided_at              TEXT,                 -- UTC ISO8601
+  decided_by_staff_id     TEXT,
+  external_event_id       TEXT,                 -- Phase 3 余地 (Google Calendar)
+  external_calendar_id    TEXT,                 -- Phase 3 余地
+  created_at              TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at              TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE broadcast_insights (
+  id                  TEXT PRIMARY KEY,
+  broadcast_id        TEXT NOT NULL,
+  delivered           INTEGER,
+  unique_impression   INTEGER,
+  unique_click        INTEGER,
+  unique_media_played INTEGER,
+  open_rate           REAL,
+  click_rate          REAL,
+  raw_response        TEXT,
+  status              TEXT NOT NULL CHECK (status IN ('pending', 'ready', 'failed')),
+  retry_count         INTEGER NOT NULL DEFAULT 0,
+  fetched_at          TEXT,
+  created_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE "broadcasts" (
+  id                 TEXT PRIMARY KEY,
+  title              TEXT NOT NULL,
+  message_type       TEXT NOT NULL CHECK (message_type IN ('text', 'image', 'flex')),
+  message_content    TEXT NOT NULL,
+  target_type        TEXT NOT NULL CHECK (target_type IN ('all', 'tag', 'segment', 'multi-account-dedup')) DEFAULT 'all',
+  target_tag_id      TEXT,
+  status             TEXT NOT NULL CHECK (status IN ('draft', 'scheduled', 'sending', 'sent')) DEFAULT 'draft',
+  scheduled_at       TEXT,
+  sent_at            TEXT,
+  total_count        INTEGER NOT NULL DEFAULT 0,
+  success_count      INTEGER NOT NULL DEFAULT 0,
+  created_at         TEXT NOT NULL DEFAULT (datetime('now')),
+  line_account_id    TEXT,
+  alt_text           TEXT,
+  line_request_id    TEXT,
+  aggregation_unit   TEXT,
+  batch_offset       INTEGER NOT NULL DEFAULT 0,
+  segment_conditions TEXT,
+  account_ids        TEXT CHECK (account_ids IS NULL OR json_valid(account_ids)),
+  dedup_priority     TEXT CHECK (dedup_priority IS NULL OR json_valid(dedup_priority)),
+  failed_account_ids TEXT CHECK (failed_account_ids IS NULL OR json_valid(failed_account_ids))
+, dedup_progress TEXT, batch_lock_at TEXT, track_links INTEGER NOT NULL DEFAULT 1);
+CREATE TABLE calendar_bookings (
+  id             TEXT PRIMARY KEY,
+  connection_id  TEXT NOT NULL,
+  friend_id      TEXT,
+  event_id       TEXT,
+  title          TEXT NOT NULL,
+  start_at       TEXT NOT NULL,
+  end_at         TEXT NOT NULL,
+  status         TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'cancelled', 'completed')),
+  metadata       TEXT,
+  created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE chats (
+  id            TEXT PRIMARY KEY,
+  friend_id     TEXT NOT NULL,
+  operator_id   TEXT,
+  status        TEXT NOT NULL DEFAULT 'unread' CHECK (status IN ('unread', 'in_progress', 'resolved')),
+  notes         TEXT,
+  last_message_at TEXT,
+  created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+, line_account_id TEXT);
+CREATE TABLE conversion_events (
+  id                   TEXT PRIMARY KEY,
+  conversion_point_id  TEXT NOT NULL,
+  friend_id            TEXT NOT NULL,
+  user_id              TEXT,
+  affiliate_code       TEXT,
+  metadata             TEXT,
+  affiliate_id         TEXT,
+  attributed_ref_code  TEXT,
+  approval_status      TEXT CHECK (approval_status IN ('pending','approved','rejected')),
+  approved_at          TEXT,
+  created_at           TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE conversion_points (
+  id         TEXT PRIMARY KEY,
+  name       TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  value      REAL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE entry_routes (
+  id          TEXT PRIMARY KEY,
+  ref_code    TEXT UNIQUE NOT NULL,
+  name        TEXT NOT NULL,
+  tag_id      TEXT,
+  scenario_id TEXT,
+  redirect_url TEXT,
+  is_active   INTEGER NOT NULL DEFAULT 1,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+, pool_id TEXT, intro_template_id TEXT, run_account_friend_add_scenarios INTEGER NOT NULL DEFAULT 1);
+CREATE TABLE event_booking_idempotency_keys (
+  key              TEXT PRIMARY KEY,
+  line_account_id  TEXT NOT NULL,
+  friend_id        TEXT NOT NULL,
+  response_status  INTEGER NOT NULL,
+  response_body    TEXT NOT NULL,
+  created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  expires_at       TEXT NOT NULL
+);
+CREATE TABLE event_booking_reminders (
+  id            TEXT PRIMARY KEY,
+  booking_id    TEXT NOT NULL,
+  kind          TEXT NOT NULL CHECK (kind IN ('day_before','hours_before')),
+  scheduled_at  TEXT NOT NULL,
+  sent_at       TEXT,
+  status        TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','sent','failed','failed_permanent','cancelled')),
+  retry_count   INTEGER NOT NULL DEFAULT 0,
+  last_error    TEXT
+);
+CREATE TABLE event_bookings (
+  id                    TEXT PRIMARY KEY,
+  line_account_id       TEXT NOT NULL,
+  event_id              TEXT NOT NULL,
+  slot_id               TEXT NOT NULL,
+  friend_id             TEXT NOT NULL,
+  status                TEXT NOT NULL CHECK (status IN ('requested','confirmed','rejected','cancelled','expired','no_show','attended')),
+  customer_note         TEXT,
+  internal_note         TEXT,
+  requested_at          TEXT NOT NULL,
+  decided_at            TEXT,
+  decided_by_staff_id   TEXT,
+  cancelled_at          TEXT,
+  cancelled_by          TEXT CHECK (cancelled_by IN ('friend','admin','system')),
+  created_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')), identity_key TEXT
+);
+CREATE TABLE event_slots (
+  id          TEXT PRIMARY KEY,
+  event_id    TEXT NOT NULL,
+  starts_at   TEXT NOT NULL,
+  ends_at     TEXT NOT NULL,
+  capacity    INTEGER,
+  is_active   INTEGER NOT NULL DEFAULT 1,
+  sort_order  INTEGER NOT NULL DEFAULT 0,
+  deleted_at  TEXT,
+  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE events (
+  id                            TEXT PRIMARY KEY,
+  line_account_id               TEXT NOT NULL,
+  name                          TEXT NOT NULL,
+  venue_name                    TEXT,
+  venue_url                     TEXT,
+  image_url                     TEXT,
+  description                   TEXT,
+  description_centered          INTEGER NOT NULL DEFAULT 0,
+  max_bookings_per_friend       INTEGER,
+  requires_approval             INTEGER NOT NULL DEFAULT 0,
+  cancel_deadline_hours_before  INTEGER,
+  reminder_day_before_enabled   INTEGER NOT NULL DEFAULT 1,
+  reminder_hours_before         INTEGER,
+  is_published                  INTEGER NOT NULL DEFAULT 0,
+  folder_id                     TEXT,
+  sort_order                    INTEGER NOT NULL DEFAULT 0,
+  deleted_at                    TEXT,
+  created_at                    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at                    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')), target_type TEXT NOT NULL DEFAULT 'single'
+  CHECK (target_type IN ('single', 'multi-account-dedup')), account_ids TEXT
+  CHECK (account_ids IS NULL OR json_valid(account_ids)), dedup_priority TEXT
+  CHECK (dedup_priority IS NULL OR json_valid(dedup_priority)), failed_account_ids TEXT
+  CHECK (failed_account_ids IS NULL OR json_valid(failed_account_ids)), confirmation_message_extra TEXT, reminder_message_extra TEXT, og_title TEXT, og_description TEXT, og_image_url TEXT
+);
+CREATE TABLE form_opens (
+  id TEXT PRIMARY KEY,
+  form_id TEXT NOT NULL,
+  friend_id TEXT,
+  friend_name TEXT,
+  opened_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE form_submissions (
+  id TEXT PRIMARY KEY,
+  form_id TEXT NOT NULL,
+  friend_id TEXT,
+  data TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE forms (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  fields TEXT NOT NULL DEFAULT '[]',
+  on_submit_tag_id TEXT,
+  on_submit_scenario_id TEXT,
+  save_to_metadata INTEGER NOT NULL DEFAULT 1,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  submit_count INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+, on_submit_message_type TEXT CHECK (on_submit_message_type IN ('text', 'flex')) DEFAULT NULL, on_submit_message_content TEXT DEFAULT NULL, on_submit_webhook_url TEXT, on_submit_webhook_headers TEXT, on_submit_webhook_fail_message TEXT, og_title TEXT, og_description TEXT, og_image_url TEXT);
+CREATE TABLE friend_reminder_deliveries (
+  id                TEXT PRIMARY KEY,
+  friend_reminder_id TEXT NOT NULL,
+  reminder_step_id  TEXT NOT NULL,
+  delivered_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  UNIQUE (friend_reminder_id, reminder_step_id)
+);
+CREATE TABLE friend_reminders (
+  id              TEXT PRIMARY KEY,
+  friend_id       TEXT NOT NULL,
+  reminder_id     TEXT NOT NULL,
+  target_date     TEXT NOT NULL,
+  status          TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed', 'cancelled')),
+  created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE "friend_scenarios" (
+  id                 TEXT PRIMARY KEY,
+  friend_id          TEXT NOT NULL,
+  scenario_id        TEXT NOT NULL,
+  current_step_order INTEGER NOT NULL DEFAULT 0,
+  status             TEXT NOT NULL CHECK (status IN ('active', 'paused', 'completed', 'delivering')) DEFAULT 'active',
+  started_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  next_delivery_at   TEXT,
+  updated_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE friend_scores (
+  id              TEXT PRIMARY KEY,
+  friend_id       TEXT NOT NULL,
+  scoring_rule_id TEXT,
+  score_change    INTEGER NOT NULL,
+  reason          TEXT,
+  created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE friend_tags (
+  friend_id   TEXT NOT NULL,
+  tag_id      TEXT NOT NULL,
+  assigned_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  PRIMARY KEY (friend_id, tag_id)
+);
+CREATE TABLE friends (
+  id               TEXT PRIMARY KEY,
+  line_user_id     TEXT UNIQUE NOT NULL,
+  display_name     TEXT,
+  picture_url      TEXT,
+  status_message   TEXT,
+  is_following     INTEGER NOT NULL DEFAULT 1,
+  user_id          TEXT,
+  ig_igsid         TEXT,
+  score            INTEGER NOT NULL DEFAULT 0,
+  last_ref_code    TEXT,
+  last_ref_at      TEXT,
+  created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+, ref_code TEXT, metadata TEXT NOT NULL DEFAULT '{}', line_account_id TEXT, first_tracked_link_id TEXT);
+CREATE TABLE google_calendar_connections (
+  id            TEXT PRIMARY KEY,
+  calendar_id   TEXT NOT NULL,
+  access_token  TEXT,
+  refresh_token TEXT,
+  api_key       TEXT,
+  auth_type     TEXT NOT NULL DEFAULT 'api_key',
+  is_active     INTEGER NOT NULL DEFAULT 1,
+  created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE incoming_webhooks (
+  id          TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  source_type TEXT NOT NULL DEFAULT 'custom',
+  secret      TEXT,
+  is_active   INTEGER NOT NULL DEFAULT 1,
+  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE line_accounts (
+  id                     TEXT PRIMARY KEY,
+  channel_id             TEXT NOT NULL UNIQUE,
+  name                   TEXT NOT NULL,
+  channel_access_token   TEXT NOT NULL,
+  channel_secret         TEXT NOT NULL,
+  is_active              INTEGER NOT NULL DEFAULT 1,
+  country                TEXT,
+  role                   TEXT,
+  display_order          INTEGER NOT NULL DEFAULT 0,
+  og_site_name           TEXT,
+  og_default_image_url   TEXT,
+  og_default_description TEXT,
+  created_at             TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at             TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+, login_channel_id TEXT, login_channel_secret TEXT, liff_id TEXT, token_expires_at TEXT);
+CREATE TABLE link_clicks (
+  id TEXT PRIMARY KEY,
+  tracked_link_id TEXT NOT NULL,
+  friend_id TEXT,
+  clicked_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE menus (
+  id                    TEXT PRIMARY KEY,
+  line_account_id       TEXT NOT NULL,
+  name                  TEXT NOT NULL,
+  category_label        TEXT,
+  description           TEXT,
+  duration_minutes      INTEGER NOT NULL,
+  buffer_after_minutes  INTEGER NOT NULL DEFAULT 0,
+  base_price            INTEGER NOT NULL,
+  sort_order            INTEGER NOT NULL DEFAULT 0,
+  is_active             INTEGER NOT NULL DEFAULT 1,
+  deleted_at            TEXT,
+  auto_tag_id           TEXT,                  -- 予約申込時に friend に自動付与するタグ
+  created_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE message_templates (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  message_type TEXT NOT NULL CHECK (message_type IN ('text', 'flex')),
+  message_content TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE messages_log (
+  id               TEXT PRIMARY KEY,
+  friend_id        TEXT NOT NULL,
+  direction        TEXT NOT NULL CHECK (direction IN ('incoming', 'outgoing')),
+  message_type     TEXT NOT NULL,
+  content          TEXT NOT NULL,
+  broadcast_id     TEXT,
+  scenario_step_id TEXT,
+  template_id_at_send TEXT,
+  delivery_type    TEXT CHECK (delivery_type IN ('push', 'reply', 'test')),
+  source           TEXT,
+  line_account_id  TEXT,
+  created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE notification_rules (
+  id           TEXT PRIMARY KEY,
+  name         TEXT NOT NULL,
+  event_type   TEXT NOT NULL,
+  conditions   TEXT NOT NULL DEFAULT '{}',
+  channels     TEXT NOT NULL DEFAULT '["webhook"]',
+  is_active    INTEGER NOT NULL DEFAULT 1,
+  created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE notifications (
+  id              TEXT PRIMARY KEY,
+  rule_id         TEXT,
+  event_type      TEXT NOT NULL,
+  title           TEXT NOT NULL,
+  body            TEXT NOT NULL,
+  channel         TEXT NOT NULL,
+  status          TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed')),
+  metadata        TEXT,
+  created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE operators (
+  id         TEXT PRIMARY KEY,
+  name       TEXT NOT NULL,
+  email      TEXT NOT NULL UNIQUE,
+  role       TEXT NOT NULL DEFAULT 'operator' CHECK (role IN ('admin', 'operator')),
+  is_active  INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE outgoing_webhooks (
+  id          TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  url         TEXT NOT NULL,
+  event_types TEXT NOT NULL DEFAULT '[]',
+  secret      TEXT,
+  is_active   INTEGER NOT NULL DEFAULT 1,
+  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE pool_accounts (
+  id TEXT PRIMARY KEY,
+  pool_id TEXT NOT NULL,
+  line_account_id TEXT NOT NULL,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(pool_id, line_account_id)
+);
+CREATE TABLE ref_tracking (
+  id              TEXT PRIMARY KEY,
+  ref_code        TEXT NOT NULL,
+  friend_id       TEXT,
+  entry_route_id  TEXT,
+  source_url      TEXT,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+, fbclid TEXT, gclid TEXT, twclid TEXT, ttclid TEXT, utm_source TEXT, utm_medium TEXT, utm_campaign TEXT, user_agent TEXT, ip_address TEXT);
+CREATE TABLE reminder_steps (
+  id              TEXT PRIMARY KEY,
+  reminder_id     TEXT NOT NULL,
+  offset_minutes  INTEGER NOT NULL,
+  message_type    TEXT NOT NULL CHECK (message_type IN ('text', 'image', 'flex')),
+  message_content TEXT NOT NULL,
+  created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE reminders (
+  id          TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  description TEXT,
+  is_active   INTEGER NOT NULL DEFAULT 1,
+  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+, line_account_id TEXT);
+CREATE TABLE rich_menu_areas (
+  id              TEXT PRIMARY KEY,
+  page_id         TEXT NOT NULL,
+  bounds_x        INTEGER NOT NULL,
+  bounds_y        INTEGER NOT NULL,
+  bounds_width    INTEGER NOT NULL,
+  bounds_height   INTEGER NOT NULL,
+  action_type     TEXT NOT NULL CHECK (action_type IN ('uri','message','postback','richmenuswitch')),
+  action_data     TEXT NOT NULL,
+  created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE rich_menu_groups (
+  id                 TEXT PRIMARY KEY,
+  account_id         TEXT NOT NULL,
+  name               TEXT NOT NULL,
+  chat_bar_text      TEXT NOT NULL,
+  size               TEXT NOT NULL CHECK (size IN ('large','compact')),
+  default_page_id    TEXT,
+  is_default_for_all INTEGER NOT NULL DEFAULT 0,
+  status             TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published')),
+  publishing_at      TEXT,
+  created_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE rich_menu_pages (
+  id                 TEXT PRIMARY KEY,
+  group_id           TEXT NOT NULL,
+  order_index        INTEGER NOT NULL,
+  name               TEXT NOT NULL,
+  alias_id           TEXT NOT NULL,
+  line_richmenu_id   TEXT,
+  image_r2_key       TEXT,
+  image_content_type TEXT,
+  created_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  UNIQUE (group_id, order_index)
+);
+CREATE TABLE scenario_steps (
+  id              TEXT PRIMARY KEY,
+  scenario_id     TEXT NOT NULL,
+  step_order      INTEGER NOT NULL,
+  delay_minutes   INTEGER NOT NULL DEFAULT 0,
+  message_type    TEXT NOT NULL CHECK (message_type IN ('text', 'image', 'flex')),
+  message_content TEXT NOT NULL,
+  offset_days     INTEGER,
+  offset_minutes  INTEGER,
+  delivery_time   TEXT,
+  template_id     TEXT,
+  on_reach_tag_id TEXT,
+  created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')), condition_type TEXT, condition_value TEXT, next_step_on_false INTEGER,
+  UNIQUE (scenario_id, step_order)
+);
+CREATE TABLE scenarios (
+  id              TEXT PRIMARY KEY,
+  name            TEXT NOT NULL,
+  description     TEXT,
+  trigger_type    TEXT NOT NULL CHECK (trigger_type IN ('friend_add', 'tag_added', 'manual')),
+  trigger_tag_id  TEXT,
+  is_active       INTEGER NOT NULL DEFAULT 1,
+  delivery_mode   TEXT NOT NULL DEFAULT 'relative' CHECK (delivery_mode IN ('relative', 'elapsed', 'absolute_time')),
+  created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+, line_account_id TEXT);
+CREATE TABLE scoring_rules (
+  id          TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  event_type  TEXT NOT NULL,
+  score_value INTEGER NOT NULL,
+  is_active   INTEGER NOT NULL DEFAULT 1,
+  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE staff (
+  id                       TEXT PRIMARY KEY,
+  line_account_id          TEXT NOT NULL,
+  name                     TEXT NOT NULL,
+  display_name             TEXT NOT NULL,
+  role                     TEXT,
+  profile_image_url        TEXT,
+  bio                      TEXT,
+  sort_order               INTEGER NOT NULL DEFAULT 0,
+  is_designation_optional  INTEGER NOT NULL DEFAULT 0,
+  is_active                INTEGER NOT NULL DEFAULT 1,
+  deleted_at               TEXT,
+  created_at               TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at               TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE staff_members (
+  id         TEXT PRIMARY KEY,
+  name       TEXT NOT NULL,
+  email      TEXT,
+  role       TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'staff')),
+  api_key    TEXT UNIQUE NOT NULL,
+  is_active  INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE staff_menus (
+  staff_id                  TEXT NOT NULL,
+  menu_id                   TEXT NOT NULL,
+  is_offered                INTEGER NOT NULL DEFAULT 1,
+  override_duration_minutes INTEGER,
+  override_price            INTEGER,
+  PRIMARY KEY (staff_id, menu_id)
+);
+CREATE TABLE staff_shifts (
+  id          TEXT PRIMARY KEY,
+  staff_id    TEXT NOT NULL,
+  work_date   TEXT NOT NULL,    -- YYYY-MM-DD (JST)
+  start_time  TEXT NOT NULL,    -- HH:MM (JST)
+  end_time    TEXT NOT NULL,    -- HH:MM (JST)
+  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  UNIQUE (staff_id, work_date)
+);
+CREATE TABLE stripe_events (
+  id               TEXT PRIMARY KEY,
+  stripe_event_id  TEXT NOT NULL UNIQUE,
+  event_type       TEXT NOT NULL,
+  friend_id        TEXT,
+  amount           REAL,
+  currency         TEXT,
+  metadata         TEXT,
+  processed_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE tags (
+  id         TEXT PRIMARY KEY,
+  name       TEXT UNIQUE NOT NULL,
+  color      TEXT NOT NULL DEFAULT '#3B82F6',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE templates (
+  id              TEXT PRIMARY KEY,
+  name            TEXT NOT NULL,
+  category        TEXT NOT NULL DEFAULT 'general',
+  message_type    TEXT NOT NULL CHECK (message_type IN ('text', 'image', 'flex', 'carousel')),
+  message_content TEXT NOT NULL,
+  created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE TABLE tracked_links (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  original_url TEXT NOT NULL,
+  tag_id TEXT,
+  scenario_id TEXT,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  click_count INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+, intro_template_id TEXT, reward_template_id TEXT, og_title TEXT, og_description TEXT, og_image_url TEXT, line_account_id TEXT, short_code TEXT);
+CREATE TABLE traffic_pools (
+  id TEXT PRIMARY KEY,
+  slug TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  active_account_id TEXT NOT NULL,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE TABLE update_history (
+  id                          TEXT PRIMARY KEY,
+  started_at                  INTEGER NOT NULL,
+  completed_at                INTEGER,
+  from_version                TEXT NOT NULL,
+  to_version                  TEXT NOT NULL,
+  status                      TEXT NOT NULL CHECK (status IN ('running','success','failed','rolled_back')),
+  snapshot_worker_url         TEXT,
+  snapshot_admin_deployment   TEXT,
+  snapshot_liff_deployment    TEXT,
+  events_jsonl                TEXT NOT NULL DEFAULT '',
+  error                       TEXT,
+  rollback_of                 TEXT,
+  rollback_expires_at         INTEGER
+);
+CREATE TABLE users (
+  id           TEXT PRIMARY KEY,
+  email        TEXT,
+  phone        TEXT,
+  external_id  TEXT,
+  display_name TEXT,
+  created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE INDEX idx_ad_conversion_logs_friend ON ad_conversion_logs (friend_id);
+CREATE INDEX idx_ad_conversion_logs_platform ON ad_conversion_logs (ad_platform_id);
+CREATE INDEX idx_ad_conversion_logs_status ON ad_conversion_logs (status);
+CREATE INDEX idx_affiliate_clicks_affiliate ON affiliate_clicks (affiliate_id);
+CREATE INDEX idx_affiliate_links_affiliate ON affiliate_links (affiliate_id);
+CREATE INDEX idx_affiliate_links_offer ON affiliate_links (offer_id);
+CREATE UNIQUE INDEX idx_affiliates_friend ON affiliates (friend_id) WHERE friend_id IS NOT NULL;
+CREATE INDEX idx_auto_replies_template_id ON auto_replies(template_id);
+CREATE INDEX idx_automation_logs_automation ON automation_logs (automation_id);
+CREATE INDEX idx_automations_active ON automations (is_active);
+CREATE INDEX idx_automations_event ON automations (event_type);
+CREATE INDEX idx_bookings_account_status_starts ON bookings (line_account_id, status, starts_at);
+CREATE INDEX idx_bookings_friend_starts ON bookings (friend_id, starts_at DESC);
+CREATE INDEX idx_bookings_staff_overlap ON bookings (staff_id, status, starts_at, block_ends_at);
+CREATE INDEX idx_broadcast_insights_broadcast_id ON broadcast_insights(broadcast_id);
+CREATE INDEX idx_broadcast_insights_status ON broadcast_insights(status);
+CREATE INDEX idx_broadcasts_status ON broadcasts (status);
+CREATE INDEX idx_calendar_bookings_friend ON calendar_bookings (friend_id);
+CREATE INDEX idx_calendar_bookings_start ON calendar_bookings (start_at);
+CREATE UNIQUE INDEX idx_chats_friend_unique ON chats (friend_id);
+CREATE INDEX idx_chats_operator ON chats (operator_id);
+CREATE INDEX idx_chats_status ON chats (status);
+CREATE INDEX idx_conversion_events_affiliate ON conversion_events (affiliate_code);
+CREATE INDEX idx_conversion_events_friend ON conversion_events (friend_id);
+CREATE INDEX idx_conversion_events_point ON conversion_events (conversion_point_id);
+CREATE INDEX idx_entry_routes_pool ON entry_routes (pool_id);
+CREATE INDEX idx_entry_routes_ref ON entry_routes (ref_code);
+CREATE INDEX idx_event_booking_idempotency_expires ON event_booking_idempotency_keys (expires_at);
+CREATE INDEX idx_event_booking_reminders_status_scheduled ON event_booking_reminders (status, scheduled_at);
+CREATE INDEX idx_event_bookings_account_status_event ON event_bookings (line_account_id, status, event_id);
+CREATE INDEX idx_event_bookings_friend_requested ON event_bookings (friend_id, requested_at DESC);
+CREATE INDEX idx_event_bookings_identity_status
+  ON event_bookings (event_id, identity_key, status);
+CREATE INDEX idx_event_bookings_slot_status ON event_bookings (slot_id, status);
+CREATE INDEX idx_event_slots_event_starts ON event_slots (event_id, starts_at);
+CREATE INDEX idx_events_account_published_sort ON events (line_account_id, is_published, sort_order);
+CREATE INDEX idx_form_opens_form ON form_opens (form_id, opened_at);
+CREATE INDEX idx_form_submissions_form ON form_submissions (form_id);
+CREATE INDEX idx_form_submissions_friend ON form_submissions (friend_id);
+CREATE INDEX idx_friend_reminders_friend ON friend_reminders (friend_id);
+CREATE INDEX idx_friend_reminders_status ON friend_reminders (status);
+CREATE INDEX idx_friend_scenarios_friend_id ON friend_scenarios (friend_id);
+CREATE INDEX idx_friend_scenarios_next_delivery_at ON friend_scenarios (next_delivery_at);
+CREATE INDEX idx_friend_scenarios_status ON friend_scenarios (status);
+CREATE UNIQUE INDEX idx_friend_scenarios_unique ON friend_scenarios (friend_id, scenario_id) WHERE status != 'completed';
+CREATE INDEX idx_friend_scores_created ON friend_scores (created_at);
+CREATE INDEX idx_friend_scores_friend ON friend_scores (friend_id);
+CREATE INDEX idx_friend_tags_tag_id ON friend_tags (tag_id);
+CREATE INDEX idx_friends_ig_igsid ON friends (ig_igsid);
+CREATE INDEX idx_friends_line_user_id ON friends (line_user_id);
+CREATE INDEX idx_friends_user_id ON friends (user_id);
+CREATE INDEX idx_health_logs_account ON account_health_logs (line_account_id);
+CREATE INDEX idx_idempotency_expires ON booking_idempotency_keys (expires_at);
+CREATE INDEX idx_line_accounts_display_order
+  ON line_accounts (display_order, created_at);
+CREATE INDEX idx_link_clicks_friend ON link_clicks (friend_id);
+CREATE INDEX idx_link_clicks_link ON link_clicks (tracked_link_id);
+CREATE INDEX idx_menus_account_sort ON menus (line_account_id, sort_order);
+CREATE INDEX idx_messages_log_broadcast_id ON messages_log(broadcast_id);
+CREATE INDEX idx_messages_log_created_at ON messages_log (created_at);
+CREATE INDEX idx_messages_log_friend_direction_created ON messages_log (friend_id, direction, created_at);
+CREATE INDEX idx_messages_log_friend_id ON messages_log (friend_id);
+CREATE INDEX idx_messages_log_friend_source ON messages_log (friend_id, source);
+CREATE INDEX idx_notifications_created ON notifications (created_at);
+CREATE INDEX idx_notifications_status ON notifications (status);
+CREATE INDEX idx_ref_tracking_friend ON ref_tracking (friend_id);
+CREATE INDEX idx_ref_tracking_friend_created ON ref_tracking(friend_id, created_at);
+CREATE INDEX idx_ref_tracking_ref    ON ref_tracking (ref_code);
+CREATE INDEX idx_ref_tracking_ref_created ON ref_tracking(ref_code, created_at);
+CREATE INDEX idx_reminder_steps_reminder ON reminder_steps (reminder_id);
+CREATE INDEX idx_reminders_status_scheduled ON booking_reminders (status, scheduled_at);
+CREATE INDEX idx_rich_menu_areas_page     ON rich_menu_areas(page_id);
+CREATE INDEX idx_rich_menu_groups_account ON rich_menu_groups(account_id, status);
+CREATE INDEX idx_rich_menu_pages_group    ON rich_menu_pages(group_id, order_index);
+CREATE INDEX idx_scenario_steps_scenario_id ON scenario_steps (scenario_id);
+CREATE INDEX idx_shifts_staff_date ON staff_shifts (staff_id, work_date);
+CREATE INDEX idx_staff_account_sort ON staff (line_account_id, sort_order);
+CREATE UNIQUE INDEX idx_staff_members_api_key ON staff_members(api_key);
+CREATE INDEX idx_staff_members_role ON staff_members(role);
+CREATE INDEX idx_stripe_events_friend ON stripe_events (friend_id);
+CREATE INDEX idx_stripe_events_type ON stripe_events (event_type);
+CREATE INDEX idx_templates_category ON templates (category);
+CREATE UNIQUE INDEX idx_tracked_links_short_code
+  ON tracked_links (short_code) WHERE short_code IS NOT NULL;
+CREATE INDEX idx_update_history_started ON update_history(started_at DESC);
+CREATE INDEX idx_users_email ON users (email);
+CREATE INDEX idx_users_external_id ON users (external_id);
+CREATE INDEX idx_users_phone ON users (phone);
+
+-- Foreign keys (added after all tables exist; DEFERRABLE for the data importer)
+ALTER TABLE affiliate_clicks ADD FOREIGN KEY (affiliate_id) REFERENCES affiliates (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE affiliate_links ADD FOREIGN KEY (affiliate_id) REFERENCES affiliates (id) DEFERRABLE;
+ALTER TABLE affiliate_links ADD FOREIGN KEY (line_account_id) REFERENCES line_accounts (id) DEFERRABLE;
+ALTER TABLE affiliate_links ADD FOREIGN KEY (offer_id) REFERENCES affiliate_offers (id) DEFERRABLE;
+ALTER TABLE affiliate_offers ADD FOREIGN KEY (line_account_id) REFERENCES line_accounts (id) DEFERRABLE;
+ALTER TABLE affiliate_offers ADD FOREIGN KEY (tag_id) REFERENCES tags (id) DEFERRABLE;
+ALTER TABLE affiliate_offers ADD FOREIGN KEY (scenario_id) REFERENCES scenarios (id) DEFERRABLE;
+ALTER TABLE affiliates ADD FOREIGN KEY (friend_id) REFERENCES friends (id) DEFERRABLE;
+ALTER TABLE auto_replies ADD FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE automation_logs ADD FOREIGN KEY (automation_id) REFERENCES automations (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE automation_logs ADD FOREIGN KEY (friend_id) REFERENCES friends (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE booking_reminders ADD FOREIGN KEY (booking_id) REFERENCES bookings(id) DEFERRABLE;
+ALTER TABLE bookings ADD FOREIGN KEY (line_account_id) REFERENCES line_accounts(id) DEFERRABLE;
+ALTER TABLE bookings ADD FOREIGN KEY (friend_id) REFERENCES friends(id) DEFERRABLE;
+ALTER TABLE bookings ADD FOREIGN KEY (staff_id) REFERENCES staff(id) DEFERRABLE;
+ALTER TABLE bookings ADD FOREIGN KEY (menu_id) REFERENCES menus(id) DEFERRABLE;
+ALTER TABLE broadcast_insights ADD FOREIGN KEY (broadcast_id) REFERENCES broadcasts(id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE broadcasts ADD FOREIGN KEY (target_tag_id) REFERENCES tags (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE calendar_bookings ADD FOREIGN KEY (connection_id) REFERENCES google_calendar_connections (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE calendar_bookings ADD FOREIGN KEY (friend_id) REFERENCES friends (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE chats ADD FOREIGN KEY (friend_id) REFERENCES friends (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE chats ADD FOREIGN KEY (operator_id) REFERENCES operators (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE conversion_events ADD FOREIGN KEY (conversion_point_id) REFERENCES conversion_points (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE conversion_events ADD FOREIGN KEY (friend_id) REFERENCES friends (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE conversion_events ADD FOREIGN KEY (affiliate_id) REFERENCES affiliates (id) DEFERRABLE;
+ALTER TABLE entry_routes ADD FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE entry_routes ADD FOREIGN KEY (scenario_id) REFERENCES scenarios (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE entry_routes ADD FOREIGN KEY (pool_id) REFERENCES traffic_pools (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE entry_routes ADD FOREIGN KEY (intro_template_id) REFERENCES message_templates (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE event_booking_reminders ADD FOREIGN KEY (booking_id) REFERENCES event_bookings(id) DEFERRABLE;
+ALTER TABLE event_bookings ADD FOREIGN KEY (line_account_id) REFERENCES line_accounts(id) DEFERRABLE;
+ALTER TABLE event_bookings ADD FOREIGN KEY (event_id) REFERENCES events(id) DEFERRABLE;
+ALTER TABLE event_bookings ADD FOREIGN KEY (slot_id) REFERENCES event_slots(id) DEFERRABLE;
+ALTER TABLE event_bookings ADD FOREIGN KEY (friend_id) REFERENCES friends(id) DEFERRABLE;
+ALTER TABLE event_slots ADD FOREIGN KEY (event_id) REFERENCES events(id) DEFERRABLE;
+ALTER TABLE events ADD FOREIGN KEY (line_account_id) REFERENCES line_accounts(id) DEFERRABLE;
+ALTER TABLE form_submissions ADD FOREIGN KEY (form_id) REFERENCES forms (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE form_submissions ADD FOREIGN KEY (friend_id) REFERENCES friends (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE forms ADD FOREIGN KEY (on_submit_tag_id) REFERENCES tags (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE forms ADD FOREIGN KEY (on_submit_scenario_id) REFERENCES scenarios (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE friend_reminder_deliveries ADD FOREIGN KEY (friend_reminder_id) REFERENCES friend_reminders (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE friend_reminder_deliveries ADD FOREIGN KEY (reminder_step_id) REFERENCES reminder_steps (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE friend_reminders ADD FOREIGN KEY (friend_id) REFERENCES friends (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE friend_reminders ADD FOREIGN KEY (reminder_id) REFERENCES reminders (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE friend_scenarios ADD FOREIGN KEY (friend_id) REFERENCES friends (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE friend_scenarios ADD FOREIGN KEY (scenario_id) REFERENCES scenarios (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE friend_scores ADD FOREIGN KEY (friend_id) REFERENCES friends (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE friend_scores ADD FOREIGN KEY (scoring_rule_id) REFERENCES scoring_rules (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE friend_tags ADD FOREIGN KEY (friend_id) REFERENCES friends (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE friend_tags ADD FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE friends ADD FOREIGN KEY (line_account_id) REFERENCES line_accounts(id) DEFERRABLE;
+ALTER TABLE friends ADD FOREIGN KEY (first_tracked_link_id) REFERENCES tracked_links (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE link_clicks ADD FOREIGN KEY (tracked_link_id) REFERENCES tracked_links (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE link_clicks ADD FOREIGN KEY (friend_id) REFERENCES friends (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE menus ADD FOREIGN KEY (line_account_id) REFERENCES line_accounts(id) DEFERRABLE;
+ALTER TABLE menus ADD FOREIGN KEY (auto_tag_id) REFERENCES tags(id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE messages_log ADD FOREIGN KEY (friend_id) REFERENCES friends (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE messages_log ADD FOREIGN KEY (broadcast_id) REFERENCES broadcasts (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE messages_log ADD FOREIGN KEY (scenario_step_id) REFERENCES scenario_steps (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE notifications ADD FOREIGN KEY (rule_id) REFERENCES notification_rules (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE pool_accounts ADD FOREIGN KEY (pool_id) REFERENCES traffic_pools(id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE pool_accounts ADD FOREIGN KEY (line_account_id) REFERENCES line_accounts(id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE ref_tracking ADD FOREIGN KEY (friend_id) REFERENCES friends (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE ref_tracking ADD FOREIGN KEY (entry_route_id) REFERENCES entry_routes (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE reminder_steps ADD FOREIGN KEY (reminder_id) REFERENCES reminders (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE rich_menu_areas ADD FOREIGN KEY (page_id) REFERENCES rich_menu_pages(id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE rich_menu_groups ADD FOREIGN KEY (account_id) REFERENCES line_accounts(id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE rich_menu_pages ADD FOREIGN KEY (group_id) REFERENCES rich_menu_groups(id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE scenario_steps ADD FOREIGN KEY (scenario_id) REFERENCES scenarios (id) ON DELETE CASCADE DEFERRABLE;
+ALTER TABLE scenario_steps ADD FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE scenario_steps ADD FOREIGN KEY (on_reach_tag_id) REFERENCES tags(id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE scenarios ADD FOREIGN KEY (trigger_tag_id) REFERENCES tags (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE staff ADD FOREIGN KEY (line_account_id) REFERENCES line_accounts(id) DEFERRABLE;
+ALTER TABLE staff_menus ADD FOREIGN KEY (staff_id) REFERENCES staff(id) DEFERRABLE;
+ALTER TABLE staff_menus ADD FOREIGN KEY (menu_id) REFERENCES menus(id) DEFERRABLE;
+ALTER TABLE staff_shifts ADD FOREIGN KEY (staff_id) REFERENCES staff(id) DEFERRABLE;
+ALTER TABLE stripe_events ADD FOREIGN KEY (friend_id) REFERENCES friends (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE tracked_links ADD FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE tracked_links ADD FOREIGN KEY (scenario_id) REFERENCES scenarios (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE tracked_links ADD FOREIGN KEY (intro_template_id) REFERENCES message_templates (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE tracked_links ADD FOREIGN KEY (reward_template_id) REFERENCES message_templates (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE tracked_links ADD FOREIGN KEY (line_account_id) REFERENCES line_accounts(id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE traffic_pools ADD FOREIGN KEY (active_account_id) REFERENCES line_accounts(id) DEFERRABLE;
+ALTER TABLE update_history ADD FOREIGN KEY (rollback_of) REFERENCES update_history(id) DEFERRABLE;

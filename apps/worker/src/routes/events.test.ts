@@ -589,8 +589,8 @@ function makeEventDb(state: {
         },
         async run() {
           if (sql.startsWith('UPDATE event_bookings') && sql.includes('internal_note = COALESCE')) {
-            // reject reason append
-            const [appended, _updated_at, id] = bound as [string, string, string];
+            // reject reason append: binds are [separator, appended, updated_at, id]
+            const [_sep, appended, _updated_at, id] = bound as [string, string, string, string];
             const b = (state.bookings ?? []).find((x) => x.id === id);
             if (!b) return { success: true, meta: { changes: 0 } };
             const cur = (b as Record<string, unknown>).internal_note as string | null;
