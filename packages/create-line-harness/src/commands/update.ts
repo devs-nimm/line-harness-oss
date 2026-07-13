@@ -25,6 +25,8 @@ import {
   type WorkerBinding,
 } from "@line-harness/update-engine";
 import { configureAdminAuth } from "../steps/admin-auth.js";
+import { ensureWorkersDevSubdomain } from "../steps/ensure-subdomain.js";
+import { subdomainFromWorkersDevUrl } from "../lib/subdomain-name.js";
 import {
   isGeneratedInstalledWranglerToml,
   renderInstalledWranglerToml,
@@ -73,6 +75,35 @@ export function loadState(repoDir: string): SetupState | null {
     return JSON.parse(readFileSync(configPath, "utf-8")) as SetupState;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Persist a changed Worker public URL back to `.line-harness-config.json`
+ * after the workers.dev subdomain was re-registered under a new name.
+ * Updates the legacy `workerUrl` alias too, and `liffPublicUrl` when it
+ * pointed at the same origin — worker-assets installs rely on
+ * `liffPublicUrl === workerPublicUrl` to resolve as "no LIFF Pages project"
+ * (see resolveState), so leaving it stale would trigger a bogus liffProject
+ * prompt on the next run. Best-effort: on failure the next run simply
+ * re-detects the mismatch.
+ */
+function persistWorkerPublicUrl(
+  configPath: string,
+  oldUrl: string,
+  newUrl: string,
+): void {
+  try {
+    const config = JSON.parse(readFileSync(configPath, "utf-8")) as SetupState;
+    config.workerPublicUrl = newUrl;
+    if (config.workerUrl !== undefined) config.workerUrl = newUrl;
+    if (config.liffPublicUrl === oldUrl) config.liffPublicUrl = newUrl;
+    writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
+    p.log.success(`設定を保存しました: ${configPath}`);
+  } catch (e) {
+    p.log.warn(
+      `Worker URL の設定保存に失敗: ${e instanceof Error ? e.message : String(e)} — 続行します`,
+    );
   }
 }
 
@@ -466,6 +497,33 @@ export async function runUpdate(repoDir: string): Promise<void> {
 
   p.log.success(`プロジェクト: ${state.projectName ?? cfg.workerName}`);
 
+  // 0) workers.dev-hosted installs: if the account-level workers.dev
+  // subdomain has been deleted since install, EVERY Worker URL probe below
+  // (/admin/version, health check) fails — so check and repair it before
+  // the first probe. Skipped for custom-domain installs (no workers.dev
+  // hostname to repair).
+  let subdomainRegisteredNow = false;
+  let workerUrlRenamed = false;
+  const expectedSubdomain = subdomainFromWorkersDevUrl(cfg.workerPublicUrl);
+  if (expectedSubdomain) {
+    const ensured = await ensureWorkersDevSubdomain({
+      accountId: cfg.cfAccountId,
+      apiToken: cfg.cfApiToken,
+      defaultName: expectedSubdomain,
+    });
+    subdomainRegisteredNow = ensured.registeredNow;
+    if (ensured.subdomain && ensured.subdomain !== expectedSubdomain) {
+      // Registered/found under a different name — the saved Worker URL's
+      // hostname is dead. Point config + this run at the new one.
+      const workerLabel = new URL(cfg.workerPublicUrl).hostname.split(".")[0];
+      const newUrl = `https://${workerLabel}.${ensured.subdomain}.workers.dev`;
+      p.log.warn(`Worker URL を更新します: ${cfg.workerPublicUrl} → ${newUrl}`);
+      persistWorkerPublicUrl(configPath, cfg.workerPublicUrl, newUrl);
+      cfg.workerPublicUrl = newUrl;
+      workerUrlRenamed = true;
+    }
+  }
+
   // 1) Fetch current version from deployed Worker
   const s = p.spinner();
   s.start("現在バージョン取得中");
@@ -482,7 +540,11 @@ export async function runUpdate(repoDir: string): Promise<void> {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     s.stop(pc.red(`Worker /admin/version 取得失敗: ${msg}`));
-    p.cancel("Worker が応答していません。デプロイ状態を確認してください。");
+    p.cancel(
+      subdomainRegisteredNow
+        ? "workers.dev サブドメイン登録直後のため DNS 反映待ちの可能性があります。数分待ってから同じコマンドを再実行してください。"
+        : "Worker が応答していません。デプロイ状態を確認してください。",
+    );
     process.exit(1);
   }
   s.stop(`現在: v${current.version}`);
@@ -511,7 +573,7 @@ export async function runUpdate(repoDir: string): Promise<void> {
   const fork = detectFork(current, manifest);
   if (fork.kind === "fork") {
     if (fork.reason.startsWith("unknown version")) {
-      await runAdoption({ repoDir, cfg, manifest, current });
+      await runAdoption({ repoDir, cfg, manifest, current, subdomainRegisteredNow });
       return;
     }
     p.log.info(pc.yellow(`カスタマイズ版を検出しました (${fork.reason})`));
@@ -525,6 +587,17 @@ export async function runUpdate(repoDir: string): Promise<void> {
   // 4) Find upgrade target
   const upgrade = findLatestUpgrade(manifest, current.version);
   if (!upgrade) {
+    if (workerUrlRenamed) {
+      // The config now points at the new hostname, but the running
+      // Worker's WORKER_PUBLIC_URL binding and the Admin bundle's baked-in
+      // API origin still reference the dead one — redeploy the CURRENT
+      // release so everything points at the new URL.
+      await redeployCurrentBundle({ repoDir, cfg, manifest, current });
+      p.outro(
+        pc.green(`既に最新版です (v${current.version}) — 新しい Worker URL で再デプロイしました`),
+      );
+      return;
+    }
     p.outro(pc.green(`既に最新版です (v${current.version})`));
     return;
   }
@@ -592,7 +665,13 @@ export async function runUpdate(repoDir: string): Promise<void> {
   });
 
   // 13) Health check (non-fatal)
-  await checkWorkerHealth(cfg.workerPublicUrl, s, "アップデート自体は完了しています");
+  await checkWorkerHealth(
+    cfg.workerPublicUrl,
+    s,
+    subdomainRegisteredNow
+      ? "アップデート自体は完了しています。workers.dev サブドメイン登録直後は DNS 反映に数分かかるため、数分待ってから同じコマンドを再実行してください"
+      : "アップデート自体は完了しています",
+  );
 
   // 14) Refresh the local release artifact + record bundle mode so a later
   // manual `wrangler deploy` from the clone re-deploys THIS version instead
@@ -736,22 +815,28 @@ async function applyMigrations(opts: {
 }
 
 /**
- * Correct the LIFF_PAGES_PROJECT plain-text binding to match the resolved
- * topology. Installs created before the worker-assets fix were deployed
- * with `LIFF_PAGES_PROJECT=<worker>-liff` even though that Pages project
- * never existed; re-uploading the binding verbatim would keep the
- * worker-side self-update pointed at the missing project instead of
- * taking the worker-assets skip path.
+ * Correct install-topology plain-text bindings to match the resolved config
+ * before re-uploading them:
+ *   - LIFF_PAGES_PROJECT: installs created before the worker-assets fix were
+ *     deployed with `LIFF_PAGES_PROJECT=<worker>-liff` even though that Pages
+ *     project never existed; re-uploading the binding verbatim would keep the
+ *     worker-side self-update pointed at the missing project instead of
+ *     taking the worker-assets skip path.
+ *   - WORKER_PUBLIC_URL: when the workers.dev subdomain was re-registered
+ *     under a new name this run, the deployed binding still carries the dead
+ *     hostname — the worker-side self-update health check would probe a URL
+ *     that never resolves again.
  */
-export function normalizeLiffBindings(
+export function normalizeInstallBindings(
   bindings: WorkerBinding[],
-  liffProject: string,
+  opts: { liffProject: string; workerPublicUrl: string },
 ): WorkerBinding[] {
-  return bindings.map((b) =>
-    b.type === "plain_text" && b.name === "LIFF_PAGES_PROJECT"
-      ? { ...b, text: liffProject }
-      : b,
-  );
+  return bindings.map((b) => {
+    if (b.type !== "plain_text") return b;
+    if (b.name === "LIFF_PAGES_PROJECT") return { ...b, text: opts.liffProject };
+    if (b.name === "WORKER_PUBLIC_URL") return { ...b, text: opts.workerPublicUrl };
+    return b;
+  });
 }
 
 async function deployWorkerFromBundle(
@@ -770,7 +855,10 @@ async function deployWorkerFromBundle(
       creds,
       scriptName: cfg.workerName,
       scriptContent: bundle.workerJs,
-      bindings: normalizeLiffBindings(bindings, cfg.liffProject),
+      bindings: normalizeInstallBindings(bindings, {
+        liffProject: cfg.liffProject,
+        workerPublicUrl: cfg.workerPublicUrl,
+      }),
       compatibilityFlags: WORKER_COMPATIBILITY_FLAGS,
       // Bundle carries no Worker assets — keep the ones deployed at setup
       // (they serve the LIFF SPA on worker-assets installs).
@@ -903,6 +991,60 @@ function persistBundleMode(repoDir: string, version: string): void {
   }
 }
 
+/**
+ * Same-version redeploy after a workers.dev subdomain rename with no
+ * pending upgrade: the deployed Admin bundle bakes in the Worker origin and
+ * the Worker carries a WORKER_PUBLIC_URL binding, so the URL change still
+ * needs the CURRENT release redeployed to point everything at the new
+ * hostname. No migrations run (same version, DB untouched).
+ */
+async function redeployCurrentBundle(opts: {
+  repoDir: string;
+  cfg: ResolvedUpdateConfig;
+  manifest: Awaited<ReturnType<typeof fetchManifest>>;
+  current: CurrentVersion;
+}): Promise<void> {
+  const { repoDir, cfg, manifest, current } = opts;
+
+  const release = manifest.releases.find((r) => r.version === current.version);
+  if (!release || !release.worker_bundle_hash) {
+    p.log.warn(
+      [
+        `現行バージョン v${current.version} の再デプロイ可能なリリースが見つからないため、`,
+        "Worker 内部と管理画面には旧 URL が残っている可能性があります。",
+        "次回のアップデート適用時に新 URL で自動的に再デプロイされます。",
+      ].join("\n"),
+    );
+    return;
+  }
+
+  const creds: CfApiCreds = { accountId: cfg.cfAccountId, apiToken: cfg.cfApiToken };
+  const s = p.spinner();
+  const bundle = await downloadAndVerifyBundle(release, s);
+
+  await deployWorkerFromBundle(creds, cfg, bundle, s);
+  await deployAdminFromBundle(creds, cfg, bundle, s);
+  if (cfg.liffProject) {
+    await deployLiffFromBundle(creds, cfg, bundle, s);
+  }
+
+  // Re-point the cookie-auth CORS allowlist / origins at the new Worker URL.
+  await configureAdminAuth({
+    workerName: cfg.workerName,
+    workerUrl: cfg.workerPublicUrl,
+    adminUrl: cfg.adminPublicUrl,
+  });
+
+  await checkWorkerHealth(
+    cfg.workerPublicUrl,
+    s,
+    "再デプロイ自体は完了しています。workers.dev サブドメイン登録直後は DNS 反映に数分かかるため、数分待ってから同じコマンドを再実行してください",
+  );
+
+  writeLocalWorkerArtifact(repoDir, bundle);
+  persistBundleMode(repoDir, current.version);
+}
+
 // ─── Adoption path (unstamped CLI installs) ──────────────────────────────────
 
 /**
@@ -925,8 +1067,10 @@ async function runAdoption(opts: {
   cfg: ResolvedUpdateConfig;
   manifest: Awaited<ReturnType<typeof fetchManifest>>;
   current: CurrentVersion;
+  /** True when runUpdate registered a workers.dev subdomain this run. */
+  subdomainRegisteredNow: boolean;
 }): Promise<void> {
-  const { repoDir, cfg, manifest, current } = opts;
+  const { repoDir, cfg, manifest, current, subdomainRegisteredNow } = opts;
 
   const target = manifest.releases.find((r) => r.version === manifest.latest);
   if (!target) {
@@ -997,7 +1141,13 @@ async function runAdoption(opts: {
     adminUrl: cfg.adminPublicUrl,
   });
 
-  await checkWorkerHealth(cfg.workerPublicUrl, s, "導入自体は完了しています");
+  await checkWorkerHealth(
+    cfg.workerPublicUrl,
+    s,
+    subdomainRegisteredNow
+      ? "導入自体は完了しています。workers.dev サブドメイン登録直後は DNS 反映に数分かかるため、数分待ってから同じコマンドを再実行してください"
+      : "導入自体は完了しています",
+  );
 
   writeLocalWorkerArtifact(repoDir, bundle);
   persistBundleMode(repoDir, target.version);

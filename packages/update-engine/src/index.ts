@@ -29,6 +29,7 @@ export * from './snapshot.js';
 export * from './cf-api/workers.js';
 export * from './cf-api/pages.js';
 export * from './cf-api/d1.js';
+export * from './cf-api/subdomain.js';
 export * from './events.js';
 export * from './phases/preflight.js';
 export * from './phases/apply.js';
