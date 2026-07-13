@@ -1,0 +1,29 @@
+# Self-hosted infrastructure for LINE Harness (MIN-257: PostgreSQL replaces
+# Cloudflare D1). The backend service joins this file in MIN-259.
+#
+# Usage:
+#   cp .env.example .env   # set POSTGRES_PASSWORD
+#   docker compose up -d postgres
+#   DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD}@localhost:5432/linecrm \
+#     node packages/db/scripts/pg-migrate.mjs
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-linecrm}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-linecrm}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

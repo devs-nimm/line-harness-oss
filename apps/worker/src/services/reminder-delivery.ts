@@ -57,7 +57,7 @@ export async function processReminderDeliveries(
         // Prefer possible duplicate send over silent message loss on crash.
         const lockId = crypto.randomUUID();
         await db
-          .prepare(`INSERT OR IGNORE INTO friend_reminder_deliveries (id, friend_reminder_id, reminder_step_id) VALUES (?, ?, ?)`)
+          .prepare(`INSERT INTO friend_reminder_deliveries (id, friend_reminder_id, reminder_step_id) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`)
           .bind(lockId, fr.id, step.id)
           .run();
 

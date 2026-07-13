@@ -88,9 +88,9 @@ async function resolveOrCreateChat(db: D1Database, id: string): Promise<ChatLike
   // 挿入結果に関わらず最新行を返して収束。
   await db
     .prepare(
-      `INSERT OR IGNORE INTO chats (id, friend_id, status, last_message_at, created_at, updated_at)
+      `INSERT INTO chats (id, friend_id, status, last_message_at, created_at, updated_at)
        SELECT ?, ?, 'resolved', ?, ?, ?
-       WHERE NOT EXISTS (SELECT 1 FROM chats WHERE friend_id = ?)`,
+       WHERE NOT EXISTS (SELECT 1 FROM chats WHERE friend_id = ?) ON CONFLICT DO NOTHING`,
     )
     .bind(newId, friend.id, lastMessageAt, now, now, friend.id)
     .run();

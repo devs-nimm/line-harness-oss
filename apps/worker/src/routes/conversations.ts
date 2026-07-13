@@ -17,7 +17,7 @@ conversations.get('/api/conversations', async (c) => {
     const whereAccount = accountId ? 'AND f.line_account_id = ?' : '';
     const whereMaxHours =
       maxHoursSince !== null
-        ? `AND ((strftime('%s', 'now') - strftime('%s', li.at)) / 3600.0) <= ?`
+        ? `AND ((julianday('now') - julianday(li.at)) * 24.0) <= ?`
         : '';
 
     // friend ごとの最新 chats 行の status (bare-column + 単一 MAX の argmax)。
@@ -70,7 +70,7 @@ conversations.get('/api/conversations', async (c) => {
         f.line_account_id,
         la.name AS line_account_name,
         li.at AS last_incoming_at,
-        (strftime('%s', 'now') - strftime('%s', li.at)) / 3600.0 AS hours_since,
+        (julianday('now') - julianday(li.at)) * 24.0 AS hours_since,
         substr(lm.content, 1, 80) AS last_incoming_preview,
         lm.message_type AS last_incoming_type
       FROM friends f
@@ -82,7 +82,7 @@ conversations.get('/api/conversations', async (c) => {
       WHERE f.is_following = 1
         AND (lh.at IS NULL OR lh.at < li.at)
         ${whereNotResolved}
-        AND ((strftime('%s', 'now') - strftime('%s', li.at)) / 3600.0) >= ?
+        AND ((julianday('now') - julianday(li.at)) * 24.0) >= ?
         ${whereMaxHours}
         ${whereAccount}
       ORDER BY li.at ASC
@@ -118,7 +118,7 @@ conversations.get('/api/conversations', async (c) => {
       WHERE f.is_following = 1
         AND (lh.at IS NULL OR lh.at < li.at)
         ${whereNotResolved}
-        AND ((strftime('%s', 'now') - strftime('%s', li.at)) / 3600.0) >= ?
+        AND ((julianday('now') - julianday(li.at)) * 24.0) >= ?
         ${whereMaxHours}
         ${whereAccount}
     `;

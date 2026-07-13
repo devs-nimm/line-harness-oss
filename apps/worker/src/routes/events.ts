@@ -1330,11 +1330,11 @@ events.post('/api/events/admin/events/:id/bookings/:bookingId/decide', async (c)
     await c.env.DB
       .prepare(
         `UPDATE event_bookings
-            SET internal_note = COALESCE(internal_note || char(10), '') || ?,
+            SET internal_note = COALESCE(internal_note || ?, '') || ?,
                 updated_at = ?
           WHERE id = ?`,
       )
-      .bind(`[reject reason] ${body.reason}`, nowIso, booking.id)
+      .bind('\n', `[reject reason] ${body.reason}`, nowIso, booking.id)
       .run();
   }
 

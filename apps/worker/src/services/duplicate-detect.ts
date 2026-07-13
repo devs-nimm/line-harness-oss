@@ -48,7 +48,7 @@ async function ensureTags(
   const now = new Date(Date.now() + 9 * 60 * 60_000).toISOString().replace('Z', '+09:00');
   for (const [id, { name, color }] of Object.entries(tagNames)) {
     await db.prepare(
-      `INSERT OR IGNORE INTO tags (id, name, color, created_at) VALUES (?, ?, ?, ?)`
+      `INSERT INTO tags (id, name, color, created_at) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING`
     ).bind(id, name, color, now).run();
   }
 }
@@ -129,14 +129,14 @@ export async function processDuplicateDetection(db: D1Database): Promise<void> {
       // Tag friend with the match's account tag (e.g., "重複:①")
       if (matchTagId) {
         await db.prepare(
-          `INSERT OR IGNORE INTO friend_tags (friend_id, tag_id, assigned_at) VALUES (?, ?, ?)`
+          `INSERT INTO friend_tags (friend_id, tag_id, assigned_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`
         ).bind(friend.id, matchTagId, now).run();
       }
 
       // Tag match with the friend's account tag (e.g., "重複:XH1")
       if (friendTagId) {
         await db.prepare(
-          `INSERT OR IGNORE INTO friend_tags (friend_id, tag_id, assigned_at) VALUES (?, ?, ?)`
+          `INSERT INTO friend_tags (friend_id, tag_id, assigned_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`
         ).bind(match.id, friendTagId, now).run();
       }
 

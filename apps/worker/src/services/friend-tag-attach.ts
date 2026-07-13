@@ -17,8 +17,8 @@ export async function attachTagAndFireSideEffects(
 ): Promise<{ added: boolean }> {
   const result = await db
     .prepare(
-      `INSERT OR IGNORE INTO friend_tags (friend_id, tag_id, assigned_at)
-       VALUES (?, ?, ?)`,
+      `INSERT INTO friend_tags (friend_id, tag_id, assigned_at)
+       VALUES (?, ?, ?) ON CONFLICT DO NOTHING`,
     )
     .bind(friendId, tagId, jstNow())
     .run();

@@ -85,9 +85,9 @@ export async function reserveEventIdempotency(
   const expires = new Date(args.now.getTime() + args.ttlMinutes * 60_000).toISOString();
   const ins = await db
     .prepare(
-      `INSERT OR IGNORE INTO event_booking_idempotency_keys
+      `INSERT INTO event_booking_idempotency_keys
          (key, line_account_id, friend_id, response_status, response_body, expires_at)
-       VALUES (?, ?, ?, 0, '', ?)`,
+       VALUES (?, ?, ?, 0, '', ?) ON CONFLICT DO NOTHING`,
     )
     .bind(args.key, args.lineAccountId, args.friendId, expires)
     .run();

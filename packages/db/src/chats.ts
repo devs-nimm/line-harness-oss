@@ -105,9 +105,9 @@ export async function createChat(
   // 1 friend = 1 chat 行 (idx_chats_friend_unique)。同時実行でも重複しないよう
   // WHERE NOT EXISTS + OR IGNORE で原子挿入し、挿入の成否に関わらず既存行を返して収束する。
   await db.prepare(
-    `INSERT OR IGNORE INTO chats (id, friend_id, operator_id, last_message_at, created_at, updated_at)
+    `INSERT INTO chats (id, friend_id, operator_id, last_message_at, created_at, updated_at)
      SELECT ?, ?, ?, ?, ?, ?
-     WHERE NOT EXISTS (SELECT 1 FROM chats WHERE friend_id = ?)`,
+     WHERE NOT EXISTS (SELECT 1 FROM chats WHERE friend_id = ?) ON CONFLICT DO NOTHING`,
   )
     .bind(id, input.friendId, input.operatorId ?? null, now, now, now, input.friendId).run();
   return (await getChatByFriendId(db, input.friendId))!;
