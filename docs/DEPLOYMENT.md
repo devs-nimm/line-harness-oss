@@ -127,8 +127,11 @@ carries the monorepo install/build commands; you only configure the project.
 
 1. **Create the Vercel project** (dashboard → Add New → Project, import the
    repo) and set:
-   - **Root Directory**: `apps/web` (leave "Include source files outside of the
-     Root Directory" enabled — the build needs the workspace packages).
+   - **Root Directory**: `apps/web`. The build needs the workspace packages
+     outside this directory; Vercel includes them by default ("Include source
+     files outside of the Root Directory in the Build Step" — default-on for
+     all projects since 2020, only surfaced under Settings → Build and
+     Deployment → Root Directory, not in the import screen).
    - **Framework Preset**: Next.js (auto-detected).
    - **Environment variable**: `NEXT_PUBLIC_API_URL` = your backend's public
      HTTPS URL (e.g. `https://api.example.com`), no trailing slash.
