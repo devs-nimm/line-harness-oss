@@ -453,7 +453,7 @@ chats.get('/api/chats/:id', async (c) => {
     // 現状の最重量ユーザー(481件)の2倍バッファ。これ以上の履歴はページング未実装（Phase 2 TODO）。
     const messages = await c.env.DB
       .prepare(
-        `SELECT id, friend_id, direction, message_type, content, created_at
+        `SELECT id, friend_id, direction, message_type, content, source, created_at
          FROM messages_log
          WHERE friend_id = ? AND (delivery_type IS NULL OR delivery_type != 'test')
          ORDER BY created_at DESC LIMIT 1000`,
@@ -461,6 +461,16 @@ chats.get('/api/chats/:id', async (c) => {
       .bind(resolvedFriendId)
       .all();
     messages.results = (messages.results as Record<string, unknown>[]).reverse();
+
+    // 会話セッション (MIN-267)。archived_at がアーカイブ境界; メッセージは
+    // created_at <= archived_at でアーカイブ側に属する (timestamp-range 方式)。
+    const sessions = await c.env.DB
+      .prepare(
+        `SELECT id, started_at, archived_at, archive_reason
+         FROM chat_sessions WHERE friend_id = ? ORDER BY started_at ASC, created_at ASC`,
+      )
+      .bind(resolvedFriendId)
+      .all();
 
     return c.json({
       success: true,
@@ -474,11 +484,18 @@ chats.get('/api/chats/:id', async (c) => {
         notes,
         lastMessageAt,
         createdAt,
+        sessions: (sessions.results as Record<string, unknown>[]).map((s) => ({
+          id: s.id,
+          startedAt: s.started_at,
+          archivedAt: s.archived_at,
+          archiveReason: s.archive_reason,
+        })),
         messages: (messages.results as Record<string, unknown>[]).map((m) => ({
           id: m.id,
           direction: m.direction,
           messageType: m.message_type,
           content: m.content,
+          source: m.source,
           createdAt: m.created_at,
         })),
       },

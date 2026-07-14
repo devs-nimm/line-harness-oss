@@ -445,6 +445,15 @@ CREATE TABLE calendar_bookings (
   created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
   updated_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 );
+CREATE TABLE chat_sessions (
+  id              TEXT PRIMARY KEY,
+  friend_id       TEXT NOT NULL,
+  line_account_id TEXT,
+  started_at      TEXT NOT NULL,
+  archived_at     TEXT,
+  archive_reason  TEXT CHECK (archive_reason IN ('admin_delete', 'idle_ttl', 'user_new')),
+  created_at      TEXT NOT NULL
+);
 CREATE TABLE chats (
   id            TEXT PRIMARY KEY,
   friend_id     TEXT NOT NULL,
@@ -997,6 +1006,9 @@ CREATE INDEX idx_broadcast_insights_status ON broadcast_insights(status);
 CREATE INDEX idx_broadcasts_status ON broadcasts (status);
 CREATE INDEX idx_calendar_bookings_friend ON calendar_bookings (friend_id);
 CREATE INDEX idx_calendar_bookings_start ON calendar_bookings (start_at);
+CREATE UNIQUE INDEX idx_chat_sessions_active
+  ON chat_sessions (friend_id) WHERE archived_at IS NULL;
+CREATE INDEX idx_chat_sessions_friend ON chat_sessions (friend_id, started_at);
 CREATE UNIQUE INDEX idx_chats_friend_unique ON chats (friend_id);
 CREATE INDEX idx_chats_operator ON chats (operator_id);
 CREATE INDEX idx_chats_status ON chats (status);
@@ -1088,6 +1100,7 @@ ALTER TABLE broadcast_insights ADD FOREIGN KEY (broadcast_id) REFERENCES broadca
 ALTER TABLE broadcasts ADD FOREIGN KEY (target_tag_id) REFERENCES tags (id) ON DELETE SET NULL DEFERRABLE;
 ALTER TABLE calendar_bookings ADD FOREIGN KEY (connection_id) REFERENCES google_calendar_connections (id) ON DELETE CASCADE DEFERRABLE;
 ALTER TABLE calendar_bookings ADD FOREIGN KEY (friend_id) REFERENCES friends (id) ON DELETE SET NULL DEFERRABLE;
+ALTER TABLE chat_sessions ADD FOREIGN KEY (friend_id) REFERENCES friends (id) ON DELETE CASCADE DEFERRABLE;
 ALTER TABLE chats ADD FOREIGN KEY (friend_id) REFERENCES friends (id) ON DELETE CASCADE DEFERRABLE;
 ALTER TABLE chats ADD FOREIGN KEY (operator_id) REFERENCES operators (id) ON DELETE SET NULL DEFERRABLE;
 ALTER TABLE conversion_events ADD FOREIGN KEY (conversion_point_id) REFERENCES conversion_points (id) ON DELETE CASCADE DEFERRABLE;

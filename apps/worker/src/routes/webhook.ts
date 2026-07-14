@@ -519,6 +519,27 @@ async function handleEvent(
       )
       .bind(crypto.randomUUID(), friend.id, msg.type, finalContent, jstNow())
       .run();
+    // MIN-267: 非 text の受信でもセッションを開く。アーカイブ後の再開なら
+    // 新セッション開始ノートを reply で送る (このブランチは他に返信しない)。
+    try {
+      const { openSessionIfNeeded, sendSystemNote, NEW_SESSION_NOTE } = await import(
+        '../services/chat-sessions.js'
+      );
+      const sessionState = await openSessionIfNeeded(db, friend.id, lineAccountId);
+      if (sessionState.opened && sessionState.hasArchived) {
+        await sendSystemNote({
+          db,
+          lineClient,
+          friendId: friend.id,
+          lineUserId: friend.line_user_id,
+          replyToken: event.replyToken,
+          lineAccountId,
+          text: NEW_SESSION_NOTE,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to open chat session', err);
+    }
     // text と同様、非 text の自発メッセージ (画像/スタンプ等) でも chat を unread に戻す。
     // これが無いと resolved 除外 (unanswered-inbox CANDIDATES_SQL) が「解決済み後に
     // 画像だけ送ってきた友だち」をバッジ・未対応一覧から永久に落としてしまう。
@@ -548,6 +569,58 @@ async function handleEvent(
       )
       .bind(logId, friend.id, incomingText, now)
       .run();
+
+    // MIN-267: conversation sessions.
+    // "/new" archives the current session (reason 'user_new', clears the
+    // friend's ai_chat_sessions row) and replies with the archive note —
+    // it never reaches keyword rules or the LLM. Any other message lazily
+    // opens a session; when that re-opens after an archive, the new-session
+    // note is queued and prepended to whatever reply goes out (same reply
+    // call = zero push quota).
+    const {
+      openSessionIfNeeded,
+      archiveActiveSession,
+      sendSystemNote,
+      ARCHIVE_NOTES,
+      NEW_SESSION_NOTE,
+    } = await import('../services/chat-sessions.js');
+    if (incomingText.trim() === '/new') {
+      let newTokenConsumed = false;
+      try {
+        const archived = await archiveActiveSession(db, friend.id, 'user_new');
+        const delivery = await sendSystemNote({
+          db,
+          lineClient,
+          friendId: friend.id,
+          lineUserId: friend.line_user_id,
+          replyToken: event.replyToken,
+          lineAccountId,
+          text: ARCHIVE_NOTES.user_new,
+          // Log the note at the archive boundary so it renders inside the
+          // archived segment (created_at <= archived_at) in the admin UI.
+          createdAt: archived?.archivedAt,
+        });
+        newTokenConsumed = delivery === 'reply';
+      } catch (err) {
+        console.error('Failed to archive session on /new', err);
+      }
+      await fireEvent(db, 'message_received', {
+        friendId: friend.id,
+        eventData: { text: incomingText, matched: true },
+        replyToken: newTokenConsumed ? undefined : event.replyToken,
+      }, lineAccessToken, lineAccountId);
+      return;
+    }
+
+    let pendingSessionNote: string | null = null;
+    try {
+      const sessionState = await openSessionIfNeeded(db, friend.id, lineAccountId);
+      if (sessionState.opened && sessionState.hasArchived) {
+        pendingSessionNote = NEW_SESSION_NOTE;
+      }
+    } catch (err) {
+      console.error('Failed to open chat session', err);
+    }
 
     // Cross-account trigger: send message from another account via UUID
     if (incomingText === '体験を完了する' && lineAccountId) {
@@ -645,8 +718,22 @@ async function handleEvent(
           });
           const expandedContent = expandVariables(resolved.content, { ...friend, metadata: resolvedMeta2 } as Parameters<typeof expandVariables>[1], workerUrl, resolved.messageType);
           const replyMsg = buildMessage(resolved.messageType, expandedContent);
-          await lineClient.replyMessage(event.replyToken, [replyMsg]);
+          // 新セッション開始ノートは同じ reply 呼び出しの先頭に載せる (MIN-267)。
+          const replyMessages = pendingSessionNote
+            ? [{ type: 'text' as const, text: pendingSessionNote }, replyMsg]
+            : [replyMsg];
+          await lineClient.replyMessage(event.replyToken, replyMessages);
           replyTokenConsumed = true;
+          if (pendingSessionNote) {
+            const { logSystemNote } = await import('../services/chat-sessions.js');
+            await logSystemNote(db, {
+              friendId: friend.id,
+              text: pendingSessionNote,
+              deliveryType: 'reply',
+              lineAccountId,
+            });
+            pendingSessionNote = null;
+          }
 
           // 送信ログ（replyMessage = 無料）— derive content from the built
           // reply message so any cleanEmptyNodes / parse-failure fallback is
@@ -682,14 +769,37 @@ async function handleEvent(
           replyToken: event.replyToken,
           lineAccountId,
           createdAt: jstNow(),
+          notePrefix: pendingSessionNote,
         });
         if (aiResult.matched) {
           matched = true;
           replyTokenConsumed = aiResult.replyTokenConsumed;
+          // deliverTextReply sent (and logged) the note prefix with the reply.
+          pendingSessionNote = null;
         }
       } catch (err) {
         console.error('Failed to send OpenAI auto-reply', err);
       }
+    }
+
+    // ノートがまだ出ていない (silent ルール / 何もマッチせず) 場合は単独で送る。
+    // reply token が残っていれば reply (無料)、消費済みなら push。
+    if (pendingSessionNote) {
+      try {
+        const delivery = await sendSystemNote({
+          db,
+          lineClient,
+          friendId: friend.id,
+          lineUserId: friend.line_user_id,
+          replyToken: replyTokenConsumed ? undefined : event.replyToken,
+          lineAccountId,
+          text: pendingSessionNote,
+        });
+        if (delivery === 'reply') replyTokenConsumed = true;
+      } catch (err) {
+        console.error('Failed to send new-session note', err);
+      }
+      pendingSessionNote = null;
     }
 
     // auto_replies にマッチしなかった = 自発メッセージ → unread にする

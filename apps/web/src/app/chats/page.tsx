@@ -33,13 +33,30 @@ interface ChatMessage {
   direction: 'incoming' | 'outgoing'
   messageType: string
   content: string
+  source?: string | null
   createdAt: string
+}
+
+// 会話セッション (MIN-267)。archivedAt がアーカイブ境界。メッセージは
+// createdAt <= archivedAt でアーカイブ済み側に属する (timestamp-range 方式)。
+interface ChatSession {
+  id: string
+  startedAt: string
+  archivedAt: string | null
+  archiveReason: 'admin_delete' | 'idle_ttl' | 'user_new' | null
 }
 
 interface ChatDetail extends Chat {
   friendName: string
   friendPictureUrl: string | null
+  sessions?: ChatSession[]
   messages?: ChatMessage[]
+}
+
+const archiveReasonLabels: Record<string, string> = {
+  admin_delete: 'オペレーターによりアーカイブ',
+  idle_ttl: '30分無応答のため自動アーカイブ',
+  user_new: 'ユーザー操作 (/new) によりアーカイブ',
 }
 
 type StatusFilter = 'all' | 'unread' | 'in_progress' | 'resolved'
@@ -1010,76 +1027,131 @@ export default function ChatsPage() {
                     <p className="text-white/60 text-sm">{t('メッセージはまだありません。')}</p>
                   </div>
                 ) : (
-                  (chatDetail.messages ?? []).map((msg, idx) => {
-                    const prevMsg = idx > 0 ? (chatDetail.messages ?? [])[idx - 1] : null
-                    const showDateSep = !prevMsg || !sameYmd(prevMsg.createdAt, msg.createdAt)
-                    const isOutgoing = msg.direction === 'outgoing'
-
-                    // メッセージ表示の分岐
-                    let bubbleContent: React.ReactNode
-                    if (msg.messageType === 'flex') {
-                      bubbleContent = (
-                        <div className="max-w-[300px]">
-                          <FlexPreviewComponent content={msg.content} maxWidth={280} />
-                        </div>
-                      )
-                    } else if (msg.messageType === 'image') {
-                      try {
-                        const parsed = JSON.parse(msg.content)
-                        bubbleContent = (
-                          <img src={parsed.originalContentUrl || parsed.previewImageUrl} alt="" className="max-w-[200px] rounded" />
-                        )
-                      } catch {
-                        bubbleContent = <span>{t('🖼️ [画像]')}</span>
-                      }
-                    } else if (msg.messageType === 'sticker') {
-                      bubbleContent = <StickerMessageImage content={msg.content} />
-                    } else {
-                      bubbleContent = <span>{msg.content}</span>
-                    }
-
-                    return (
-                      <div key={msg.id}>
-                        {showDateSep && (
-                          <div className="flex justify-center my-3">
-                            <span className="text-[11px] text-white/85 bg-black/20 px-2.5 py-0.5 rounded-full">
-                              {formatYmdSlash(msg.createdAt)}
-                            </span>
-                          </div>
-                        )}
-                        <div
-                          className={`flex items-end gap-2 ${isOutgoing ? 'justify-end' : 'justify-start'}`}
-                        >
-                          {/* 相手のアイコン（incoming のみ） */}
-                          {!isOutgoing && (
-                            chatDetail.friendPictureUrl ? (
-                              <img src={chatDetail.friendPictureUrl} alt="" className="w-8 h-8 rounded-full flex-shrink-0 mb-1" />
-                            ) : (
-                              <div className="w-8 h-8 rounded-full bg-gray-300 flex-shrink-0 mb-1" />
-                            )
-                          )}
-
-                          <div className={`flex flex-col ${isOutgoing ? 'items-end' : 'items-start'}`}>
-                            {/* メッセージバブル */}
-                            <div
-                              className={`max-w-[320px] px-3 py-2 text-sm break-words whitespace-pre-wrap ${
-                                isOutgoing
-                                  ? 'rounded-tl-2xl rounded-tr-md rounded-bl-2xl rounded-br-2xl text-white'
-                                  : 'rounded-tl-md rounded-tr-2xl rounded-bl-2xl rounded-br-2xl bg-white text-gray-900'
-                              }`}
-                              style={isOutgoing ? { backgroundColor: '#06C755' } : undefined}
-                            >
-                              {bubbleContent}
-                            </div>
-                            {/* 時刻 */}
-                            <span className="text-xs text-white/50 mt-0.5 px-1">
-                              {new Date(msg.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          </div>
-                        </div>
+                  (() => {
+                    const msgs = chatDetail.messages ?? []
+                    // アーカイブ境界 (MIN-267)。created_at <= archived_at のメッセージが
+                    // アーカイブ済みセッションに属する — 境界をまたぐ位置に区切りを挿す。
+                    const boundaries = (chatDetail.sessions ?? [])
+                      .filter((s): s is ChatSession & { archivedAt: string } => Boolean(s.archivedAt))
+                      .sort((a, b) => a.archivedAt.localeCompare(b.archivedAt))
+                    const lastBoundaryAt = boundaries.length > 0 ? boundaries[boundaries.length - 1].archivedAt : null
+                    const boundariesBetween = (from: string | null, to: string | null) =>
+                      boundaries.filter((b) => (from === null || b.archivedAt >= from) && (to === null || b.archivedAt < to))
+                    const archiveDivider = (b: ChatSession & { archivedAt: string }) => (
+                      <div key={`archive-${b.id}`} className="flex items-center gap-2 my-4">
+                        <div className="flex-1 border-t border-white/40" />
+                        <span className="text-[11px] text-white/90 bg-black/30 px-2.5 py-0.5 rounded-full">
+                          📁 {archiveReasonLabels[b.archiveReason ?? ''] ?? t('アーカイブ済み')}
+                          {' ・ '}
+                          {new Date(b.archivedAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <div className="flex-1 border-t border-white/40" />
                       </div>
                     )
-                  })
+
+                    return (
+                      <>
+                        {msgs.map((msg, idx) => {
+                          const prevMsg = idx > 0 ? msgs[idx - 1] : null
+                          const showDateSep = !prevMsg || !sameYmd(prevMsg.createdAt, msg.createdAt)
+                          const isOutgoing = msg.direction === 'outgoing'
+                          // アーカイブ済みセッションのメッセージは読み取り専用 — 薄く表示。
+                          const isArchived = lastBoundaryAt !== null && msg.createdAt <= lastBoundaryAt
+                          const dividers = boundariesBetween(prevMsg?.createdAt ?? null, msg.createdAt).map(archiveDivider)
+
+                          // システムノート (source='system_note') はバブルではなく
+                          // 中央寄せのシステム区切りとして描画する。
+                          if (msg.source === 'system_note') {
+                            return (
+                              <div key={msg.id}>
+                                {dividers}
+                                {showDateSep && (
+                                  <div className="flex justify-center my-3">
+                                    <span className="text-[11px] text-white/85 bg-black/20 px-2.5 py-0.5 rounded-full">
+                                      {formatYmdSlash(msg.createdAt)}
+                                    </span>
+                                  </div>
+                                )}
+                                <div className={`flex justify-center my-2 ${isArchived ? 'opacity-60' : ''}`}>
+                                  <span className="text-[11px] text-white/90 bg-black/25 px-3 py-1 rounded-full text-center whitespace-pre-wrap max-w-[85%]">
+                                    {msg.content}
+                                  </span>
+                                </div>
+                              </div>
+                            )
+                          }
+
+                          // メッセージ表示の分岐
+                          let bubbleContent: React.ReactNode
+                          if (msg.messageType === 'flex') {
+                            bubbleContent = (
+                              <div className="max-w-[300px]">
+                                <FlexPreviewComponent content={msg.content} maxWidth={280} />
+                              </div>
+                            )
+                          } else if (msg.messageType === 'image') {
+                            try {
+                              const parsed = JSON.parse(msg.content)
+                              bubbleContent = (
+                                <img src={parsed.originalContentUrl || parsed.previewImageUrl} alt="" className="max-w-[200px] rounded" />
+                              )
+                            } catch {
+                              bubbleContent = <span>{t('🖼️ [画像]')}</span>
+                            }
+                          } else if (msg.messageType === 'sticker') {
+                            bubbleContent = <StickerMessageImage content={msg.content} />
+                          } else {
+                            bubbleContent = <span>{msg.content}</span>
+                          }
+
+                          return (
+                            <div key={msg.id}>
+                              {dividers}
+                              {showDateSep && (
+                                <div className="flex justify-center my-3">
+                                  <span className="text-[11px] text-white/85 bg-black/20 px-2.5 py-0.5 rounded-full">
+                                    {formatYmdSlash(msg.createdAt)}
+                                  </span>
+                                </div>
+                              )}
+                              <div
+                                className={`flex items-end gap-2 ${isOutgoing ? 'justify-end' : 'justify-start'} ${isArchived ? 'opacity-60' : ''}`}
+                              >
+                                {/* 相手のアイコン（incoming のみ） */}
+                                {!isOutgoing && (
+                                  chatDetail.friendPictureUrl ? (
+                                    <img src={chatDetail.friendPictureUrl} alt="" className="w-8 h-8 rounded-full flex-shrink-0 mb-1" />
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-full bg-gray-300 flex-shrink-0 mb-1" />
+                                  )
+                                )}
+
+                                <div className={`flex flex-col ${isOutgoing ? 'items-end' : 'items-start'}`}>
+                                  {/* メッセージバブル */}
+                                  <div
+                                    className={`max-w-[320px] px-3 py-2 text-sm break-words whitespace-pre-wrap ${
+                                      isOutgoing
+                                        ? 'rounded-tl-2xl rounded-tr-md rounded-bl-2xl rounded-br-2xl text-white'
+                                        : 'rounded-tl-md rounded-tr-2xl rounded-bl-2xl rounded-br-2xl bg-white text-gray-900'
+                                    }`}
+                                    style={isOutgoing ? { backgroundColor: '#06C755' } : undefined}
+                                  >
+                                    {bubbleContent}
+                                  </div>
+                                  {/* 時刻 */}
+                                  <span className="text-xs text-white/50 mt-0.5 px-1">
+                                    {new Date(msg.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                        {/* 末尾の境界 (直近のアーカイブ以降まだメッセージが無い場合) */}
+                        {boundariesBetween(msgs.length > 0 ? msgs[msgs.length - 1].createdAt : null, null).map(archiveDivider)}
+                      </>
+                    )
+                  })()
                 )}
               </div>
 

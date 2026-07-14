@@ -1,8 +1,10 @@
+import { jstNow } from '@line-crm/db';
 import {
   getEffectiveOpenAISettings,
   type EffectiveOpenAISettings,
   type OpenAIEnvSettings,
 } from '../lib/openai-settings.js';
+import { isReplyTokenExpiredError, logSystemNote } from './chat-sessions.js';
 
 const MAX_INPUT_CHARS = 4000;
 const MAX_OUTPUT_CHARS = 5000;
@@ -10,9 +12,9 @@ const MAX_OUTPUT_CHARS = 5000;
 // Responses API session settings: the provider keeps conversation state
 // server-side; we only chain response ids. After AI_SESSION_MAX_TURNS user
 // messages the next message silently starts a fresh session.
+// "/new" is handled at the webhook level (chat-sessions.ts, MIN-267) so it
+// archives the conversation session even when no AI is configured.
 const AI_SESSION_MAX_TURNS = 30;
-const NEW_SESSION_COMMAND = '/new';
-const NEW_SESSION_REPLY = '新しい会話を開始しました。';
 
 type ResponsesOutputItem = {
   type?: string;
@@ -45,20 +47,6 @@ function extractOutputText(payload: ResponsesApiResponse): string | null {
     .trim();
 
   return joined === '' ? null : joined;
-}
-
-function isReplyTokenExpiredError(err: unknown): boolean {
-  if (typeof err === 'object' && err !== null && 'status' in err && err.status === 400) {
-    return true;
-  }
-
-  const errMsg = err instanceof Error ? err.message : String(err);
-  const statusMatch = /^LINE API error: (\d+)/.exec(errMsg);
-  if (statusMatch) {
-    return statusMatch[1] === '400';
-  }
-
-  return errMsg.includes('Invalid reply token');
 }
 
 export async function generateOpenAIReply(
@@ -124,16 +112,36 @@ interface AutoReplyArgs {
   replyToken: string;
   lineAccountId: string | null;
   createdAt: string;
+  // System note to prepend to the reply (same reply call = zero quota cost,
+  // guaranteed to arrive before the AI text). Logged as source='system_note'
+  // so it never enters any LLM input (MIN-267).
+  notePrefix?: string | null;
 }
 
 async function deliverTextReply(args: AutoReplyArgs, text: string): Promise<'reply' | 'push'> {
   let deliveryType: 'reply' | 'push' = 'reply';
+  const messages = [
+    ...(args.notePrefix ? [{ type: 'text' as const, text: args.notePrefix }] : []),
+    { type: 'text' as const, text },
+  ];
   try {
-    await args.lineClient.replyMessage(args.replyToken, [{ type: 'text', text }]);
+    await args.lineClient.replyMessage(args.replyToken, messages);
   } catch (err: unknown) {
     if (!isReplyTokenExpiredError(err)) throw err;
-    await args.lineClient.pushMessage(args.lineUserId, [{ type: 'text', text }]);
+    await args.lineClient.pushMessage(args.lineUserId, messages);
     deliveryType = 'push';
+  }
+
+  if (args.notePrefix) {
+    // Note logged at the incoming timestamp, the AI reply at delivery time
+    // (jstNow below) — strictly later, so the note always sorts first.
+    await logSystemNote(args.db, {
+      friendId: args.friendId,
+      text: args.notePrefix,
+      deliveryType,
+      lineAccountId: args.lineAccountId,
+      createdAt: args.createdAt,
+    });
   }
 
   await args.db
@@ -141,7 +149,7 @@ async function deliverTextReply(args: AutoReplyArgs, text: string): Promise<'rep
       `INSERT INTO messages_log (id, friend_id, direction, message_type, content, broadcast_id, scenario_step_id, delivery_type, source, line_account_id, created_at)
        VALUES (?, ?, 'outgoing', 'text', ?, NULL, NULL, ?, 'auto_reply', ?, ?)`,
     )
-    .bind(crypto.randomUUID(), args.friendId, text, deliveryType, args.lineAccountId, args.createdAt)
+    .bind(crypto.randomUUID(), args.friendId, text, deliveryType, args.lineAccountId, jstNow())
     .run();
 
   return deliveryType;
@@ -153,16 +161,6 @@ export async function maybeSendOpenAIAutoReply(
   const settings = await getEffectiveOpenAISettings(args.db, args.env);
   if (!settings.baseUrl || !settings.model) {
     return { matched: false, replyTokenConsumed: false };
-  }
-
-  // /new: reset the friend's session; the command itself never reaches the LLM.
-  if (args.incomingText.trim() === NEW_SESSION_COMMAND) {
-    await args.db
-      .prepare('DELETE FROM ai_chat_sessions WHERE friend_id = ?')
-      .bind(args.friendId)
-      .run();
-    const deliveryType = await deliverTextReply(args, NEW_SESSION_REPLY);
-    return { matched: true, replyTokenConsumed: deliveryType === 'reply' };
   }
 
   const session = await args.db
