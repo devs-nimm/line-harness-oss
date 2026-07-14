@@ -18,6 +18,7 @@ import { processReminderDeliveries } from './services/reminder-delivery.js';
 import { checkAccountHealth } from './services/ban-monitor.js';
 import { refreshLineAccessTokens } from './services/token-refresh.js';
 import { processInsightFetch } from './services/insight-fetcher.js';
+import { archiveIdleSessions, idleArchiveNoteEnabled } from './services/idle-session-archiver.js';
 import { processDueReminders } from './services/booking-reminders.js';
 import { runExpirer } from './services/booking-expirer.js';
 import { processDueEventReminders } from './services/event-booking-reminders.js';
@@ -137,6 +138,9 @@ export type Env = {
     OPENAI_BASE_URL?: string;
     OPENAI_API_KEY?: string;
     OPENAI_MODEL?: string;
+    // MIN-265: 'off' | 'false' | '0' disables the idle-archive push note
+    // (it costs LINE push quota); archiving itself always runs. Default on.
+    IDLE_ARCHIVE_NOTE?: string;
   };
   Variables: {
     staff: { id: string; name: string; role: 'owner' | 'admin' | 'staff' };
@@ -925,6 +929,22 @@ async function scheduled(
   );
   jobs.push(processQueuedBroadcasts(env.DB, defaultLineClient, env.WORKER_URL));
   jobs.push(checkAccountHealth(env.DB));
+
+  // MIN-265: 30-min idle TTL — archive stale sessions each tick (30–35 min
+  // effective granularity). The push note is quota-bearing, hence the flag.
+  jobs.push(
+    archiveIdleSessions(env.DB, {
+      defaultLineClient,
+      lineClients,
+      sendNote: idleArchiveNoteEnabled(env.IDLE_ARCHIVE_NOTE),
+    }).then((r) => {
+      if (r.archived + r.failed > 0) {
+        console.log(
+          `[idle-session-archiver] archived=${r.archived} notes=${r.notesSent} failed=${r.failed}`,
+        );
+      }
+    }),
+  );
 
   await Promise.allSettled(jobs);
 
