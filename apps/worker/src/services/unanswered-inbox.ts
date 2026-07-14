@@ -93,11 +93,16 @@ const CANDIDATES_SQL = `
     GROUP BY friend_id
   ),
   latest_chat AS (
-    -- friend ごとの最新 chats 行の status (bare-column + 単一 MAX の argmax)。
-    -- 相関サブクエリだと候補 friend 数ぶん個別 seek になるため一括 GROUP BY で取る。
-    SELECT friend_id, status, MAX(created_at) AS created_at
-    FROM chats
-    GROUP BY friend_id
+    -- friend ごとの最新 chats 行の status。以前は SQLite の bare-column argmax
+    -- (lone MAX + 非集約列) だったが Postgres は 42803 で拒否する (MIN-263)。
+    -- ROW_NUMBER は SQLite (>=3.25 / D1) と Postgres の両方で有効。
+    -- 相関サブクエリだと候補 friend 数ぶん個別 seek になるため一括で取る。
+    SELECT friend_id, status FROM (
+      SELECT friend_id, status,
+        ROW_NUMBER() OVER (PARTITION BY friend_id ORDER BY created_at DESC) AS rn
+      FROM chats
+    ) ranked
+    WHERE rn = 1
   )
   SELECT
     f.id            AS friend_id,

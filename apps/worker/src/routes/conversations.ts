@@ -20,16 +20,20 @@ conversations.get('/api/conversations', async (c) => {
         ? `AND ((julianday('now') - julianday(li.at)) * 24.0) <= ?`
         : '';
 
-    // friend ごとの最新 chats 行の status (bare-column + 単一 MAX の argmax)。
-    // unanswered-inbox.ts の CANDIDATES_SQL と同じ resolved 除外。管理画面で
-    // 「解決済」にした会話が MCP (list_conversations) 側だけ要対応で残ると
-    // 判定が乖離するため、こちらにも同条件を入れる。main / count の両クエリで
-    // 共有し、片方だけ編集されて total と items が食い違うのを防ぐ。
+    // friend ごとの最新 chats 行の status。unanswered-inbox.ts の CANDIDATES_SQL と
+    // 同じ resolved 除外。管理画面で「解決済」にした会話が MCP (list_conversations)
+    // 側だけ要対応で残ると判定が乖離するため、こちらにも同条件を入れる。
+    // main / count の両クエリで共有し、片方だけ編集されて total と items が
+    // 食い違うのを防ぐ。SQLite の bare-column argmax は Postgres で 42803 に
+    // なるため ROW_NUMBER で書く (MIN-263)。
     const latestChatCte = `
       latest_chat AS (
-        SELECT friend_id, status, MAX(created_at) AS created_at
-        FROM chats
-        GROUP BY friend_id
+        SELECT friend_id, status FROM (
+          SELECT friend_id, status,
+            ROW_NUMBER() OVER (PARTITION BY friend_id ORDER BY created_at DESC) AS rn
+          FROM chats
+        ) ranked
+        WHERE rn = 1
       )`;
     const whereNotResolved = `AND COALESCE(lc.status, 'unread') != 'resolved'`;
 

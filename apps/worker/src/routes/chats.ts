@@ -211,10 +211,11 @@ chats.get('/api/chats', async (c) => {
     // パフォーマンス対策 (2026-07-06 本番実測で全面改修):
     //   旧実装は messages_log (96k 行) を ROW_NUMBER × 2 + GROUP BY で 3 回スキャンし、
     //   さらに LIMIT なしで全 friend (10k 行) を返していた → 本番 D1 実測 3.47 秒 / 781k rows_read。
-    //   新実装は (a) ROW_NUMBER を argmax GROUP BY に置換 (SQLite の bare-column +
-    //   単一 MAX() は max 行の値を返す documented 挙動)、(b) CTE を MATERIALIZED して
-    //   二重評価を防止、(c) page CTE で先に対象 friend を limit 件に確定してから
-    //   preview を計算、(d) デフォルト LIMIT 300 (最終行は last_message_at DESC)。
+    //   新実装は (a) preview 集約を page 確定後の friend に絞って実行 (全件 ROW_NUMBER
+    //   スキャンをやめたのが本質; 一時期 SQLite の bare-column argmax に置換していたが
+    //   Postgres 42803 で落ちるため page スコープの ROW_NUMBER に戻した — MIN-263)、
+    //   (b) CTE を MATERIALIZED して二重評価を防止、(c) page CTE で先に対象 friend を
+    //   limit 件に確定してから preview を計算、(d) デフォルト LIMIT 300 (最終行は last_message_at DESC)。
     //   同条件の本番実測: 459ms / 165k rows_read (LIMIT 300 時)。
     //   - content は text のみ先頭 200 文字まで切り詰めて返す (flex/image など raw JSON を
     //     返すと broadcast 後の rows で multi-MB レスポンスになる)。
@@ -224,8 +225,9 @@ chats.get('/api/chats', async (c) => {
       : `1=1`;
 
     // unansweredOnly は取得後に unansweredMap と突合して絞るため全件必要。
-    // SQLite は LIMIT に負値を渡すと「無制限」になる (documented 挙動)。
-    const NO_LIMIT = -1;
+    // SQLite の「LIMIT -1 = 無制限」は Postgres が拒否する (MIN-263) ため、
+    // 両バックエンドで有効な INT32_MAX を事実上の無制限として使う。
+    const NO_LIMIT = 2147483647;
     const limitParam = Number.parseInt(c.req.query('limit') ?? '', 10);
     const limit = unansweredOnly
       ? NO_LIMIT
@@ -263,8 +265,8 @@ chats.get('/api/chats', async (c) => {
     // incoming が無い (broadcast push など outbound only) chat は最新 outbound にフォールバック。
     // text 以外 (flex/image/sticker 等) は content を NULL にして payload size を抑える
     // (フロントは type で 📋 Flex / 📷 画像 等のラベルを出すので content は不要)。
-    // any_agg / in_agg の bare column (content 等) は「単一 MAX() を含む集約は max 行の
-    // 値を返す」という SQLite の documented 挙動で argmax として使っている。
+    // any_agg / in_agg は friend ごとの最新行を ROW_NUMBER で取る (SQLite の
+    // bare-column argmax は Postgres 42803 で落ちる — MIN-263)。
     // 集約は page 確定後の friend に絞って実行する (全 friend 分の content を
     // materialize しない)。last_any は並び順決定専用のスリムな全走査 1 回のみ。
     const sql = `
@@ -296,25 +298,29 @@ chats.get('/api/chats', async (c) => {
         LIMIT ?
       ),
       any_agg AS (
-        SELECT friend_id,
-          CASE WHEN message_type = 'text' THEN SUBSTR(content, 1, 200) ELSE NULL END AS content,
-          direction, message_type,
-          MAX(created_at) AS created_at
-        FROM messages_log
-        WHERE (delivery_type IS NULL OR delivery_type != 'test')
-          AND friend_id IN (SELECT friend_id FROM page)
-        GROUP BY friend_id
+        SELECT friend_id, content, direction, message_type, created_at FROM (
+          SELECT friend_id,
+            CASE WHEN message_type = 'text' THEN SUBSTR(content, 1, 200) ELSE NULL END AS content,
+            direction, message_type, created_at,
+            ROW_NUMBER() OVER (PARTITION BY friend_id ORDER BY created_at DESC) AS rn
+          FROM messages_log
+          WHERE (delivery_type IS NULL OR delivery_type != 'test')
+            AND friend_id IN (SELECT friend_id FROM page)
+        ) ranked
+        WHERE rn = 1
       ),
       in_agg AS (
-        SELECT friend_id,
-          CASE WHEN message_type = 'text' THEN SUBSTR(content, 1, 200) ELSE NULL END AS content,
-          message_type,
-          MAX(created_at) AS created_at
-        FROM messages_log
-        WHERE direction = 'incoming'
-          AND (delivery_type IS NULL OR delivery_type != 'test')
-          AND friend_id IN (SELECT friend_id FROM page)
-        GROUP BY friend_id
+        SELECT friend_id, content, message_type, created_at FROM (
+          SELECT friend_id,
+            CASE WHEN message_type = 'text' THEN SUBSTR(content, 1, 200) ELSE NULL END AS content,
+            message_type, created_at,
+            ROW_NUMBER() OVER (PARTITION BY friend_id ORDER BY created_at DESC) AS rn
+          FROM messages_log
+          WHERE direction = 'incoming'
+            AND (delivery_type IS NULL OR delivery_type != 'test')
+            AND friend_id IN (SELECT friend_id FROM page)
+        ) ranked
+        WHERE rn = 1
       ),
       recent_msg AS (
         SELECT a.friend_id,

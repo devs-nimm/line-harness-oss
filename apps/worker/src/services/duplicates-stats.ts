@@ -63,7 +63,8 @@ const TOTALS_SQL = `
   ),
   groups AS (
     SELECT ident_key, COUNT(DISTINCT line_account_id) AS span, COUNT(*) AS row_cnt
-    FROM ident GROUP BY ident_key HAVING span > 1
+    -- HAVING は SELECT alias (span) を参照できない (SQLite は許すが Postgres は 42703)
+    FROM ident GROUP BY ident_key HAVING COUNT(DISTINCT line_account_id) > 1
   )
   SELECT
     (SELECT COUNT(*) FROM friends
