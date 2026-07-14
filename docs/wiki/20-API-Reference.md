@@ -232,6 +232,7 @@ fields の type: `text`, `email`, `tel`, `number`, `textarea`, `select`, `radio`
 | POST | `/api/chats` | チャット作成 | `{ friendId, operatorId? }` |
 | PUT | `/api/chats/:id` | ステータス/担当更新 | `{ operatorId?, status?, notes? }` |
 | POST | `/api/chats/:id/send` | メッセージ送信 | `{ content, messageType? }` |
+| POST | `/api/chats/:id/archive` | 会話をアーカイブ (ハードデリートなし; アーカイブ通知を push 送信) | - |
 | GET | `/api/operators` | オペレーター一覧 | - |
 | POST | `/api/operators` | オペレーター作成 | `{ name, email, role? }` |
 | PUT | `/api/operators/:id` | オペレーター更新 | - |

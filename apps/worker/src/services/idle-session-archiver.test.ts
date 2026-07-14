@@ -100,7 +100,7 @@ describe('archiveIdleSessions', () => {
 
     // Archived with reason idle_ttl + ai_chat_sessions cleared.
     const update = runs.find((r) => r.sql.includes('UPDATE chat_sessions'));
-    expect(update!.params).toEqual([NOW, 'idle_ttl', 'session-1']);
+    expect(update!.params).toEqual([NOW, 'idle_ttl', null, 'session-1']);
     expect(runs.some((r) => r.sql.includes('DELETE FROM ai_chat_sessions'))).toBe(true);
 
     // Note pushed via the friend's account client (no reply token available).

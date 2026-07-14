@@ -544,6 +544,72 @@ chats.put('/api/chats/:id', async (c) => {
   }
 });
 
+// 会話をアーカイブ (MIN-266 §1 — 管理画面の「削除」はハードデリートではなくアーカイブ)。
+// 共有アーカイブ関数がアクティブセッションを閉じ ai_chat_sessions を消すので、
+// 次の Hermes 呼び出しが旧 previous_response_id を引き継ぐことは構造上あり得ない。
+// メッセージは保持される (アーカイブであって破壊ではない)。
+// 監査証跡: archived_by (staff id) + friend_id + archived_at が chat_sessions 行に残る。
+chats.post('/api/chats/:id/archive', async (c) => {
+  try {
+    const id = c.req.param('id');
+    // id は chats.id / friend.id のどちらでも受ける (他エンドポイントと同じ規約)
+    let friend = await getFriendById(c.env.DB, id);
+    if (!friend) {
+      const chatRow = await getChatById(c.env.DB, id);
+      if (chatRow) friend = await getFriendById(c.env.DB, chatRow.friend_id);
+    }
+    if (!friend) return c.json({ success: false, error: 'Chat not found' }, 404);
+
+    const staff = c.get('staff');
+    const { archiveActiveSession, sendSystemNote, ARCHIVE_NOTES } = await import(
+      '../services/chat-sessions.js'
+    );
+    const result = await archiveActiveSession(
+      c.env.DB,
+      friend.id,
+      'admin_delete',
+      jstNow(),
+      staff?.id ?? null,
+    );
+    if (!result) {
+      return c.json({ success: false, error: 'アーカイブ対象の会話がありません' }, 409);
+    }
+    console.log(
+      `[chat-archive] staff=${staff?.id ?? 'unknown'} friend=${friend.id} at=${result.archivedAt}`,
+    );
+
+    // ノート1 (アーカイブ通知)。この操作に reply token は存在しないので必ず push
+    // (送信クォータを消費)。送信失敗 (ブロック等) してもアーカイブ自体は成立済み。
+    let noteSent = false;
+    try {
+      const { accessToken } = await resolveFriendAndAccessToken(
+        c.env.DB,
+        friend.id,
+        c.env.LINE_CHANNEL_ACCESS_TOKEN,
+      );
+      const { LineClient } = await import('@line-crm/line-sdk');
+      await sendSystemNote({
+        db: c.env.DB,
+        lineClient: new LineClient(accessToken),
+        friendId: friend.id,
+        lineUserId: friend.line_user_id,
+        lineAccountId: friend.line_account_id ?? null,
+        text: ARCHIVE_NOTES.admin_delete,
+        // アーカイブ境界と同時刻で記録し、管理画面でアーカイブ済みセグメント内に描画させる
+        createdAt: result.archivedAt,
+      });
+      noteSent = true;
+    } catch (err) {
+      console.error(`[chat-archive] note push failed for friend ${friend.id}:`, err);
+    }
+
+    return c.json({ success: true, data: { archivedAt: result.archivedAt, noteSent } });
+  } catch (err) {
+    console.error('POST /api/chats/:id/archive error:', err);
+    return c.json({ success: false, error: 'Internal server error' }, 500);
+  }
+});
+
 // オペレーター入力中のローディング表示を開始
 chats.post('/api/chats/:id/loading', async (c) => {
   try {

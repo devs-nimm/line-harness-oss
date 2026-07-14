@@ -345,6 +345,7 @@ export default function ChatsPage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMoreChats, setHasMoreChats] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [archiving, setArchiving] = useState(false)
   const [error, setError] = useState('')
   const [messageContent, setMessageContent] = useState('')
   const [pendingImage, setPendingImage] = useState<ImageUploaderValue | null>(null)
@@ -775,6 +776,38 @@ export default function ChatsPage() {
     }
   }
 
+  // 会話のアーカイブ (MIN-266)。ハードデリートではない — メッセージは保持され、
+  // 表示が読み取り専用に変わる。ユーザーの LINE アプリ側の履歴は消せない
+  // (bot に送信取消機能は無い) ので、confirm 文言で明示する。
+  const handleArchiveConversation = async () => {
+    if (!selectedChatId || archiving) return
+    const ok = confirm(
+      t('この会話をアーカイブしますか？') + '\n\n' +
+      t('・会話は読み取り専用になり、メッセージ履歴は管理画面に残ります') + '\n' +
+      t('・AIは次のメッセージから新しい会話として応答します') + '\n' +
+      t('・ユーザーにはアーカイブ通知が送信されます (push 送信数を消費)') + '\n\n' +
+      t('注意: ユーザーのLINEアプリ内の履歴は削除できません (LINEの仕様)。'),
+    )
+    if (!ok) return
+    setArchiving(true)
+    try {
+      const res = await fetchApi<{ success: boolean; error?: string }>(
+        `/api/chats/${selectedChatId}/archive`,
+        { method: 'POST' },
+      )
+      if (!res.success) {
+        setError(`${t('会話のアーカイブに失敗しました:')} ${res.error ?? t('不明なエラー')}`)
+        return
+      }
+      loadChatDetail(selectedChatId)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setError(`${t('会話のアーカイブに失敗しました:')} ${msg}`)
+    } finally {
+      setArchiving(false)
+    }
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     // IME変換確定のEnterでは送信しない
     if (e.nativeEvent.isComposing || isComposingRef.current || e.keyCode === 229) return
@@ -787,6 +820,17 @@ export default function ChatsPage() {
       handleSendMessage()
     }
   }
+
+  // 読み取り専用判定 (MIN-266): セッションが存在し、アクティブなものが無い =
+  // 直近のアーカイブ以降ユーザーからのメッセージが無い状態。ユーザーが再び
+  // メッセージを送ると webhook が新セッションを開き、入力欄は自動的に復活する。
+  // セッション行がまだ無い旧来の会話 (機能導入前) は制限しない。
+  const detailSessions = chatDetail?.sessions ?? []
+  const hasActiveSession = detailSessions.some((s) => !s.archivedAt)
+  const conversationReadOnly = detailSessions.length > 0 && !hasActiveSession
+  const latestArchivedSession = detailSessions
+    .filter((s): s is ChatSession & { archivedAt: string } => Boolean(s.archivedAt))
+    .sort((a, b) => b.archivedAt.localeCompare(a.archivedAt))[0] ?? null
 
   return (
     <div>
@@ -1017,6 +1061,16 @@ export default function ChatsPage() {
                       {t('解決済にする')}
                     </button>
                   )}
+                  {!conversationReadOnly && (
+                    <button
+                      onClick={handleArchiveConversation}
+                      disabled={archiving}
+                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors disabled:opacity-50"
+                      title={t('会話をアーカイブして読み取り専用にします')}
+                    >
+                      {archiving ? t('アーカイブ中...') : t('会話を削除 (アーカイブ)')}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1175,7 +1229,27 @@ export default function ChatsPage() {
                 </div>
               </div>
 
-              {/* Send Message Form */}
+              {/* Send Message Form — アーカイブ済み (アクティブセッション無し) の間は
+                  読み取り専用バナーに差し替える (MIN-266)。ユーザーの次のメッセージで
+                  新セッションが開き、入力欄は自動的に戻る。 */}
+              {conversationReadOnly ? (
+                <div className="px-4 py-4 border-t border-gray-200 bg-gray-50 text-center">
+                  <p className="text-sm font-medium text-gray-700">
+                    📁 {t('この会話はアーカイブされました')}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {latestArchivedSession && (
+                      <>
+                        {archiveReasonLabels[latestArchivedSession.archiveReason ?? ''] ?? t('アーカイブ済み')}
+                        {' ・ '}
+                        {new Date(latestArchivedSession.archivedAt).toLocaleString('ja-JP')}
+                        <br />
+                      </>
+                    )}
+                    {t('ユーザーから新しいメッセージが届くと、新しい会話が開始されます。')}
+                  </p>
+                </div>
+              ) : (
               <div className="px-4 py-3 border-t border-gray-200">
                 <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-gray-600">
                   <label className="inline-flex items-center gap-2 cursor-pointer select-none">
@@ -1261,6 +1335,7 @@ export default function ChatsPage() {
                   </button>
                 </div>
               </div>
+              )}
             </>
           ) : null}
         </div>

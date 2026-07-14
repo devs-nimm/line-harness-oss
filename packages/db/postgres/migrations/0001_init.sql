@@ -453,7 +453,7 @@ CREATE TABLE chat_sessions (
   archived_at     TEXT,
   archive_reason  TEXT CHECK (archive_reason IN ('admin_delete', 'idle_ttl', 'user_new')),
   created_at      TEXT NOT NULL
-);
+, archived_by TEXT);
 CREATE TABLE chats (
   id            TEXT PRIMARY KEY,
   friend_id     TEXT NOT NULL,
