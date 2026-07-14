@@ -228,7 +228,7 @@ fields の type: `text`, `email`, `tel`, `number`, `textarea`, `select`, `radio`
 | メソッド | パス | 説明 | リクエストボディ |
 |---------|------|------|----------------|
 | GET | `/api/chats` | チャット一覧 | query: `status`, `operatorId` |
-| GET | `/api/chats/:id` | チャット詳細 (メッセージ履歴含む) | - |
+| GET | `/api/chats/:id` | チャット詳細 (メッセージ履歴 + 会話セッション `sessions` 含む) | - |
 | POST | `/api/chats` | チャット作成 | `{ friendId, operatorId? }` |
 | PUT | `/api/chats/:id` | ステータス/担当更新 | `{ operatorId?, status?, notes? }` |
 | POST | `/api/chats/:id/send` | メッセージ送信 | `{ content, messageType? }` |

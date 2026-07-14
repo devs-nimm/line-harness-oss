@@ -169,6 +169,46 @@ CREATE INDEX idx_messages_log_created_at ON messages_log (created_at);
 
 ---
 
+## 会話セッションとアーカイブ (MIN-267)
+
+友だちごとに最大1つの **アクティブな会話セッション** (`chat_sessions` テーブル、`archived_at IS NULL`) を持つ。アーカイブすると次の受信メッセージで新しいセッションが開く。
+
+### chat_sessions テーブル
+
+```sql
+CREATE TABLE chat_sessions (
+  id              TEXT PRIMARY KEY,   -- UUID
+  friend_id       TEXT NOT NULL REFERENCES friends (id) ON DELETE CASCADE,
+  line_account_id TEXT,
+  started_at      TEXT NOT NULL,
+  archived_at     TEXT,               -- NULL = アクティブ
+  archive_reason  TEXT CHECK (archive_reason IN ('admin_delete', 'idle_ttl', 'user_new')),
+  created_at      TEXT NOT NULL
+);
+```
+
+メッセージとセッションの対応は **タイムスタンプ範囲** で決まる (`created_at <= archived_at` ならアーカイブ側)。`messages_log` に `session_id` カラムは持たない。
+
+### アーカイブのトリガー
+
+| トリガー | reason | 状態 |
+|---|---|---|
+| LINE ユーザーが `/new` を送信 | `user_new` | 実装済み (webhook.ts) |
+| 30分間メッセージなし | `idle_ttl` | MIN-265 |
+| 管理画面からの削除 | `admin_delete` | MIN-266 |
+
+アーカイブ時は `ai_chat_sessions` 行も削除され、次のメッセージが古い `previous_response_id` を引き継ぐことは構造上あり得ない。
+
+### システムノート
+
+アーカイブ時 (ノート1、トリガーごとに文言が異なる) と新セッションの最初のメッセージ時 (ノート2「新しい会話を開始しました。以前の会話内容は引き継がれません。」) に、bot からテキストメッセージが送られる。これらは `messages_log` に `source='system_note'` で記録され、**LLM への入力には一切含まれない**。管理画面のチャット詳細では中央寄せのシステム区切りとして表示され、アーカイブ済みセッションのメッセージは薄い表示 + アーカイブ理由・日時付きの区切り線で示される。
+
+送信は可能な限り `replyMessage` (無料) を使う — AI 返信がある場合は同じ reply 呼び出しの先頭に載せる。
+
+実装: `apps/worker/src/services/chat-sessions.ts`
+
+---
+
 ## APIエンドポイント
 
 ### オペレーターCRUD

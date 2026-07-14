@@ -231,23 +231,25 @@ describe('maybeSendOpenAIAutoReply', () => {
     expect(sessionUpsert?.params[3]).toBe(1);
   });
 
-  test('/new clears the session and confirms without calling the LLM', async () => {
+  test('notePrefix is prepended to the same reply call and logged as system_note', async () => {
     openAISettingsMocks.getEffectiveOpenAISettings.mockResolvedValue(SETTINGS);
-    const fetchSpy = vi.spyOn(globalThis, 'fetch');
-    const { db, runs } = makeDb({ last_response_id: 'resp_5', turn_count: 5 });
-    const args = baseArgs(db, { incomingText: ' /new ' });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(responsesPayload('AI reply'));
+    const { db, runs } = makeDb(null);
+    const args = baseArgs(db, { notePrefix: '新しい会話を開始しました。以前の会話内容は引き継がれません。' });
 
     await expect(maybeSendOpenAIAutoReply(args)).resolves.toEqual({
       matched: true,
       replyTokenConsumed: true,
     });
-    expect(fetchSpy).not.toHaveBeenCalled();
-    expect(runs.some((r) => r.sql.includes('DELETE FROM ai_chat_sessions'))).toBe(true);
-    expect(args.lineClient.replyMessage).toHaveBeenCalledWith(
-      'reply-token',
-      [{ type: 'text', text: expect.any(String) }],
-    );
-    expect(runs.some((r) => r.sql.includes('messages_log'))).toBe(true);
+    expect(args.lineClient.replyMessage).toHaveBeenCalledWith('reply-token', [
+      { type: 'text', text: '新しい会話を開始しました。以前の会話内容は引き継がれません。' },
+      { type: 'text', text: 'AI reply' },
+    ]);
+    const logs = runs.filter((r) => r.sql.includes('messages_log'));
+    expect(logs).toHaveLength(2);
+    expect(logs[0].sql).toContain("'system_note'");
+    expect(logs[0].params).toContain('新しい会話を開始しました。以前の会話内容は引き継がれません。');
+    expect(logs[1].sql).toContain("'auto_reply'");
   });
 
   test('falls back to pushMessage when reply token is invalid', async () => {
