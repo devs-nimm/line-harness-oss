@@ -76,21 +76,25 @@ async function createTrackingMap(
   linkBase: string,
   lineAccountId?: string | null,
 ): Promise<Map<string, { trackingUrl: string; originalUrl: string; label: string }>> {
-  const urlMap = new Map<string, { trackingUrl: string; originalUrl: string; label: string }>();
-  for (const url of urls) {
-    const link = await createTrackedLink(db, {
-      name: `auto: ${url.slice(0, 60)}`,
-      originalUrl: url,
-      lineAccountId: lineAccountId ?? null,
-    });
-    // /t/ URL — Worker handles LINE app detection and LIFF redirect server-side.
-    // Prefer the short code (linkBase may be a branded short domain).
-    const trackingUrl = `${linkBase}/t/${link.short_code ?? link.id}`;
-    const hostname = new URL(url).hostname.replace('www.', '');
-    const label = hostname.length > 20 ? hostname.slice(0, 20) + '…' : hostname;
-    urlMap.set(url, { trackingUrl, originalUrl: url, label });
-  }
-  return urlMap;
+  // Inserts are independent (each generates its own id/short_code), so run
+  // them concurrently — a carousel can hold 10+ URIs and sequential D1
+  // round-trips add up inside per-friend delivery loops.
+  const entries = await Promise.all(
+    [...urls].map(async (url) => {
+      const link = await createTrackedLink(db, {
+        name: `auto: ${url.slice(0, 60)}`,
+        originalUrl: url,
+        lineAccountId: lineAccountId ?? null,
+      });
+      // /t/ URL — Worker handles LINE app detection and LIFF redirect server-side.
+      // Prefer the short code (linkBase may be a branded short domain).
+      const trackingUrl = `${linkBase}/t/${link.short_code ?? link.id}`;
+      const hostname = new URL(url).hostname.replace('www.', '');
+      const label = hostname.length > 20 ? hostname.slice(0, 20) + '…' : hostname;
+      return [url, { trackingUrl, originalUrl: url, label }] as const;
+    }),
+  );
+  return new Map(entries);
 }
 
 /** Build a Flex bubble from text + tracked URLs */
@@ -264,15 +268,75 @@ export async function autoTrackContent(
     return { messageType: 'text', content: result };
   }
 
-  // Flex messages → replace URLs inline in the JSON
-  // For app-link domains, also inject openExternalBrowser=1 into the URI action
-  const urlMap = await createTrackingMap(db, urls, linkBase, options?.lineAccountId);
-  let result = content;
-  for (const [original, { trackingUrl, originalUrl }] of urlMap) {
-    const finalUrl = isAppLinkDomain(originalUrl)
-      ? appendOpenExternalBrowser(trackingUrl)
-      : trackingUrl;
-    result = result.split(original).join(finalUrl);
+  // Flex messages → rewrite ONLY uri actions (action / defaultAction / altUri.desktop).
+  // Never rewrite the `url` field of image/video/icon components: LINE's media
+  // loader fetches that URL directly, and /t returns an HTML interstitial (not
+  // an image), which renders hero/body images as blank space.
+  let tree: unknown;
+  try {
+    tree = JSON.parse(content);
+  } catch {
+    // Not valid JSON — leave untouched rather than risk corrupting the payload
+    return { messageType, content };
   }
-  return { messageType, content: result };
+  const skipPrefixes = linkBase !== workerBase ? [workerBase, linkBase] : [workerBase];
+  const actionUris = new Set<string>();
+  collectActionUris(tree, actionUris);
+  // Only valid http(s) URIs are trackable (uri actions also allow tel:,
+  // line://, etc., and hand-written JSON can hold malformed URLs like a bare
+  // "https://" — createTrackingMap calls `new URL()`, so an invalid URI here
+  // would throw and fail the whole delivery instead of one link).
+  const trackableUris = new Set(
+    [...actionUris].filter((u) => isTrackableHttpUrl(u) && !shouldSkip(u, skipPrefixes)),
+  );
+  if (trackableUris.size === 0) return { messageType, content };
+  const uriMap = await createTrackingMap(db, trackableUris, linkBase, options?.lineAccountId);
+  rewriteActionUris(tree, (u) => {
+    const tracked = uriMap.get(u);
+    if (!tracked) return u;
+    return isAppLinkDomain(u)
+      ? appendOpenExternalBrowser(tracked.trackingUrl)
+      : tracked.trackingUrl;
+  });
+  return { messageType, content: JSON.stringify(tree) };
+}
+
+/** Valid, parseable http(s) URL — safe to hand to `new URL()` downstream */
+function isTrackableHttpUrl(u: string): boolean {
+  try {
+    const parsed = new URL(u);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/** Walk a Flex JSON tree and visit every action/defaultAction uri (+ altUri.desktop) */
+function visitActionUris(node: unknown, visit: (holder: Record<string, unknown>, key: string) => void): void {
+  if (!node || typeof node !== 'object') return;
+  if (Array.isArray(node)) {
+    for (const child of node) visitActionUris(child, visit);
+    return;
+  }
+  const obj = node as Record<string, unknown>;
+  for (const key of ['action', 'defaultAction']) {
+    const a = obj[key] as Record<string, unknown> | undefined;
+    if (a && a.type === 'uri') {
+      if (typeof a.uri === 'string') visit(a, 'uri');
+      // Desktop LINE uses altUri.desktop instead of uri — track it the same way
+      const alt = a.altUri as Record<string, unknown> | undefined;
+      if (alt && typeof alt.desktop === 'string') visit(alt, 'desktop');
+    }
+  }
+  for (const value of Object.values(obj)) visitActionUris(value, visit);
+}
+
+function collectActionUris(node: unknown, out: Set<string>): void {
+  visitActionUris(node, (holder, key) => out.add(holder[key] as string));
+}
+
+function rewriteActionUris(node: unknown, fn: (u: string) => string): void {
+  visitActionUris(node, (holder, key) => {
+    holder[key] = fn(holder[key] as string);
+  });
 }
