@@ -87,6 +87,10 @@ export async function openSessionIfNeeded(
  * Archive the friend's active session (if any) and clear the ai_chat_sessions
  * row so the next Hermes call can never reuse the old previous_response_id.
  *
+ * archivedBy is the acting staff id — only the admin-delete trigger has an
+ * actor; '/new' and the idle TTL pass nothing. Together with friend_id and
+ * archived_at it forms the audit trail (MIN-266).
+ *
  * Legacy conversations (messages that predate this feature, or that arrived
  * while no session was open) have no active row to archive; if such messages
  * exist past the last archive boundary, an already-archived row is created
@@ -100,6 +104,7 @@ export async function archiveActiveSession(
   friendId: string,
   reason: ArchiveReason,
   now: string = jstNow(),
+  archivedBy: string | null = null,
 ): Promise<{ archivedAt: string } | null> {
   const active = await db
     .prepare(`SELECT id FROM chat_sessions WHERE friend_id = ? AND archived_at IS NULL LIMIT 1`)
@@ -109,8 +114,8 @@ export async function archiveActiveSession(
   let archivedAt: string | null = null;
   if (active) {
     await db
-      .prepare(`UPDATE chat_sessions SET archived_at = ?, archive_reason = ? WHERE id = ? AND archived_at IS NULL`)
-      .bind(now, reason, active.id)
+      .prepare(`UPDATE chat_sessions SET archived_at = ?, archive_reason = ?, archived_by = ? WHERE id = ? AND archived_at IS NULL`)
+      .bind(now, reason, archivedBy, active.id)
       .run();
     archivedAt = now;
   } else {
@@ -136,10 +141,10 @@ export async function archiveActiveSession(
     if (firstMsg?.first_at) {
       await db
         .prepare(
-          `INSERT INTO chat_sessions (id, friend_id, line_account_id, started_at, archived_at, archive_reason, created_at)
-           VALUES (?, ?, NULL, ?, ?, ?, ?)`,
+          `INSERT INTO chat_sessions (id, friend_id, line_account_id, started_at, archived_at, archive_reason, archived_by, created_at)
+           VALUES (?, ?, NULL, ?, ?, ?, ?, ?)`,
         )
-        .bind(crypto.randomUUID(), friendId, firstMsg.first_at, now, reason, now)
+        .bind(crypto.randomUUID(), friendId, firstMsg.first_at, now, reason, archivedBy, now)
         .run();
       archivedAt = now;
     }

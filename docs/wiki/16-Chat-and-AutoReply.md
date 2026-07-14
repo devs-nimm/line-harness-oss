@@ -183,6 +183,7 @@ CREATE TABLE chat_sessions (
   started_at      TEXT NOT NULL,
   archived_at     TEXT,               -- NULL = アクティブ
   archive_reason  TEXT CHECK (archive_reason IN ('admin_delete', 'idle_ttl', 'user_new')),
+  archived_by     TEXT,               -- admin_delete のみ: 操作した staff id (監査証跡)
   created_at      TEXT NOT NULL
 );
 ```
@@ -195,13 +196,19 @@ CREATE TABLE chat_sessions (
 |---|---|---|
 | LINE ユーザーが `/new` を送信 | `user_new` | 実装済み (webhook.ts) |
 | 30分間メッセージなし | `idle_ttl` | 実装済み (idle-session-archiver.ts) |
-| 管理画面からの削除 | `admin_delete` | MIN-266 |
+| 管理画面からの削除 | `admin_delete` | 実装済み (routes/chats.ts) |
 
 #### アイドル TTL (MIN-265)
 
 5分間隔の cron が、最終メッセージ (送受信いずれも、テスト送信を除く) から **30分** 経過したアクティブセッションをアーカイブする (実効粒度は 30〜35分)。アーカイブ時のノート1「30分間メッセージがなかったため、会話をアーカイブしました。」は reply token が無いため **push メッセージ** となり、月間送信数クォータ (フリープランは 200通/月) を消費する。環境変数 `IDLE_ARCHIVE_NOTE=off` でノート送信のみ無効化できる (アーカイブ自体は常に実行、デフォルトは on)。次の受信メッセージでの新セッション開始とノート2は MIN-267 の共通処理がそのまま動く。
 
 アーカイブ時は `ai_chat_sessions` 行も削除され、次のメッセージが古い `previous_response_id` を引き継ぐことは構造上あり得ない。
+
+#### 管理画面からの削除 (MIN-266)
+
+チャット詳細ヘッダーの「会話を削除 (アーカイブ)」で、確認ダイアログの後に `POST /api/chats/:id/archive` が呼ばれる。ハードデリートは行わない — アクティブセッションが `archive_reason='admin_delete'` でアーカイブされ、メッセージは保持される。操作した staff id は `chat_sessions.archived_by` に記録される (監査証跡 = staff id + friend id + archived_at)。ノート1「オペレーターにより、これまでの会話履歴がアーカイブされました。」は reply token が無いため **push メッセージ** (送信クォータを消費)。アーカイブ後、管理画面の会話は読み取り専用 (入力欄がアーカイブ理由・日時付きのバナーに変わる) になり、ユーザーからの次のメッセージで新しいセッションが開いて入力欄が戻る。
+
+**プラットフォーム制約:** bot にはユーザー端末側のメッセージ削除 (送信取消) 機能が無いため、管理画面でアーカイブしてもユーザーの LINE アプリ内の履歴は消えない。ユーザーはノート1によって会話がリセットされたことを知る。
 
 ### システムノート
 

@@ -92,8 +92,21 @@ describe('archiveActiveSession', () => {
       archivedAt: NOW,
     });
     const update = runs.find((r) => r.sql.includes('UPDATE chat_sessions'));
-    expect(update?.params).toEqual([NOW, 'user_new', 'active-session']);
+    expect(update?.params).toEqual([NOW, 'user_new', null, 'active-session']);
     expect(runs.some((r) => r.sql.includes('DELETE FROM ai_chat_sessions'))).toBe(true);
+  });
+
+  test('records the acting staff id as archived_by for admin deletes (MIN-266)', async () => {
+    const { db, runs } = makeDb({
+      'archived_at IS NULL LIMIT 1': { id: 'active-session' },
+    });
+
+    await expect(
+      archiveActiveSession(db, 'friend-1', 'admin_delete', NOW, 'staff-9'),
+    ).resolves.toEqual({ archivedAt: NOW });
+    const update = runs.find((r) => r.sql.includes('UPDATE chat_sessions'));
+    expect(update?.sql).toContain('archived_by');
+    expect(update?.params).toEqual([NOW, 'admin_delete', 'staff-9', 'active-session']);
   });
 
   test('retro-creates an archived session for legacy messages without a session row', async () => {
@@ -103,16 +116,19 @@ describe('archiveActiveSession', () => {
       'MIN(created_at)': { first_at: '2026-07-01T09:00:00.000+09:00' },
     });
 
-    await expect(archiveActiveSession(db, 'friend-1', 'admin_delete', NOW)).resolves.toEqual({
+    await expect(
+      archiveActiveSession(db, 'friend-1', 'admin_delete', NOW, 'staff-9'),
+    ).resolves.toEqual({
       archivedAt: NOW,
     });
     const insert = runs.find((r) => r.sql.includes('INSERT INTO chat_sessions'));
-    // (id, friend_id, started_at, archived_at, reason, created_at)
+    // (id, friend_id, started_at, archived_at, reason, archived_by, created_at)
     expect(insert?.params.slice(1)).toEqual([
       'friend-1',
       '2026-07-01T09:00:00.000+09:00',
       NOW,
       'admin_delete',
+      'staff-9',
       NOW,
     ]);
     expect(runs.some((r) => r.sql.includes('DELETE FROM ai_chat_sessions'))).toBe(true);
