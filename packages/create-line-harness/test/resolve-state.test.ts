@@ -109,20 +109,30 @@ describe('resolveState — credentials and legacy fallbacks', () => {
   });
 });
 
-// ─── normalizeLiffBindings ────────────────────────────────────────────────────
+// ─── normalizeInstallBindings ─────────────────────────────────────────────────
 
-import { normalizeLiffBindings } from '../src/commands/update.js';
+import { normalizeInstallBindings } from '../src/commands/update.js';
 
-describe('normalizeLiffBindings', () => {
+describe('normalizeInstallBindings', () => {
   const bindings = [
     { type: 'd1' as const, name: 'DB', database_id: 'd1id' },
     { type: 'plain_text' as const, name: 'LIFF_PAGES_PROJECT', text: 'line-harness-liff' },
     { type: 'plain_text' as const, name: 'WORKER_NAME', text: 'line-harness' },
+    {
+      type: 'plain_text' as const,
+      name: 'WORKER_PUBLIC_URL',
+      text: 'https://line-harness.old-sub.workers.dev',
+    },
     { type: 'assets' as const, name: 'ASSETS' },
   ];
 
+  const OPTS = {
+    liffProject: '',
+    workerPublicUrl: 'https://line-harness.old-sub.workers.dev',
+  };
+
   it('clears the stale LIFF_PAGES_PROJECT binding for worker-assets installs', () => {
-    const out = normalizeLiffBindings(bindings, '');
+    const out = normalizeInstallBindings(bindings, OPTS);
     const liff = out.find((b) => b.name === 'LIFF_PAGES_PROJECT');
     expect(liff?.text).toBe('');
     // Everything else passes through untouched.
@@ -131,12 +141,25 @@ describe('normalizeLiffBindings', () => {
   });
 
   it('sets the binding to the real project name for legacy Pages-LIFF installs', () => {
-    const out = normalizeLiffBindings(bindings, 'lh-liff-abc123');
+    const out = normalizeInstallBindings(bindings, {
+      ...OPTS,
+      liffProject: 'lh-liff-abc123',
+    });
     expect(out.find((b) => b.name === 'LIFF_PAGES_PROJECT')?.text).toBe('lh-liff-abc123');
   });
 
+  it('rewrites WORKER_PUBLIC_URL after a subdomain rename', () => {
+    const out = normalizeInstallBindings(bindings, {
+      ...OPTS,
+      workerPublicUrl: 'https://line-harness.new-sub.workers.dev',
+    });
+    expect(out.find((b) => b.name === 'WORKER_PUBLIC_URL')?.text).toBe(
+      'https://line-harness.new-sub.workers.dev',
+    );
+  });
+
   it('does not mutate the input array', () => {
-    normalizeLiffBindings(bindings, '');
+    normalizeInstallBindings(bindings, OPTS);
     expect(bindings.find((b) => b.name === 'LIFF_PAGES_PROJECT')?.text).toBe('line-harness-liff');
   });
 });
