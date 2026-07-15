@@ -2,7 +2,17 @@
 // Rich Message Builders — LINE Messaging API message type builders
 // =============================================================================
 
-import type { Message, FlexContainer } from './types.js';
+import type {
+  Message,
+  FlexContainer,
+  TemplateAction,
+  QuickReply,
+  QuickReplyItem,
+} from './types.js';
+
+// Canonical definitions moved to types.ts (TextMessage.quickReply needs them);
+// re-exported here so existing imports keep working.
+export type { TemplateAction, QuickReply, QuickReplyItem };
 
 // ── Text Message ────────────────────────────────────────────────────────────
 
@@ -45,14 +55,6 @@ export function videoMessage(
 }
 
 // ── Template Messages ───────────────────────────────────────────────────────
-
-export interface TemplateAction {
-  type: 'uri' | 'message' | 'postback';
-  label: string;
-  uri?: string;
-  text?: string;
-  data?: string;
-}
 
 export interface ButtonsTemplate {
   type: 'template';
@@ -176,16 +178,6 @@ export function imageMapMessage(opts: {
 }
 
 // ── Quick Reply ─────────────────────────────────────────────────────────────
-
-export interface QuickReplyItem {
-  type: 'action';
-  imageUrl?: string;
-  action: TemplateAction;
-}
-
-export interface QuickReply {
-  items: QuickReplyItem[];
-}
 
 export function quickReply(items: QuickReplyItem[]): QuickReply {
   return { items };

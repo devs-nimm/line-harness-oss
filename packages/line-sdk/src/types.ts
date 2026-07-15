@@ -153,9 +153,30 @@ export interface UserProfile {
 
 export type FlexContainer = object;
 
+export interface TemplateAction {
+  type: 'uri' | 'message' | 'postback';
+  label: string;
+  uri?: string;
+  text?: string;
+  data?: string;
+}
+
+// Quick reply: max 13 items, label max 20 chars, only honored on the LAST
+// message of a send (https://developers.line.biz/en/reference/messaging-api/#quick-reply).
+export interface QuickReplyItem {
+  type: 'action';
+  imageUrl?: string;
+  action: TemplateAction;
+}
+
+export interface QuickReply {
+  items: QuickReplyItem[];
+}
+
 export interface TextMessage {
   type: 'text';
   text: string;
+  quickReply?: QuickReply;
 }
 
 export interface ImageMessage {
