@@ -1011,6 +1011,7 @@ export const en: Record<string, string> = {
   "自動返信ルール 編集": "Edit auto-reply rule",
   "新規 自動返信ルール": "New auto-reply rule",
   "マッチ方法": "Match type",
+  "例: コスト比較": "e.g. Cost comparison",
   "応答方法": "Response type",
   "silent (返信なし)": "Silent (no reply)",
   "テンプレートから": "From a template",

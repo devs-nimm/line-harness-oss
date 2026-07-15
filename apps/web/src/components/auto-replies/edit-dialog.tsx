@@ -117,7 +117,7 @@ export default function EditDialog({ draft, templates, onClose, onSaved }: Props
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              placeholder="例: コスト比較"
+              placeholder={t('例: コスト比較')}
             />
           </div>
           <div>
