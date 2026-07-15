@@ -19,8 +19,8 @@ export type Locale = 'ja' | 'en'
 const STORAGE_KEY = 'lh_locale'
 
 // English overrides. Key = the Japanese source literal. Anything not listed
-// here renders in Japanese.
-const en: Record<string, string> = {
+// here renders in Japanese. Exported so translation coverage can be tested.
+export const en: Record<string, string> = {
   // --- App chrome / shell ---
   管理画面: 'Admin',
   ログアウト: 'Log out',
@@ -1245,6 +1245,33 @@ const en: Record<string, string> = {
   "アカウント間 重複マトリックス": "Cross-account duplicate matrix",
   "行アカウントの友だちのうち、列アカウントにも居る人数 (行アカに対する割合)。": "Of the row account's friends, how many are also in the column account (as a share of the row account).",
   "行 \\ 列": "Row \\ Col",
+
+  // --- Rich menu: new page (/rich-menus/new) ---
+  新規リッチメニュー: 'New rich menu',
+  "作成後の編集画面で画像 upload や areas 編集ができます。": 'After creating, you can upload an image and edit areas on the edit screen.',
+  管理用: 'internal',
+  "例: メインメニュー": 'e.g. Main menu',
+  トーク画面下の文言: 'Chat bar text',
+  "14 文字以内": 'within 14 characters',
+  "ユーザーがトーク画面でメニューを開く前に表示される文言。": 'Text shown before the user opens the menu in the chat screen.',
+  初期テンプレート: 'Initial template',
+  アカウントを選択してください: 'Please select an account',
+  名前を入力してください: 'Please enter a name',
+  作成失敗: 'Failed to create',
+
+  // --- Rich menu: template labels / descriptions ---
+  "2x3 (大画像 6 ボタン)": '2x3 (large image, 6 buttons)',
+  "2 行 × 3 列の標準レイアウト": 'Standard 2 rows × 3 columns layout',
+  "3x1 (横 3 分割)": '3x1 (3 horizontal splits)',
+  "横並び 3 ボタン (画像全高)": '3 buttons in a row (full image height)',
+  "2 行 × 2 列": '2 rows × 2 columns',
+  "1+2 (上 1 / 下 2)": '1+2 (1 top / 2 bottom)',
+  "上段に大ボタン 1、下段に 2 ボタン": '1 large button on top, 2 buttons below',
+  "空白 (自由配置)": 'Blank (free layout)',
+  "areas なしで開始 (エディタで自由に追加)": 'Start with no areas (add freely in the editor)',
+  "Compact 空白": 'Compact blank',
+  "低高画像で横 3 分割": '3 horizontal splits on a short image',
+  "低高画像で areas なし": 'No areas on a short image',
 }
 
 interface I18nValue {
