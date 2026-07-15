@@ -53,6 +53,10 @@ function messageChip(label: string) {
   return { type: 'action', action: { type: 'message', label, text: label } };
 }
 
+function messageAction(label: string) {
+  return { type: 'message', label, text: label };
+}
+
 /**
  * Fake D1: `prepare` returns a statement whose `first()` resolves to
  * `sessionRow` for the session SELECT. `runs` records every bound
@@ -395,10 +399,11 @@ describe('maybeSendOpenAIAutoReply', () => {
     expect(runs.some((r) => r.sql.includes('messages_log'))).toBe(true);
   });
 
-  test('choice ask renders as a text message with quick-reply chips', async () => {
+  test('choice with 5+ options renders as a text message with quick-reply chips', async () => {
     openAISettingsMocks.getEffectiveOpenAISettings.mockResolvedValue(SETTINGS);
+    const options = ['main', 'develop', 'staging', 'hotfix', 'release'];
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      askPayload({ message: 'Which branch?', kind: 'choice', options: ['main', 'develop'] }),
+      askPayload({ message: 'Which branch?', kind: 'choice', options }),
     );
     const { db, runs } = makeDb(null);
     const args = baseArgs(db);
@@ -411,7 +416,7 @@ describe('maybeSendOpenAIAutoReply', () => {
       {
         type: 'text',
         text: 'Which branch?',
-        quickReply: { items: [messageChip('main'), messageChip('develop')] },
+        quickReply: { items: options.map(messageChip) },
       },
     ]);
     // The ask turn still advances the session chain.
@@ -423,7 +428,119 @@ describe('maybeSendOpenAIAutoReply', () => {
     expect(logs[0].params).toContain('Which branch?');
   });
 
-  test('narration + ask sends two messages with quickReply on the LAST one', async () => {
+  test('choice with 13 options renders 13 quick-reply chips (upper bound)', async () => {
+    openAISettingsMocks.getEffectiveOpenAISettings.mockResolvedValue(SETTINGS);
+    const options = Array.from({ length: 13 }, (_, i) => `opt-${i}`);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      askPayload({ message: 'Pick one', kind: 'choice', options }),
+    );
+    const { db } = makeDb(null);
+    const args = baseArgs(db);
+
+    await maybeSendOpenAIAutoReply(args);
+
+    const messages = (args.lineClient.replyMessage as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    expect(messages).toHaveLength(1);
+    expect(messages[0].type).toBe('text');
+    expect(messages[0].quickReply.items).toEqual(options.map(messageChip));
+  });
+
+  test('confirm ask renders as a confirm template with two persistent buttons', async () => {
+    openAISettingsMocks.getEffectiveOpenAISettings.mockResolvedValue(SETTINGS);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      askPayload({ message: 'Proceed?', kind: 'confirm' }),
+    );
+    const { db, runs } = makeDb(null);
+    const args = baseArgs(db);
+
+    await expect(maybeSendOpenAIAutoReply(args)).resolves.toEqual({
+      matched: true,
+      replyTokenConsumed: true,
+    });
+    const messages = (args.lineClient.replyMessage as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    expect(messages).toEqual([
+      {
+        type: 'template',
+        altText: 'Proceed?',
+        template: {
+          type: 'confirm',
+          text: 'Proceed?',
+          actions: [messageAction('Yes'), messageAction('No')],
+        },
+      },
+    ]);
+    expect(JSON.stringify(messages)).not.toContain('quickReply');
+    // Logged as plain text with the question as durable content.
+    const logs = runs.filter((r) => r.sql.includes('messages_log'));
+    expect(logs).toHaveLength(1);
+    expect(logs[0].sql).toContain("'text'");
+    expect(logs[0].params).toContain('Proceed?');
+  });
+
+  test('choice with 3 options renders as a buttons template with 3 actions', async () => {
+    openAISettingsMocks.getEffectiveOpenAISettings.mockResolvedValue(SETTINGS);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      askPayload({ message: 'Which branch?', kind: 'choice', options: ['main', 'develop', 'staging'] }),
+    );
+    const { db } = makeDb(null);
+    const args = baseArgs(db);
+
+    await maybeSendOpenAIAutoReply(args);
+
+    expect(args.lineClient.replyMessage).toHaveBeenCalledWith('reply-token', [
+      {
+        type: 'template',
+        altText: 'Which branch?',
+        template: {
+          type: 'buttons',
+          text: 'Which branch?',
+          actions: [messageAction('main'), messageAction('develop'), messageAction('staging')],
+        },
+      },
+    ]);
+  });
+
+  test('choice with exactly 4 options still renders as a buttons template (boundary)', async () => {
+    openAISettingsMocks.getEffectiveOpenAISettings.mockResolvedValue(SETTINGS);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      askPayload({ message: 'Pick', kind: 'choice', options: ['A', 'B', 'C', 'D'] }),
+    );
+    const { db } = makeDb(null);
+    const args = baseArgs(db);
+
+    await maybeSendOpenAIAutoReply(args);
+
+    const messages = (args.lineClient.replyMessage as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    expect(messages[0].type).toBe('template');
+    expect(messages[0].template.type).toBe('buttons');
+    expect(messages[0].template.actions).toHaveLength(4);
+  });
+
+  test('long confirm question (>240 chars) is delivered in full as text plus a truncated template', async () => {
+    openAISettingsMocks.getEffectiveOpenAISettings.mockResolvedValue(SETTINGS);
+    const longQuestion = 'Q'.repeat(300);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      askPayload({ message: longQuestion, kind: 'confirm' }),
+    );
+    const { db, runs } = makeDb(null);
+    const args = baseArgs(db);
+
+    await maybeSendOpenAIAutoReply(args);
+
+    const messages = (args.lineClient.replyMessage as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    expect(messages).toHaveLength(2);
+    // Full question first as plain text; the template carries a 240-char stub.
+    expect(messages[0]).toEqual({ type: 'text', text: longQuestion });
+    expect(messages[1].type).toBe('template');
+    expect(messages[1].template.text).toBe('Q'.repeat(240));
+    expect(messages[1].altText).toBe(longQuestion); // under the 400 altText cap
+    // Both messages logged; the full question is durable in the log.
+    const logs = runs.filter((r) => r.sql.includes('messages_log'));
+    expect(logs).toHaveLength(2);
+    expect(logs[0].params).toContain(longQuestion);
+  });
+
+  test('narration + confirm sends [text, template] in that order', async () => {
     openAISettingsMocks.getEffectiveOpenAISettings.mockResolvedValue(SETTINGS);
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       askPayload(
@@ -439,9 +556,13 @@ describe('maybeSendOpenAIAutoReply', () => {
     expect(args.lineClient.replyMessage).toHaveBeenCalledWith('reply-token', [
       { type: 'text', text: 'I found 3 stale branches.' },
       {
-        type: 'text',
-        text: 'Proceed?',
-        quickReply: { items: [messageChip('Yes'), messageChip('No')] },
+        type: 'template',
+        altText: 'Proceed?',
+        template: {
+          type: 'confirm',
+          text: 'Proceed?',
+          actions: [messageAction('Yes'), messageAction('No')],
+        },
       },
     ]);
     // Both AI messages are logged.
@@ -466,7 +587,7 @@ describe('maybeSendOpenAIAutoReply', () => {
     ]);
   });
 
-  test('notePrefix stays first and quickReply stays on the last message', async () => {
+  test('notePrefix stays first and the question template stays last', async () => {
     openAISettingsMocks.getEffectiveOpenAISettings.mockResolvedValue(SETTINGS);
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       askPayload({ message: 'Which one?', kind: 'choice', options: ['A', 'B'] }),
@@ -479,7 +600,8 @@ describe('maybeSendOpenAIAutoReply', () => {
     const messages = (args.lineClient.replyMessage as ReturnType<typeof vi.fn>).mock.calls[0][1];
     expect(messages).toHaveLength(2);
     expect(messages[0]).toEqual({ type: 'text', text: '新しい会話を開始しました。' });
-    expect(messages[1].quickReply.items).toEqual([messageChip('A'), messageChip('B')]);
+    expect(messages[1].type).toBe('template');
+    expect(messages[1].template.actions).toEqual([messageAction('A'), messageAction('B')]);
   });
 
   test('malformed ask arguments without narration sends nothing and does not crash the webhook path', async () => {

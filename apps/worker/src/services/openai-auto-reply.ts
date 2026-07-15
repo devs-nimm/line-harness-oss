@@ -14,6 +14,13 @@ const MAX_OUTPUT_CHARS = 5000;
 // 20 chars, and quickReply is only honored on the LAST message of a send.
 const QUICK_REPLY_MAX_ITEMS = 13;
 const QUICK_REPLY_MAX_LABEL_CHARS = 20;
+// LINE template-message hard limits (exceeding any rejects the whole send):
+// confirm text 240, buttons text 160 (no image/title variant), altText 400,
+// buttons actions max 4.
+const CONFIRM_TEMPLATE_MAX_TEXT_CHARS = 240;
+const BUTTONS_TEMPLATE_MAX_TEXT_CHARS = 160;
+const TEMPLATE_MAX_ALT_TEXT_CHARS = 400;
+const BUTTONS_TEMPLATE_MAX_ACTIONS = 4;
 // v1: hardcoded confirm labels (localize later via settings if needed).
 const CONFIRM_LABELS = ['Yes', 'No'];
 
@@ -177,9 +184,27 @@ export async function generateOpenAIReply(
   };
 }
 
+// message action: the tapped label arrives as a normal text webhook event,
+// so the resume leg reuses the existing session chain as-is.
+type MessageAction = { type: 'message'; label: string; text: string };
+
+type ConfirmTemplateMessage = {
+  type: 'template';
+  altText: string; // shown in push notifications / chat list
+  template: { type: 'confirm'; text: string; actions: [MessageAction, MessageAction] };
+};
+
+type ButtonsTemplateMessage = {
+  type: 'template';
+  altText: string;
+  template: { type: 'buttons'; text: string; actions: MessageAction[] }; // 1–4
+};
+
+type OutgoingMessage = TextMessage | ConfirmTemplateMessage | ButtonsTemplateMessage;
+
 interface ReplyCapableLineClient {
-  replyMessage(replyToken: string, messages: TextMessage[]): Promise<unknown>;
-  pushMessage(userId: string, messages: TextMessage[]): Promise<unknown>;
+  replyMessage(replyToken: string, messages: OutgoingMessage[]): Promise<unknown>;
+  pushMessage(userId: string, messages: OutgoingMessage[]): Promise<unknown>;
 }
 
 interface AutoReplyArgs {
@@ -199,37 +224,62 @@ interface AutoReplyArgs {
 }
 
 // Turn the AI result into the outgoing LINE messages (notePrefix excluded —
-// deliverTextReply prepends it). The ask question is always LAST because LINE
-// ignores quickReply on any message that isn't the last one in the array.
-function buildAiMessages(result: { text: string | null; ask: AskUserLine | null }): TextMessage[] {
-  const messages: TextMessage[] = [];
+// deliverTextReply prepends it). Rendering by kind: confirm → confirm
+// template; choice with ≤4 options → buttons template; choice with 5–13 →
+// quick-reply chips (buttons template caps at 4 actions); freetext → plain
+// text. The question is always LAST — only quickReply is last-message
+// sensitive, but templates keep the same ordering for consistency.
+function buildAiMessages(result: { text: string | null; ask: AskUserLine | null }): OutgoingMessage[] {
+  const messages: OutgoingMessage[] = [];
   if (result.text) {
     messages.push({ type: 'text', text: result.text });
   }
-  if (result.ask) {
-    const question: TextMessage = { type: 'text', text: result.ask.message };
-    const labels =
-      result.ask.kind === 'choice'
-        ? result.ask.options ?? []
-        : result.ask.kind === 'confirm'
-          ? CONFIRM_LABELS
-          : [];
-    if (labels.length > 0) {
-      question.quickReply = {
-        items: labels.map((label) => ({
-          type: 'action' as const,
-          // message action: the tapped label arrives as a normal text webhook
-          // event, so the resume leg reuses the existing session chain as-is.
-          action: { type: 'message' as const, label, text: label },
-        })),
-      };
+  const ask = result.ask;
+  if (!ask) return messages;
+
+  const options = ask.options ?? [];
+  if (ask.kind === 'confirm' || (ask.kind === 'choice' && options.length <= BUTTONS_TEMPLATE_MAX_ACTIONS)) {
+    const textMax =
+      ask.kind === 'confirm' ? CONFIRM_TEMPLATE_MAX_TEXT_CHARS : BUTTONS_TEMPLATE_MAX_TEXT_CHARS;
+    if (ask.message.length > textMax) {
+      // Template text would truncate the question — deliver it in full as a
+      // plain text message first; the template carries a short stub.
+      messages.push({ type: 'text', text: ask.message });
     }
-    messages.push(question);
+    const actions = (ask.kind === 'confirm' ? CONFIRM_LABELS : options).map((raw) => {
+      const label = truncateSafe(raw, QUICK_REPLY_MAX_LABEL_CHARS);
+      return { type: 'message' as const, label, text: label };
+    });
+    const text = truncateSafe(ask.message, textMax);
+    const altText = truncateSafe(ask.message, TEMPLATE_MAX_ALT_TEXT_CHARS);
+    messages.push(
+      ask.kind === 'confirm'
+        ? {
+            type: 'template',
+            altText,
+            template: { type: 'confirm', text, actions: actions as [MessageAction, MessageAction] },
+          }
+        : { type: 'template', altText, template: { type: 'buttons', text, actions } },
+    );
+    return messages;
   }
+
+  // freetext, or choice with 5+ options.
+  const question: TextMessage = { type: 'text', text: ask.message };
+  const labels = ask.kind === 'choice' ? options : [];
+  if (labels.length > 0) {
+    question.quickReply = {
+      items: labels.map((label) => ({
+        type: 'action' as const,
+        action: { type: 'message' as const, label, text: label },
+      })),
+    };
+  }
+  messages.push(question);
   return messages;
 }
 
-async function deliverTextReply(args: AutoReplyArgs, aiMessages: TextMessage[]): Promise<'reply' | 'push'> {
+async function deliverTextReply(args: AutoReplyArgs, aiMessages: OutgoingMessage[]): Promise<'reply' | 'push'> {
   let deliveryType: 'reply' | 'push' = 'reply';
   const messages = [
     ...(args.notePrefix ? [{ type: 'text' as const, text: args.notePrefix }] : []),
@@ -256,14 +306,17 @@ async function deliverTextReply(args: AutoReplyArgs, aiMessages: TextMessage[]):
   }
 
   // One log row per AI message (an ask question is logged as plain text —
-  // the chips are ephemeral UI, the question text is the durable content).
+  // chips/buttons are ephemeral UI, the question text is the durable content;
+  // apps/web chats renders unknown message_type as an opaque placeholder, so
+  // templates stay 'text' with altText — the clamped question — as content).
   for (const message of aiMessages) {
+    const content = message.type === 'text' ? message.text : message.altText;
     await args.db
       .prepare(
         `INSERT INTO messages_log (id, friend_id, direction, message_type, content, broadcast_id, scenario_step_id, delivery_type, source, line_account_id, created_at)
          VALUES (?, ?, 'outgoing', 'text', ?, NULL, NULL, ?, 'auto_reply', ?, ?)`,
       )
-      .bind(crypto.randomUUID(), args.friendId, message.text, deliveryType, args.lineAccountId, jstNow())
+      .bind(crypto.randomUUID(), args.friendId, content, deliveryType, args.lineAccountId, jstNow())
       .run();
   }
 
