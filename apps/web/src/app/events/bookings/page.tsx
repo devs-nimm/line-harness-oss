@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Header from '@/components/layout/header'
 import { useAccount } from '@/contexts/account-context'
 import { eventsApi, type EventBookingItem, type EventDetail } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 
 const STATUS_TABS: Array<{ key: string; label: string }> = [
   { key: 'requested', label: '承認待ち' },
@@ -42,6 +43,7 @@ function BookingsInner() {
   const params = useSearchParams()
   const eventId = params.get('id')
   const { selectedAccountId, accounts } = useAccount()
+  const { t } = useI18n()
   const [event, setEvent] = useState<EventDetail | null>(null)
   const [items, setItems] = useState<EventBookingItem[]>([])
   const [tab, setTab] = useState<string>('requested')
@@ -74,14 +76,14 @@ function BookingsInner() {
   }, [refresh])
 
   if (!eventId) {
-    return <div className="p-4 text-red-700">id クエリが必要です</div>
+    return <div className="p-4 text-red-700">{t('id クエリが必要です')}</div>
   }
 
   async function decide(id: string, action: 'confirm' | 'reject') {
     if (!selectedAccountId || !eventId) return
     let reason: string | undefined
     if (action === 'reject') {
-      const r = window.prompt('拒否理由（任意・admin内部メモ。友だちには固定文面）')
+      const r = window.prompt(t('拒否理由（任意・admin内部メモ。友だちには固定文面）'))
       if (r === null) return
       reason = r || undefined
     }
@@ -98,7 +100,7 @@ function BookingsInner() {
 
   async function adminCancel(id: string) {
     if (!selectedAccountId || !eventId) return
-    if (!confirm('運営側でキャンセルしますか？友だちにLINE通知が送られます。')) return
+    if (!confirm(t('運営側でキャンセルしますか？友だちにLINE通知が送られます。'))) return
     setBusy(true)
     try {
       await eventsApi.adminCancelBooking(selectedAccountId, eventId, id)
@@ -125,21 +127,21 @@ function BookingsInner() {
 
   return (
     <>
-      <Header title={event?.name ?? 'イベント予約管理'} />
+      <Header title={event?.name ?? t('イベント予約管理')} />
       <div className="p-6 max-w-6xl mx-auto">
         <div className="mb-4 flex items-center gap-2 text-sm">
-          <Link href="/events" className="text-blue-600 hover:underline">イベント一覧</Link>
+          <Link href="/events" className="text-blue-600 hover:underline">{t('イベント一覧')}</Link>
           <span className="text-gray-400">/</span>
           <Link href={`/events/edit?id=${eventId}`} className="text-blue-600 hover:underline">
-            {event?.name ?? '編集'}
+            {event?.name ?? t('編集')}
           </Link>
           <span className="text-gray-400">/</span>
-          <span className="text-gray-700">予約管理</span>
+          <span className="text-gray-700">{t('予約管理')}</span>
         </div>
 
         <div className="mb-4">
-          <h1 className="text-2xl font-bold text-gray-900">{event?.name ?? 'イベント予約管理'}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">予約の承認・キャンセル・出欠管理</p>
+          <h1 className="text-2xl font-bold text-gray-900">{event?.name ?? t('イベント予約管理')}</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{t('予約の承認・キャンセル・出欠管理')}</p>
         </div>
 
         {error && (
@@ -150,38 +152,38 @@ function BookingsInner() {
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="flex border-b border-gray-200 overflow-x-auto">
-            {STATUS_TABS.map((t) => (
+            {STATUS_TABS.map((opt) => (
               <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
+                key={opt.key}
+                onClick={() => setTab(opt.key)}
                 className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                  tab === t.key
+                  tab === opt.key
                     ? 'border-blue-600 text-blue-600 bg-blue-50'
                     : 'border-transparent text-gray-600 hover:bg-gray-50'
                 }`}
               >
-                {t.label}
+                {t(opt.label)}
               </button>
             ))}
           </div>
 
           {loading ? (
-            <div className="p-12 text-center text-gray-500">読み込み中...</div>
+            <div className="p-12 text-center text-gray-500">{t('読み込み中...')}</div>
           ) : items.length === 0 ? (
             <div className="p-12 text-center text-gray-500 text-sm">
-              該当する予約はありません
+              {t('該当する予約はありません')}
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 text-gray-600">
                   <tr>
-                    <th className="text-left px-4 py-2 font-medium">友だち</th>
-                    <th className="text-left px-4 py-2 font-medium">経由アカ</th>
-                    <th className="text-left px-4 py-2 font-medium">予約枠</th>
-                    <th className="text-left px-4 py-2 font-medium">状態</th>
-                    <th className="text-left px-4 py-2 font-medium">受付日時</th>
-                    <th className="text-right px-4 py-2 font-medium">操作</th>
+                    <th className="text-left px-4 py-2 font-medium">{t('友だち')}</th>
+                    <th className="text-left px-4 py-2 font-medium">{t('経由アカ')}</th>
+                    <th className="text-left px-4 py-2 font-medium">{t('予約枠')}</th>
+                    <th className="text-left px-4 py-2 font-medium">{t('状態')}</th>
+                    <th className="text-left px-4 py-2 font-medium">{t('受付日時')}</th>
+                    <th className="text-right px-4 py-2 font-medium">{t('操作')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -199,7 +201,7 @@ function BookingsInner() {
                       <td className="px-4 py-3 text-gray-700">{formatJp(b.slot_starts_at)}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusBadge[b.status] ?? 'bg-gray-100'}`}>
-                          {STATUS_TABS.find((t) => t.key === b.status)?.label ?? b.status}
+                          {t(STATUS_TABS.find((opt) => opt.key === b.status)?.label ?? b.status)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs">{formatJp(b.requested_at)}</td>
@@ -211,14 +213,14 @@ function BookingsInner() {
                               disabled={busy}
                               className="px-3 py-1 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 disabled:opacity-50"
                             >
-                              承認
+                              {t('承認')}
                             </button>
                             <button
                               onClick={() => decide(b.id, 'reject')}
                               disabled={busy}
                               className="px-3 py-1 bg-gray-500 text-white rounded-lg text-xs font-medium hover:bg-gray-600 disabled:opacity-50"
                             >
-                              拒否
+                              {t('拒否')}
                             </button>
                           </div>
                         )}
@@ -229,21 +231,21 @@ function BookingsInner() {
                               disabled={busy}
                               className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
                             >
-                              参加済
+                              {t('参加済')}
                             </button>
                             <button
                               onClick={() => markStatus(b.id, 'no_show')}
                               disabled={busy}
                               className="px-3 py-1 bg-red-500 text-white rounded-lg text-xs font-medium hover:bg-red-600 disabled:opacity-50"
                             >
-                              無断
+                              {t('無断')}
                             </button>
                             <button
                               onClick={() => adminCancel(b.id)}
                               disabled={busy}
                               className="px-3 py-1 border border-gray-300 rounded-lg text-xs font-medium hover:bg-white disabled:opacity-50"
                             >
-                              キャンセル
+                              {t('キャンセル')}
                             </button>
                           </div>
                         )}
@@ -262,8 +264,9 @@ function BookingsInner() {
 }
 
 export default function EventBookingsPage() {
+  const { t } = useI18n()
   return (
-    <Suspense fallback={<div className="p-4 text-gray-500">読み込み中...</div>}>
+    <Suspense fallback={<div className="p-4 text-gray-500">{t('読み込み中...')}</div>}>
       <BookingsInner />
     </Suspense>
   )

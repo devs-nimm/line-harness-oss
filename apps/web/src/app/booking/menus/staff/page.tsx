@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Header from '@/components/layout/header'
 import { bookingApi, type BookingMenu, type BookingStaff, type StaffMenuMatrix } from '@/lib/api'
 import { useAccount } from '@/contexts/account-context'
+import { useI18n } from '@/lib/i18n'
 
 // このメニューを各スタッフが提供するか／料金所要を上書きするかの一括編集 UI。
 // staff_menus は staff_id × menu_id 主キー。スタッフごとに個別 PUT で書く。
@@ -12,6 +13,7 @@ export default function MenuStaffMatrix() {
   const sp = useSearchParams()
   const id = sp.get('menu_id') ?? ''
   const { selectedAccountId } = useAccount()
+  const { t } = useI18n()
   const [menu, setMenu] = useState<BookingMenu | null>(null)
   const [staff, setStaff] = useState<BookingStaff[]>([])
   const [rows, setRows] = useState<Record<string, StaffMenuMatrix>>({})
@@ -101,11 +103,11 @@ export default function MenuStaffMatrix() {
   return (
     <div>
       <Header
-        title="メニュー × スタッフ"
+        title={t('メニュー × スタッフ')}
         description={
           menu
-            ? `「${menu.name}」を提供するスタッフ・上書き設定`
-            : 'このメニューを提供できるスタッフ・上書き料金/所要分'
+            ? `${t('「')}${menu.name}${t('」を提供するスタッフ・上書き設定')}`
+            : t('このメニューを提供できるスタッフ・上書き料金/所要分')
         }
         action={
           <button
@@ -116,7 +118,7 @@ export default function MenuStaffMatrix() {
             className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
             style={{ backgroundColor: '#06C755' }}
           >
-            {saving ? '保存中…' : '保存'}
+            {saving ? t('保存中…') : t('保存')}
           </button>
         }
       />
@@ -128,38 +130,42 @@ export default function MenuStaffMatrix() {
       )}
       {savedAt && Date.now() - savedAt < 3000 && (
         <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-800 text-sm">
-          保存しました
+          {t('保存しました')}
         </div>
       )}
 
       {!selectedAccountId ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center text-sm text-gray-500">
-          サイドバーでアカウントを選択してください
+          {t('サイドバーでアカウントを選択してください')}
         </div>
       ) : loading ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center text-sm text-gray-500">
-          読み込み中…
+          {t('読み込み中…')}
         </div>
       ) : staff.length === 0 ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center text-sm text-gray-500">
-          先にスタッフを登録してください
+          {t('先にスタッフを登録してください')}
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           {menu && (
             <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 text-xs text-gray-600">
-              基本: {menu.duration_minutes}分 / ¥{menu.base_price.toLocaleString()}
-              {menu.buffer_after_minutes > 0 && <span className="ml-2">後バッファ {menu.buffer_after_minutes}分</span>}
+              {t('基本: ')}{menu.duration_minutes}{t('分')} / ¥{menu.base_price.toLocaleString()}
+              {menu.buffer_after_minutes > 0 && (
+                <span className="ml-2">
+                  {t('後バッファ ')}{menu.buffer_after_minutes}{t('分')}
+                </span>
+              )}
             </div>
           )}
           <div className="overflow-x-auto">
             <table className="w-full min-w-[600px]">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">スタッフ</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">提供する</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">所要分（上書き）</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">料金（上書き）</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('スタッフ')}</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">{t('提供する')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('所要分（上書き）')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('料金（上書き）')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -181,7 +187,7 @@ export default function MenuStaffMatrix() {
                           <div>
                             <div className="font-medium">{s.display_name}</div>
                             {s.is_designation_optional ? (
-                              <div className="text-xs text-purple-600">指名なし枠</div>
+                              <div className="text-xs text-purple-600">{t('指名なし枠')}</div>
                             ) : null}
                           </div>
                         </div>
@@ -207,7 +213,7 @@ export default function MenuStaffMatrix() {
                           placeholder={menu ? `${menu.duration_minutes}` : '-'}
                           className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-24 tabular-nums focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-400"
                         />
-                        <span className="ml-1 text-xs text-gray-400">分</span>
+                        <span className="ml-1 text-xs text-gray-400">{t('分')}</span>
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <span className="text-xs text-gray-400 mr-1">¥</span>

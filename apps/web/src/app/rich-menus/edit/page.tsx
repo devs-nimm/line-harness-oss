@@ -7,6 +7,7 @@ import Header from '@/components/layout/header'
 import { api } from '@/lib/api'
 import { CanvasEditor, type Area } from '@/components/rich-menus/canvas-editor'
 import { AreaProperties } from '@/components/rich-menus/area-properties'
+import { useI18n } from '@/lib/i18n'
 
 type Page = {
   id: string
@@ -38,11 +39,12 @@ const SIZE_LABEL: Record<Group['size'], string> = {
 }
 
 export default function RichMenuEditPage() {
+  const { t } = useI18n()
   return (
     <Suspense
       fallback={
         <main className="p-6 max-w-7xl mx-auto">
-          <p className="text-sm text-gray-500">読み込み中...</p>
+          <p className="text-sm text-gray-500">{t('読み込み中...')}</p>
         </main>
       }
     >
@@ -52,6 +54,7 @@ export default function RichMenuEditPage() {
 }
 
 function RichMenuEditPageInner() {
+  const { t } = useI18n()
   const searchParams = useSearchParams()
   const router = useRouter()
   const groupId = searchParams.get('id') ?? ''
@@ -59,9 +62,9 @@ function RichMenuEditPageInner() {
   if (!groupId) {
     return (
       <main className="p-6 max-w-7xl mx-auto">
-        <p className="text-sm text-red-600">id クエリパラメータが必要です</p>
+        <p className="text-sm text-red-600">{t('id クエリパラメータが必要です')}</p>
         <Link href="/rich-menus" className="text-sm text-blue-600 hover:underline mt-2 inline-block">
-          ← 一覧に戻る
+          {t('← 一覧に戻る')}
         </Link>
       </main>
     )
@@ -76,6 +79,7 @@ function Editor({
   groupId: string
   router: ReturnType<typeof useRouter>
 }) {
+  const { t } = useI18n()
   const [group, setGroup] = useState<Group | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -104,7 +108,7 @@ function Editor({
     setError(null)
     try {
       const res = await api.richMenuGroups.get(groupId)
-      if (!res.success) throw new Error(res.error ?? '取得失敗')
+      if (!res.success) throw new Error(res.error ?? t('取得失敗'))
       const g = res.data as Group
       setGroup(g)
       setName(g.name)
@@ -168,7 +172,7 @@ function Editor({
     const newPage: Page = {
       id: `tmp-${Math.random().toString(36).slice(2, 10)}`,
       orderIndex: nextOrder,
-      name: `ページ ${nextOrder + 1}`,
+      name: `${t('ページ')} ${nextOrder + 1}`,
       aliasId: '',
       lineRichmenuId: null,
       imageR2Key: null,
@@ -182,7 +186,7 @@ function Editor({
 
   function removePage(pageId: string) {
     if (pages.length <= 1) {
-      alert('最低 1 ページは必要です。')
+      alert(t('最低 1 ページは必要です。'))
       return
     }
     // 削除しようとしているページが他 page の richmenuswitch から参照されてないか確認。
@@ -198,11 +202,11 @@ function Editor({
       )
     if (referrers.length > 0) {
       alert(
-        `このページは ${referrers.map((p) => `「${p.name}」`).join(', ')} のタブ切替アクションから参照されています。先に各 area の遷移先を変更してから削除してください。`,
+        `${t('このページは')} ${referrers.map((p) => `「${p.name}」`).join(', ')} ${t('のタブ切替アクションから参照されています。先に各 area の遷移先を変更してから削除してください。')}`,
       )
       return
     }
-    if (!confirm('このページを削除しますか？')) return
+    if (!confirm(t('このページを削除しますか？'))) return
     const remaining = pages
       .filter((p) => p.id !== pageId)
       .map((p, i) => ({ ...p, orderIndex: i }))
@@ -234,7 +238,7 @@ function Editor({
         })),
       })),
     })
-    if (!res.success) throw new Error(res.error ?? '保存失敗')
+    if (!res.success) throw new Error(res.error ?? t('保存失敗'))
   }
 
   async function handleSave() {
@@ -252,18 +256,18 @@ function Editor({
 
   async function handlePublish() {
     if (!confirm(
-      'このリッチメニューを LINE 公式アカウントに登録します。\n\n' +
-        '※ この操作だけでは友だちのトーク画面にはまだ表示されません。\n' +
-        '友だちに見せるには、登録後に一覧画面の「友だちに表示」を実行してください。\n\n' +
-        '続行しますか？',
+      t('このリッチメニューを LINE 公式アカウントに登録します。\n\n') +
+        t('※ この操作だけでは友だちのトーク画面にはまだ表示されません。\n') +
+        t('友だちに見せるには、登録後に一覧画面の「友だちに表示」を実行してください。\n\n') +
+        t('続行しますか？'),
     )) return
     setPublishing(true)
     setError(null)
     try {
       await persistDraft()
       const res = await api.richMenuGroups.publish(groupId)
-      if (!res.success) throw new Error(res.error ?? 'LINE 登録失敗')
-      alert('LINE への登録が完了しました。\n\n友だちに表示するには、一覧画面の「友だちに表示」を実行してください。')
+      if (!res.success) throw new Error(res.error ?? t('LINE 登録失敗'))
+      alert(t('LINE への登録が完了しました。\n\n友だちに表示するには、一覧画面の「友だちに表示」を実行してください。'))
       await reload()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -274,21 +278,22 @@ function Editor({
 
   async function handleUnpublish() {
     if (!confirm(
-      'このリッチメニューを LINE から取り下げます。\n\n' +
-        '・LINE 公式アカウント上のメニュー登録 (alias / richmenu) をすべて削除\n' +
-        '・現在このメニューを見ている友だちのトーク画面からも消えます\n\n' +
-        '取り下げ後はもう一度「LINE に登録」すれば再公開できます。\n\n続行しますか？',
+      t('このリッチメニューを LINE から取り下げます。\n\n') +
+        t('・LINE 公式アカウント上のメニュー登録 (alias / richmenu) をすべて削除\n') +
+        t('・現在このメニューを見ている友だちのトーク画面からも消えます\n\n') +
+        t('取り下げ後はもう一度「LINE に登録」すれば再公開できます。\n\n') +
+        t('続行しますか？'),
     )) return
     setUnpublishing(true)
     setError(null)
     try {
       const res = await api.richMenuGroups.unpublish(groupId)
-      if (!res.success) throw new Error(res.error ?? '取り下げ失敗')
+      if (!res.success) throw new Error(res.error ?? t('取り下げ失敗'))
       const warnings = res.data?.warnings ?? []
       if (warnings.length > 0) {
-        alert(`取り下げ完了 (一部 warnings あり):\n\n${warnings.join('\n')}`)
+        alert(`${t('取り下げ完了 (一部 warnings あり):')}\n\n${warnings.join('\n')}`)
       } else {
-        alert('LINE 上のメニュー登録を取り下げました。')
+        alert(t('LINE 上のメニュー登録を取り下げました。'))
       }
       await reload()
     } catch (e) {
@@ -302,23 +307,23 @@ function Editor({
     if (!group) return
     if (group.status === 'published') {
       alert(
-        'このリッチメニューは LINE に登録中です。\n\n' +
-          '先に「LINE から取り下げ」を実行してから削除してください。',
+        t('このリッチメニューは LINE に登録中です。\n\n') +
+          t('先に「LINE から取り下げ」を実行してから削除してください。'),
       )
       return
     }
     // 二重確認: メニュー名を入力してもらう
     const typed = prompt(
-      `この操作は元に戻せません。\n\n削除を確定するには、リッチメニュー名「${group.name}」を入力してください。`,
+      `${t('この操作は元に戻せません。\n\n削除を確定するには、リッチメニュー名「')}${group.name}${t('」を入力してください。')}`,
     )
     if (typed === null) return
     if (typed !== group.name) {
-      alert('入力が一致しませんでした。削除をキャンセルしました。')
+      alert(t('入力が一致しませんでした。削除をキャンセルしました。'))
       return
     }
     try {
       const res = await api.richMenuGroups.delete(groupId)
-      if (!res.success) throw new Error(res.error ?? '削除失敗')
+      if (!res.success) throw new Error(res.error ?? t('削除失敗'))
       router.push('/rich-menus')
     } catch (e) {
       alert(e instanceof Error ? e.message : String(e))
@@ -327,7 +332,7 @@ function Editor({
 
   async function handleImageUpload(pageId: string, file: File) {
     if (pageId.startsWith('tmp-')) {
-      alert('まず Save Draft でページを保存してから画像を upload してください。')
+      alert(t('まず Save Draft でページを保存してから画像を upload してください。'))
       return
     }
     setBusy(true)
@@ -349,16 +354,16 @@ function Editor({
   if (loading) {
     return (
       <main className="p-6 max-w-7xl mx-auto">
-        <p className="text-sm text-gray-500">読み込み中...</p>
+        <p className="text-sm text-gray-500">{t('読み込み中...')}</p>
       </main>
     )
   }
   if (!group) {
     return (
       <main className="p-6 max-w-7xl mx-auto">
-        <p className="text-sm text-red-600">{error ?? 'リッチメニューが見つかりません'}</p>
+        <p className="text-sm text-red-600">{error ?? t('リッチメニューが見つかりません')}</p>
         <Link href="/rich-menus" className="text-sm text-blue-600 hover:underline mt-2 inline-block">
-          ← 一覧に戻る
+          {t('← 一覧に戻る')}
         </Link>
       </main>
     )
@@ -378,8 +383,8 @@ function Editor({
   return (
     <main className="p-6 max-w-7xl mx-auto">
       <Header
-        title={name || '(無名)'}
-        description={`サイズ ${SIZE_LABEL[group.size]} • ${group.status === 'published' ? 'LINE 登録済み' : '下書き'}`}
+        title={name || t('(無名)')}
+        description={`${t('サイズ')} ${SIZE_LABEL[group.size]} • ${group.status === 'published' ? t('LINE 登録済み') : t('下書き')}`}
         action={
           <div className="flex items-center gap-2">
             <label className="flex items-center gap-1.5 text-sm text-gray-600 mr-2 cursor-pointer">
@@ -388,14 +393,14 @@ function Editor({
                 checked={preview}
                 onChange={(e) => setPreview(e.target.checked)}
               />
-              プレビュー
+              {t('プレビュー')}
             </label>
             <button
               onClick={handleSave}
               disabled={saving || publishing || unpublishing || busy}
               className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
-              {saving ? '保存中...' : '下書き保存'}
+              {saving ? t('保存中...') : t('下書き保存')}
             </button>
             <button
               onClick={handlePublish}
@@ -404,10 +409,10 @@ function Editor({
               style={{ backgroundColor: '#06C755' }}
             >
               {publishing
-                ? 'LINE 登録中...'
+                ? t('LINE 登録中...')
                 : group.status === 'published'
-                  ? 'LINE に再登録'
-                  : 'LINE に登録'}
+                  ? t('LINE に再登録')
+                  : t('LINE に登録')}
             </button>
           </div>
         }
@@ -417,7 +422,7 @@ function Editor({
         href="/rich-menus"
         className="text-sm text-gray-500 hover:underline mb-4 inline-block"
       >
-        ← 一覧に戻る
+        {t('← 一覧に戻る')}
       </Link>
 
       {error && (
@@ -446,7 +451,7 @@ function Editor({
             >
               {p.name}
               {p.id.startsWith('tmp-') && (
-                <span className="ml-1 text-xs opacity-70">(未保存)</span>
+                <span className="ml-1 text-xs opacity-70">({t('未保存')})</span>
               )}
             </button>
           )
@@ -455,7 +460,7 @@ function Editor({
           onClick={addPage}
           className="px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
         >
-          + ページ追加
+          + {t('ページ追加')}
         </button>
       </div>
 
@@ -489,7 +494,7 @@ function Editor({
               }}
             />
           ) : (
-            <p className="text-sm text-gray-500">ページがありません</p>
+            <p className="text-sm text-gray-500">{t('ページがありません')}</p>
           )}
         </section>
 
@@ -497,34 +502,34 @@ function Editor({
         <aside className="space-y-5">
           {/* メニュー設定 */}
           <section className="bg-white border border-gray-200 rounded-lg shadow-sm p-5 space-y-4">
-            <h2 className="text-sm font-semibold text-gray-900">メニュー設定</h2>
+            <h2 className="text-sm font-semibold text-gray-900">{t('メニュー設定')}</h2>
             <label className="block">
-              <span className="text-xs font-medium text-gray-600">名前</span>
+              <span className="text-xs font-medium text-gray-600">{t('名前')}</span>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
-              <p className="mt-1 text-[11px] text-gray-500">管理画面でだけ使う名前 (友だちには見えない)</p>
+              <p className="mt-1 text-[11px] text-gray-500">{t('管理画面でだけ使う名前')} ({t('友だちには見えない')})</p>
             </label>
             <label className="block">
-              <span className="text-xs font-medium text-gray-600">トーク画面下の文言</span>
+              <span className="text-xs font-medium text-gray-600">{t('トーク画面下の文言')}</span>
               <input
                 value={chatBarText}
                 onChange={(e) => setChatBarText(e.target.value)}
                 maxLength={14}
                 className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
-              <p className="mt-1 text-[11px] text-gray-500">14 文字以内 (友だちのトーク画面でメニューを開く前に表示)</p>
+              <p className="mt-1 text-[11px] text-gray-500">{t('14 文字以内')} ({t('友だちのトーク画面でメニューを開く前に表示')})</p>
             </label>
           </section>
 
           {/* ページ設定 (画像 upload 含む、常時表示) */}
           {activePage && (
             <section className="bg-white border border-gray-200 rounded-lg shadow-sm p-5 space-y-4">
-              <h2 className="text-sm font-semibold text-gray-900">ページ設定</h2>
+              <h2 className="text-sm font-semibold text-gray-900">{t('ページ設定')}</h2>
               <label className="block">
-                <span className="text-xs font-medium text-gray-600">ページ名</span>
+                <span className="text-xs font-medium text-gray-600">{t('ページ名')}</span>
                 <input
                   value={activePage.name}
                   onChange={(e) =>
@@ -534,11 +539,11 @@ function Editor({
                 />
               </label>
               <div>
-                <span className="text-xs font-medium text-gray-600">画像</span>
+                <span className="text-xs font-medium text-gray-600">{t('画像')}</span>
                 {activePage.imageR2Key ? (
-                  <p className="mt-1 text-xs text-gray-700">✓ アップロード済み</p>
+                  <p className="mt-1 text-xs text-gray-700">✓ {t('アップロード済み')}</p>
                 ) : (
-                  <p className="mt-1 text-xs text-gray-400">未設定</p>
+                  <p className="mt-1 text-xs text-gray-400">{t('未設定')}</p>
                 )}
                 <input
                   ref={fileInput}
@@ -556,19 +561,19 @@ function Editor({
                   disabled={busy || activePage.id.startsWith('tmp-')}
                   className="mt-2 px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {activePage.imageR2Key ? '画像を差し替え' : '画像を選択'}
+                  {activePage.imageR2Key ? t('画像を差し替え') : t('画像を選択')}
                 </button>
                 <p className="mt-1.5 text-[11px] text-gray-500">
-                  PNG / JPEG, {SIZE_LABEL[group.size]}, 1MB 以下
+                  PNG / JPEG, {SIZE_LABEL[group.size]}, {t('1MB 以下')}
                 </p>
                 {activePage.id.startsWith('tmp-') && (
                   <p className="mt-1 text-[11px] text-amber-600">
-                    新規ページは「下書き保存」してから画像をアップロードしてください
+                    {t('新規ページは「下書き保存」してから画像をアップロードしてください')}
                   </p>
                 )}
               </div>
               <p className="text-[11px] text-gray-400 pt-3 border-t border-gray-100">
-                中央のキャンバスでドラッグして tap 領域 (areas) を追加・編集できます。
+                {t('中央のキャンバスでドラッグして tap 領域 (areas) を追加・編集できます。')}
               </p>
             </section>
           )}
@@ -591,18 +596,17 @@ function Editor({
 
       {/* ─────────── 危険な操作 (画面最下部に分離) ─────────── */}
       <section className="mt-10 bg-red-50 border border-red-200 rounded-lg shadow-sm p-5">
-        <h2 className="text-sm font-semibold text-red-700 mb-1">危険な操作</h2>
+        <h2 className="text-sm font-semibold text-red-700 mb-1">{t('危険な操作')}</h2>
         <p className="text-xs text-red-600 mb-4">
-          以下の操作は元に戻せません。誤操作を避けるため、別セクションにまとめています。
+          {t('以下の操作は元に戻せません。誤操作を避けるため、別セクションにまとめています。')}
         </p>
         <div className="space-y-3">
           {group.status === 'published' && (
             <div className="flex items-start justify-between gap-4 bg-white border border-red-200 rounded-lg p-4">
               <div className="flex-1">
-                <div className="text-sm font-medium text-gray-900">LINE から取り下げ</div>
+                <div className="text-sm font-medium text-gray-900">{t('LINE から取り下げ')}</div>
                 <div className="text-xs text-gray-600 mt-0.5">
-                  LINE 公式アカウント上のメニュー登録 (alias / richmenu / 全員のデフォルト設定) を解除します。
-                  友だちのトーク画面からメニューが消えます。下書きに戻すので、再登録すれば復旧できます。
+                  {t('LINE 公式アカウント上のメニュー登録 (alias / richmenu / 全員のデフォルト設定) を解除します。 友だちのトーク画面からメニューが消えます。下書きに戻すので、再登録すれば復旧できます。')}
                 </div>
               </div>
               <button
@@ -610,7 +614,7 @@ function Editor({
                 disabled={saving || publishing || unpublishing || busy}
                 className="shrink-0 px-3 py-2 text-sm font-medium border border-red-300 text-red-700 bg-white rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
               >
-                {unpublishing ? '取り下げ中...' : 'LINE から取り下げ'}
+                {unpublishing ? t('取り下げ中...') : t('LINE から取り下げ')}
               </button>
             </div>
           )}
@@ -618,29 +622,29 @@ function Editor({
             <div className="flex items-start justify-between gap-4 bg-white border border-red-200 rounded-lg p-4">
               <div className="flex-1">
                 <div className="text-sm font-medium text-gray-900">
-                  ページ「{activePage.name}」を削除
+                  {t('ページ「')}{activePage.name}{t('」を削除')}
                 </div>
                 <div className="text-xs text-gray-600 mt-0.5">
-                  現在表示中のページを削除します。他のページから「タブ切替」でこのページを参照している場合は事前に解除が必要です。
+                  {t('現在表示中のページを削除します。他のページから「タブ切替」でこのページを参照している場合は事前に解除が必要です。')}
                 </div>
               </div>
               <button
                 onClick={() => removePage(activePage.id)}
                 className="shrink-0 px-3 py-2 text-sm font-medium border border-red-300 text-red-700 bg-white rounded-lg hover:bg-red-50 transition-colors"
               >
-                ページ削除
+                {t('ページ削除')}
               </button>
             </div>
           )}
           <div className="flex items-start justify-between gap-4 bg-white border border-red-300 rounded-lg p-4">
             <div className="flex-1">
               <div className="text-sm font-medium text-gray-900">
-                このリッチメニュー全体を削除
+                {t('このリッチメニュー全体を削除')}
               </div>
               <div className="text-xs text-gray-600 mt-0.5">
                 {group.status === 'published'
-                  ? '⚠ 先に「LINE から取り下げ」を実行してください。LINE 上のメニューが残ったままだと友だちに表示され続けます。'
-                  : '管理画面と DB から完全に削除します。元には戻せません。'}
+                  ? t('⚠ 先に「LINE から取り下げ」を実行してください。LINE 上のメニューが残ったままだと友だちに表示され続けます。')
+                  : t('管理画面と DB から完全に削除します。元には戻せません。')}
               </div>
             </div>
             <button
@@ -648,7 +652,7 @@ function Editor({
               className="shrink-0 px-3 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
               style={{ backgroundColor: '#dc2626' }}
             >
-              削除
+              {t('削除')}
             </button>
           </div>
         </div>
