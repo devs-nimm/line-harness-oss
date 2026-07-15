@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 import type {
   EntryRoute,
   CreateEntryRouteInput,
@@ -39,6 +40,7 @@ export default function EditRouteModal({
   onClose,
   onSaved,
 }: Props) {
+  const { t } = useI18n()
   // Per-pool member account names, loaded lazily so the dropdown can show
   // "Pool 名 — アカA, アカB" instead of just the pool name.
   const [poolMembers, setPoolMembers] = useState<Record<string, string[]>>({})
@@ -84,7 +86,7 @@ export default function EditRouteModal({
       !form.runAccountFriendAddScenarios && !form.scenarioId && !form.introTemplateId
     if (nothingDelivers) {
       setWarning(
-        '上書きモードかつ起動シナリオも即時 push も未設定です。このリンクで友だち追加した人には何も届きません。続行しますか?',
+        t('上書きモードかつ起動シナリオも即時 push も未設定です。このリンクで友だち追加した人には何も届きません。続行しますか?'),
       )
       return false
     }
@@ -99,7 +101,7 @@ export default function EditRouteModal({
       : await api.entryRoutes.update(route!.id, form)
     setSubmitting(false)
     if (res.success) onSaved()
-    else setError(res.error ?? '保存に失敗しました')
+    else setError(res.error ?? t('保存に失敗しました'))
   }
 
   const onSubmit = async () => {
@@ -114,7 +116,7 @@ export default function EditRouteModal({
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg w-full max-w-lg p-6 space-y-3 max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-medium">
-          {isNew ? '新規リファラルリンク' : 'リファラルリンク編集'}
+          {isNew ? t('新規リファラルリンク') : t('リファラルリンク編集')}
         </h2>
 
         {error && (
@@ -123,37 +125,37 @@ export default function EditRouteModal({
           </div>
         )}
 
-        <Field label="名前（運用用ラベル）">
+        <Field label={t('名前（運用用ラベル）')}>
           <input
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             className="w-full border border-gray-200 rounded px-3 py-2 text-sm"
-            placeholder="例: YouTube 動画概要欄"
+            placeholder={t('例: YouTube 動画概要欄')}
           />
         </Field>
 
-        <Field label="ref_code（URL に出る識別子）">
+        <Field label={t('ref_code（URL に出る識別子）')}>
           <input
             value={form.refCode}
             onChange={(e) => setForm({ ...form, refCode: e.target.value })}
             disabled={refCodeLocked}
             className="w-full border border-gray-200 rounded px-3 py-2 text-sm font-mono disabled:bg-gray-50 disabled:text-gray-500"
-            placeholder="例: youtube"
+            placeholder={t('例: youtube')}
           />
           {refCodeLocked && (
             <p className="text-xs text-gray-500 mt-1">
-              既に流入があった ref を登録中のため、ref_code は変更できません。
+              {t('既に流入があった ref を登録中のため、ref_code は変更できません。')}
             </p>
           )}
         </Field>
 
-        <Field label="自動付与タグ（任意）">
+        <Field label={t('自動付与タグ（任意）')}>
           <select
             value={form.tagId ?? ''}
             onChange={(e) => setForm({ ...form, tagId: e.target.value || null })}
             className="w-full border border-gray-200 rounded px-3 py-2 text-sm"
           >
-            <option value="">— 設定なし —</option>
+            <option value="">{t('— 設定なし —')}</option>
             {tags.map((tag) => (
               <option key={tag.id} value={tag.id}>
                 {tag.name}
@@ -161,11 +163,11 @@ export default function EditRouteModal({
             ))}
           </select>
           <p className="text-xs text-gray-500 mt-1">
-            友だち追加時にこのタグを自動付与します。タグ未作成の場合は先にタグを作成してください。
+            {t('友だち追加時にこのタグを自動付与します。タグ未作成の場合は先にタグを作成してください。')}
           </p>
         </Field>
 
-        <Field label="送り先 Pool">
+        <Field label={t('送り先 Pool')}>
           <select
             value={form.poolId ?? ''}
             onChange={(e) => setForm({ ...form, poolId: e.target.value || null })}
@@ -175,25 +177,25 @@ export default function EditRouteModal({
               const members = poolMembers[p.id] ?? []
               const memberText =
                 members.length === 0
-                  ? '（アカウント未所属）'
+                  ? t('（アカウント未所属）')
                   : `— ${members.join(', ')}`
               return (
                 <option key={p.id} value={p.id}>
                   {p.name}
-                  {p.slug === 'main' ? '（既定）' : ''} {memberText}
+                  {p.slug === 'main' ? t('（既定）') : ''} {memberText}
                 </option>
               )
             })}
           </select>
         </Field>
 
-        <Field label="起動シナリオ（任意）">
+        <Field label={t('起動シナリオ（任意）')}>
           <select
             value={form.scenarioId ?? ''}
             onChange={(e) => setForm({ ...form, scenarioId: e.target.value || null })}
             className="w-full border border-gray-200 rounded px-3 py-2 text-sm"
           >
-            <option value="">— 設定なし —</option>
+            <option value="">{t('— 設定なし —')}</option>
             {scenarios.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -202,16 +204,16 @@ export default function EditRouteModal({
           </select>
         </Field>
 
-        <Field label="即時 push テンプレ（任意）">
+        <Field label={t('即時 push テンプレ（任意）')}>
           <select
             value={form.introTemplateId ?? ''}
             onChange={(e) => setForm({ ...form, introTemplateId: e.target.value || null })}
             className="w-full border border-gray-200 rounded px-3 py-2 text-sm"
           >
-            <option value="">— 設定なし —</option>
-            {templates.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
+            <option value="">{t('— 設定なし —')}</option>
+            {templates.map((tpl) => (
+              <option key={tpl.id} value={tpl.id}>
+                {tpl.name}
               </option>
             ))}
           </select>
@@ -231,9 +233,9 @@ export default function EditRouteModal({
             className="mt-0.5"
           />
           <span>
-            アカウント標準の友だち追加時設定も実行する（並走モード）
+            {t('アカウント標準の友だち追加時設定も実行する（並走モード）')}
             <span className="block text-xs text-gray-500 mt-0.5">
-              OFF にするとアカウント標準シナリオは抑止され、このリンクの設定だけが流れます。
+              {t('OFF にするとアカウント標準シナリオは抑止され、このリンクの設定だけが流れます。')}
             </span>
           </span>
         </label>
@@ -247,7 +249,7 @@ export default function EditRouteModal({
                 disabled={submitting}
                 className="text-xs px-2 py-1 rounded bg-yellow-600 text-white disabled:opacity-50"
               >
-                それでも保存
+                {t('それでも保存')}
               </button>
             </div>
           </div>
@@ -255,14 +257,14 @@ export default function EditRouteModal({
 
         <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
           <button onClick={onClose} className="text-sm px-3 py-1.5 text-gray-600">
-            キャンセル
+            {t('キャンセル')}
           </button>
           <button
             onClick={onSubmit}
             disabled={submitting || !form.name || !form.refCode}
             className="text-sm px-3 py-1.5 rounded bg-blue-600 text-white disabled:opacity-50"
           >
-            {submitting ? '保存中…' : isNew ? '作成' : '保存'}
+            {submitting ? t('保存中…') : isNew ? t('作成') : t('保存')}
           </button>
         </div>
       </div>
