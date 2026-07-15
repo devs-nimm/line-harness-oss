@@ -414,7 +414,7 @@ export default function WebhooksPage() {
                   onClick={() => setInForm({ ...inForm, secret: generateSecret() })}
                   className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 whitespace-nowrap"
                 >
-                  自動生成
+                  {t('自動生成')}
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-1">
@@ -485,7 +485,7 @@ export default function WebhooksPage() {
                   onClick={() => setOutForm({ ...outForm, secret: generateSecret() })}
                   className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 whitespace-nowrap"
                 >
-                  自動生成
+                  {t('自動生成')}
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-1">
