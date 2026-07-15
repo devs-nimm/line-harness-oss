@@ -801,6 +801,13 @@ export const en: Record<string, string> = {
   "拒否": "Reject",
   "無断": "No-show",
   "取消": "Cancel",
+  // Booking request status tabs + status/action labels (/booking/bookings)
+  "未承認": "Pending",
+  "確定": "Confirmed",
+  "期限切れ": "Expired",
+  "全件": "All",
+  "リクエスト": "Requested",
+  "無断キャンセル": "No-show",
   "このメニューを削除しますか？（既存予約は維持されます）": "Delete this menu? (Existing bookings are kept.)",
   "予約メニューの登録・編集": "Add and edit booking menus",
   "新規メニュー": "New menu",
