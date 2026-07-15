@@ -909,7 +909,13 @@ function BulkSlotDialog({
   onClose: () => void
   onSubmit: (input: BulkSlotInput) => Promise<void>
 }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  // Weekday abbreviations are locale-picked here rather than via t() on single
+  // chars: the bare key '日' already means "days" in the shared dict, so it
+  // can't double as Sunday. Index (0=Sun) stays the source of truth for state.
+  const weekdayLabels = locale === 'en'
+    ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    : ['日', '月', '火', '水', '木', '金', '土']
   const todayJst = new Date(jstNow().getTime() + 9 * 3600_000).toISOString().slice(0, 10)
   const [start, setStart] = useState(todayJst)
   const [end, setEnd] = useState(todayJst)
@@ -962,7 +968,7 @@ function BulkSlotDialog({
           <div>
             <span className="text-sm font-medium text-gray-700 block mb-1.5">{t('曜日')}</span>
             <div className="flex gap-1.5">
-              {['日', '月', '火', '水', '木', '金', '土'].map((d, i) => (
+              {weekdayLabels.map((d, i) => (
                 <button
                   key={i}
                   type="button"
@@ -973,7 +979,7 @@ function BulkSlotDialog({
                       : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  {t(d)}
+                  {d}
                 </button>
               ))}
             </div>
