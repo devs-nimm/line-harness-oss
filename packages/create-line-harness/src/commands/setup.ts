@@ -9,6 +9,7 @@ import { ensureAuth, getAccountId } from "../steps/auth.js";
 import { promptLineCredentials } from "../steps/prompt.js";
 import { createDatabase } from "../steps/database.js";
 import { deployWorker, syncInstalledWorkerConfig } from "../steps/deploy-worker.js";
+import { ensureWorkersDevSubdomain } from "../steps/ensure-subdomain.js";
 import { deployAdmin } from "../steps/deploy-admin.js";
 import { fetchLatestRelease, type FetchedRelease } from "../steps/release-bundle.js";
 import { pinRepoToTag } from "../steps/clone-repo.js";
@@ -611,6 +612,14 @@ async function runSetupInner(
   // locally.
   state.workerName = state.projectName!;
   if (!isDone(state, "worker")) {
+    // New accounts have no workers.dev subdomain and `wrangler deploy` dies
+    // on it non-interactively — check + register (interactively) first.
+    // Not persisted as a step: the check is one cheap GET and re-running it
+    // covers account switches on resume.
+    await ensureWorkersDevSubdomain({
+      accountId: state.accountId!,
+      defaultName: state.projectName!,
+    });
     const { workerUrl } = await deployWorker({
       repoDir,
       d1DatabaseId: state.d1DatabaseId!,
