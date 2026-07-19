@@ -170,7 +170,7 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
                 <div className="font-medium mb-1">✓ {t('完了しました')}</div>
                 <div className="text-xs">
                   {result.message ??
-                    `${result.total} 名の友だちに適用しました (${result.chunks} chunk)`}
+                    `${result.total}${t(' 名の友だちに適用しました (')}${result.chunks} chunk)`}
                 </div>
               </div>
               <div className="flex justify-end">
