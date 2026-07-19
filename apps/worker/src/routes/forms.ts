@@ -11,7 +11,8 @@ import {
   jstNow,
 } from '@line-crm/db';
 import { getFriendByLineUserId, getFriendById } from '@line-crm/db';
-import { addTagToFriend, enrollFriendInScenario } from '@line-crm/db';
+import { enrollFriendInScenario } from '@line-crm/db';
+import { attachTagAndFireSideEffects } from '../services/friend-tag-attach.js';
 import type {
   Form as DbForm,
   FormSubmission as DbFormSubmission,
@@ -447,9 +448,13 @@ forms.post('/api/forms/:id/submit', async (c) => {
         );
       }
 
-      // Add tag
+      // Add tag — guarded attach so a tag_added-triggered scenario fires on
+      // first-time submit (and never re-fires on duplicate submits).
       if (form.on_submit_tag_id) {
-        sideEffects.push(addTagToFriend(db, friendId, form.on_submit_tag_id));
+        sideEffects.push(attachTagAndFireSideEffects(db, friendId, form.on_submit_tag_id, {
+          defaultAccessToken: c.env.LINE_CHANNEL_ACCESS_TOKEN,
+          workerUrl: c.env.WORKER_URL,
+        }));
       }
 
       // Enroll in scenario

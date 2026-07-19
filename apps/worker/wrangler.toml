@@ -29,7 +29,7 @@ database_id = "YOUR_DEV_D1_DATABASE_ID"
 # S3_ACCESS_KEY / S3_SECRET_KEY are secrets set via `wrangler secret put`.
 
 [triggers]
-crons = ["*/5 * * * *", "0 */6 * * *"]
+crons = ["* * * * *", "0 */6 * * *"]
 
 # ═══════════════════════════════════════════════════════════════
 # Phase 5 self-update vars — consumed by /admin/update/*. Secrets
@@ -79,4 +79,4 @@ database_id = "YOUR_D1_DATABASE_ID"
 # S3_SECRET_KEY). Point S3_ENDPOINT at your MinIO/AWS S3 endpoint.
 
 [env.production.triggers]
-crons = ["*/5 * * * *", "0 */6 * * *"]
+crons = ["* * * * *", "0 */6 * * *"]

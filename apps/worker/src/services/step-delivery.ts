@@ -5,6 +5,7 @@ import {
   advanceFriendScenario,
   completeFriendScenario,
   claimFriendScenarioForDelivery,
+  recoverStuckDeliveries,
   getFriendById,
   jstNow,
   computeNextDeliveryAt,
@@ -104,6 +105,16 @@ export async function processStepDeliveries(
   lineClient: LineClient,
   workerUrl?: string,
 ): Promise<void> {
+  // Crash recovery: a claim (active→delivering) that never got released means
+  // the worker died mid-delivery — without this, the enrollment is stranded
+  // forever because the due query only picks up 'active' rows. Reclaim after
+  // 5 minutes (at-least-once: a crash after the LINE push but before advance
+  // re-sends that step once).
+  const recovered = await recoverStuckDeliveries(db);
+  if (recovered > 0) {
+    console.warn(`[step-delivery] recovered ${recovered} stuck 'delivering' enrollment(s)`);
+  }
+
   const now = jstNow();
   const dueFriendScenarios = await getFriendScenariosDueForDelivery(db, now);
 

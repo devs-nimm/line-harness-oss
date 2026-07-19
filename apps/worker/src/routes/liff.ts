@@ -23,6 +23,8 @@ import {
   jstNow,
 } from '@line-crm/db';
 import { buildIntroMessage } from '../services/intro-message.js';
+import { attachTagAndFireSideEffects } from '../services/friend-tag-attach.js';
+import { pushImmediateFirstStep } from '../services/immediate-first-step.js';
 import { notifyAffiliateFriendAdd } from '../services/affiliate-notifier.js';
 import { safeRedirectTarget } from '../lib/safe-redirect.js';
 import type { Env } from '../index.js';
@@ -226,160 +228,35 @@ async function applyRefAttribution(
     route?.scenario_id ?? trackedLink?.scenario_id ?? offer?.scenario_id ?? null;
 
   if (effectiveTagId) {
-    await addTagToFriend(db, friend.id, effectiveTagId);
+    // Guarded attach: fires tag_added scenario enrollment (and tag_change
+    // events) ONLY when the tag is newly applied. Re-clicks and clicks from
+    // other links carrying the same tag are no-ops, so a tag_added-triggered
+    // campaign (e.g. a seminar optin sequence) sends exactly once per friend
+    // no matter how many article links they enter through. Routes that want
+    // push-on-every-click keep using an explicit scenario_id below.
+    await attachTagAndFireSideEffects(db, friend.id, effectiveTagId, {
+      defaultAccessToken: c.env.LINE_CHANNEL_ACCESS_TOKEN,
+      workerUrl: c.env.WORKER_URL,
+      accountChannelId: options?.accountChannelId ?? null,
+    });
   }
   if (effectiveScenarioId) {
     try {
-      const {
-        enrollFriendInScenario,
-        getScenarioSteps,
-        getScenarioById,
-        advanceFriendScenario,
-        completeFriendScenario,
-        getFriendById,
-        computeNextDeliveryAt,
-        resolveStepContent,
-        addTagToFriend,
-      } = await import('@line-crm/db');
-      const { LineClient } = await import('@line-crm/line-sdk');
-      const { buildMessage, expandVariables, resolveMetadata } = await import('../services/step-delivery.js');
-      const scenarioRow = await getScenarioById(db, effectiveScenarioId);
-      if (!scenarioRow) return;
-      const steps = scenarioRow.steps;
-      const firstStep = steps[0];
-      // クリックキャンペーンの即時送信は「now 以前にスケジュールされる」場合のみ。
-      // elapsed/absolute_time の delay_minutes=0 は即時を意味しない（offset/clock-time 起点）。
-      if (!firstStep) return;
-      const enrolledAtJst = new Date(Date.now() + 9 * 60 * 60_000);
-      const firstScheduledAt = computeNextDeliveryAt(
-        { delivery_mode: scenarioRow.delivery_mode ?? 'relative' },
-        firstStep,
-        { enrolledAt: enrolledAtJst, previousDeliveredAt: enrolledAtJst, now: enrolledAtJst },
+      await pushImmediateFirstStep(
+        db,
+        friend.id,
+        effectiveScenarioId,
+        {
+          defaultAccessToken: c.env.LINE_CHANNEL_ACCESS_TOKEN,
+          workerUrl: c.env.WORKER_URL,
+          accountChannelId: options?.accountChannelId ?? null,
+        },
+        // every-click: cooldown before enrolling, push even on re-clicks,
+        // advance only fresh / behind enrollment rows (see the service).
+        // lineUserId comes from the verified id_token / OAuth exchange, so
+        // the push works even before friend.line_user_id is fully wired.
+        { mode: 'every-click', targetLineUserId: lineUserId },
       );
-      if (firstScheduledAt.getTime() > enrolledAtJst.getTime()) return;
-
-      // Cooldown FIRST, before enrolling. /api/liff/link is hit on every
-      // LIFF page load (refresh, back-nav), not only on a fresh
-      // tracked-link click. Doing cooldown after enrollment would leave
-      // a fresh active step-0 row behind for the cron worker to pick up
-      // (because the partial UNIQUE on friend_scenarios is keyed
-      // `WHERE status != 'completed'`, so completed runs don't block
-      // a new INSERT).
-      const cutoff = new Date(Date.now() - 60_000 + 9 * 60 * 60_000)
-        .toISOString()
-        .slice(0, -1) + '+09:00';
-      const recent = await db
-        .prepare(
-          `SELECT 1 FROM messages_log
-           WHERE friend_id = ? AND scenario_step_id = ?
-             AND direction = 'outgoing' AND created_at > ?
-           LIMIT 1`,
-        )
-        .bind(friend.id, firstStep.id, cutoff)
-        .first();
-      if (recent) return;
-
-      // INSERT OR IGNORE — null on re-clicks (already enrolled), still push.
-      const enrollment = await enrollFriendInScenario(db, friend.id, effectiveScenarioId);
-
-      // Resolve push token. Prefer caller-supplied account channel (OAuth
-      // context), then friend.line_account_id, then the env default.
-      let accessToken = c.env.LINE_CHANNEL_ACCESS_TOKEN;
-      if (options?.accountChannelId) {
-        const acct = await getLineAccountByChannelId(db, options.accountChannelId);
-        if (acct?.channel_access_token) accessToken = acct.channel_access_token;
-      } else if (friend.line_account_id) {
-        const acct = await getLineAccountById(db, friend.line_account_id);
-        if (acct?.channel_access_token) accessToken = acct.channel_access_token;
-      }
-      const lineClient = new LineClient(accessToken);
-
-      // Re-read the friend after caller writes (linkFriendToUser /
-      // ref_code UPDATE) so {{uid}}, {{ref}}, and merged metadata
-      // expand against the latest state.
-      const fresh = (await getFriendById(db, friend.id)) ?? friend;
-      const resolvedMeta = await resolveMetadata(db, {
-        user_id: (fresh as unknown as Record<string, string | null>).user_id,
-        metadata: (fresh as unknown as Record<string, string | null>).metadata,
-      });
-      // Resolve template_id → templates table (参照型)
-      const resolved = await resolveStepContent(db, firstStep);
-      const expanded = expandVariables(
-        resolved.messageContent,
-        { ...fresh, metadata: resolvedMeta } as Parameters<typeof expandVariables>[1],
-        c.env.WORKER_URL,
-        resolved.messageType,
-      );
-      const pushedMessage = buildMessage(resolved.messageType, expanded);
-      await lineClient.pushMessage(lineUserId, [pushedMessage]);
-
-      // Log the push so the cooldown above sees it on subsequent calls,
-      // and so /chats and analytics show the message. Derive content from the
-      // built message object (post cleanEmptyNodes / parse-failure fallback)
-      // so the dashboard mirrors LINE exactly.
-      const nowIso = new Date(Date.now() + 9 * 60 * 60_000)
-        .toISOString()
-        .slice(0, -1) + '+09:00';
-      const { messageToLogPayload } = await import('../services/step-delivery.js');
-      const liffLogPayload = messageToLogPayload(pushedMessage);
-      await db
-        .prepare(
-          `INSERT INTO messages_log (id, friend_id, direction, message_type, content, broadcast_id, scenario_step_id, source, template_id_at_send, created_at)
-           VALUES (?, ?, 'outgoing', ?, ?, NULL, ?, 'scenario', ?, ?)`,
-        )
-        .bind(
-          crypto.randomUUID(),
-          friend.id,
-          liffLogPayload.messageType,
-          liffLogPayload.content,
-          firstStep.id,
-          resolved.templateIdAtSend,
-          nowIso,
-        )
-        .run();
-
-      // Advance the enrollment so the cron delivery worker does not re-send
-      // step 1. Look up the row for this (friend, scenario) — covers both
-      // the freshly-created enrollment AND a stale row whose previous
-      // attempt failed before reaching this advancement (P2 from review).
-      // Filter out completed rows — the partial UNIQUE allows multiple
-      // historical completed rows to coexist, and we only want to repair
-      // the active one. Pick the most recently updated as a tiebreaker.
-      const enrollmentRow = enrollment ?? await db
-        .prepare(
-          `SELECT id, current_step_order FROM friend_scenarios
-           WHERE friend_id = ? AND scenario_id = ? AND status != 'completed'
-           ORDER BY updated_at DESC LIMIT 1`,
-        )
-        .bind(friend.id, effectiveScenarioId)
-        .first<{ id: string; current_step_order: number }>();
-      if (enrollmentRow && enrollmentRow.current_step_order < firstStep.step_order) {
-        const nextStep = steps[1];
-        if (nextStep) {
-          // step 2 も computeNextDeliveryAt で計算（elapsed/absolute_time で正しい時刻に）
-          const next = computeNextDeliveryAt(
-            { delivery_mode: scenarioRow.delivery_mode ?? 'relative' },
-            nextStep,
-            { enrolledAt: enrolledAtJst, previousDeliveredAt: enrolledAtJst, now: enrolledAtJst },
-          );
-          await advanceFriendScenario(
-            db,
-            enrollmentRow.id,
-            firstStep.step_order,
-            next.toISOString().slice(0, -1) + '+09:00',
-          );
-        } else {
-          await completeFriendScenario(db, enrollmentRow.id);
-        }
-        // 到達タグ付与 (advance / complete の後)
-        if (firstStep.on_reach_tag_id) {
-          try {
-            await addTagToFriend(db, friend.id, firstStep.on_reach_tag_id);
-          } catch (err) {
-            console.error(`[scenario] tag attach failed step=${firstStep.id}:`, err);
-          }
-        }
-      }
     } catch (err) {
       console.error('Ref scenario enrollment error:', err);
     }

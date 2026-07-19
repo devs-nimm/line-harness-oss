@@ -434,3 +434,45 @@ describe('expandVariables comma cleanup scope', () => {
     });
   });
 });
+
+/**
+ * Crash recovery wiring — a claim (active→delivering) whose worker died
+ * mid-delivery must be reset back to 'active' at the start of every cron
+ * run, BEFORE the due query (which only sees 'active' rows). Regression:
+ * recoverStuckDeliveries existed but was never called, stranding
+ * enrollments in 'delivering' forever.
+ */
+describe('processStepDeliveries crash recovery', () => {
+  it("resets stuck 'delivering' enrollments before querying due rows", async () => {
+    const executed: string[] = [];
+    const db = {
+      prepare: (sql: string) => {
+        const stmt = {
+          bind: () => stmt,
+          first: async () => null,
+          all: async () => {
+            executed.push(sql);
+            return { results: [] };
+          },
+          run: async () => {
+            executed.push(sql);
+            return { meta: { changes: 1 } };
+          },
+        };
+        return stmt;
+      },
+    } as unknown as D1Database;
+    const push = vi.fn(async () => ({}));
+    const client = { pushMessage: push } as unknown as LineClient;
+
+    await processStepDeliveries(db, client);
+
+    const recoveryIdx = executed.findIndex(
+      (sql) => sql.includes("SET status = 'active'") && sql.includes("status = 'delivering'"),
+    );
+    const dueQueryIdx = executed.findIndex((sql) => sql.includes('FROM friend_scenarios'));
+    expect(recoveryIdx).toBeGreaterThanOrEqual(0); // recovery ran
+    expect(dueQueryIdx).toBeGreaterThanOrEqual(0);
+    expect(recoveryIdx).toBeLessThan(dueQueryIdx); // and ran first
+  });
+});
