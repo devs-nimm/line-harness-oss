@@ -200,7 +200,7 @@ export default function FormSubmissionsPage() {
                           <span
                             key={acc.id}
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-50 border border-gray-100 text-[11px] text-gray-700"
-                            title={`${acc.name}: ${acc.count}件`}
+                            title={`${acc.name}: ${acc.count}${t('件')}`}
                           >
                             {flag && <span>{flag}</span>}
                             <span className="font-medium">{acc.name}</span>
@@ -226,7 +226,7 @@ export default function FormSubmissionsPage() {
             <div className="flex items-baseline gap-2">
               <h2 className="text-base font-semibold text-gray-900">{selectedForm.name}</h2>
               <span className="text-xs text-gray-400">
-                {subLoading ? t('読み込み中...') : `${submissions.length}件`}
+                {subLoading ? t('読み込み中...') : `${submissions.length}${t('件')}`}
               </span>
             </div>
             <button
@@ -294,7 +294,7 @@ export default function FormSubmissionsPage() {
                           </td>
                         ))}
                         {fieldKeys.length > 4 && (
-                          <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">他 {fieldKeys.length - 4} 項目</td>
+                          <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{t('他')} {fieldKeys.length - 4} {t('項目')}</td>
                         )}
                       </tr>
                     ))}
@@ -305,7 +305,7 @@ export default function FormSubmissionsPage() {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
                   <p className="text-xs text-gray-400">
-                    {(page - 1) * PAGE_SIZE + 1}〜{Math.min(page * PAGE_SIZE, submissions.length)} 件 / 全{submissions.length}件
+                    {(page - 1) * PAGE_SIZE + 1}{t('〜')}{Math.min(page * PAGE_SIZE, submissions.length)} {t('件')} / {t('全')}{submissions.length}{t('件')}
                   </p>
                   <div className="flex gap-2">
                     <button

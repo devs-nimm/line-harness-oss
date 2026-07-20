@@ -375,7 +375,7 @@ export default function InflowLinksPage() {
         <span className="text-sm text-gray-500">
           {sortedRows.length} {t('リンク')}
           {selectedAccountId && allRows.length !== sortedRows.length
-            ? `（全 ${allRows.length} 件中、選択中アカ）`
+            ? `${t('（全 ')}${allRows.length}${t(' 件中、選択中アカ）')}`
             : ''}
         </span>
         <button

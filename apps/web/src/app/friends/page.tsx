@@ -228,7 +228,7 @@ export default function FriendsPage() {
       {!loading && total > 0 && (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mt-4">
           <p className="text-sm text-gray-500">
-            {((page - 1) * PAGE_SIZE) + 1}〜{Math.min(page * PAGE_SIZE, total)} {t('件')} / {t('全')}{total.toLocaleString('ja-JP')}{t('件')}
+            {((page - 1) * PAGE_SIZE) + 1}{t('〜')}{Math.min(page * PAGE_SIZE, total)} {t('件')} / {t('全')}{total.toLocaleString('ja-JP')}{t('件')}
           </p>
           <div className="flex items-center gap-2">
             <button

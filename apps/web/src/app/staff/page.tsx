@@ -116,7 +116,7 @@ export default function StaffPage() {
   }
 
   const handleRegenerateKey = async (member: StaffMember) => {
-    if (!confirm(`${member.name} のAPIキーを再生成しますか？\n現在のキーは無効になります。`)) return
+    if (!confirm(`${member.name}${t(' のAPIキーを再生成しますか？\n現在のキーは無効になります。')}`)) return
     try {
       const res = await fetchApi<ApiResponse<{ apiKey: string }>>(`/api/staff/${member.id}/regenerate-key`, {
         method: 'POST',
@@ -132,7 +132,7 @@ export default function StaffPage() {
   }
 
   const handleDelete = async (member: StaffMember) => {
-    if (!confirm(`${member.name} を削除しますか？\nこの操作は元に戻せません。`)) return
+    if (!confirm(`${member.name}${t(' を削除しますか？\nこの操作は元に戻せません。')}`)) return
     try {
       await fetchApi<ApiResponse<null>>(`/api/staff/${member.id}`, { method: 'DELETE' })
       await loadMembers()

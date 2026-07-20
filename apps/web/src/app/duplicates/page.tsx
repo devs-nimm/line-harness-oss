@@ -122,7 +122,7 @@ export default function DuplicatesPage() {
             <StatCard
               label={t('1配信あたり浪費')}
               value={`¥${fmt.format(data.wastedPerBroadcastYen)}`}
-              hint={`¥${data.msgUnitYen}/通 換算`}
+              hint={`¥${data.msgUnitYen}${t('/通 換算')}`}
             />
           </section>
 

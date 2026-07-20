@@ -107,7 +107,7 @@ function PoolCard({
   }
   const onDelete = async () => {
     if (isMain) return
-    if (!confirm(`プール「${pool.name}」を削除しますか?`)) return
+    if (!confirm(`${t('プール「')}${pool.name}${t('」を削除しますか?')}`)) return
     const res = await api.pools.delete(pool.id)
     if (res.success) onChange()
     else alert(res.error ?? t('削除に失敗しました'))

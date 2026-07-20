@@ -81,7 +81,7 @@ export default function InboxPage() {
       }
     } catch {
       if (seq !== requestSeqRef.current) return
-      setError('取得に失敗しました')
+      setError(t('取得に失敗しました'))
     } finally {
       if (seq === requestSeqRef.current) setLoading(false)
     }

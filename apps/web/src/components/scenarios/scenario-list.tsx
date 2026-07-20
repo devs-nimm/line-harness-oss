@@ -120,7 +120,7 @@ export default function ScenarioList({ scenarios, onToggleActive, onDelete, load
                 if (
                   scenario.lineAccountId === null &&
                   !confirm(
-                    `「${scenario.name}」は全アカウント共通のシナリオです。${scenario.isActive ? '無効化' : '有効化'}するとすべてのアカウントに影響します。続行しますか?`,
+                    `「${scenario.name}」${t('は全アカウント共通のシナリオです。')}${scenario.isActive ? t('無効化') : t('有効化')}${t('するとすべてのアカウントに影響します。続行しますか?')}`,
                   )
                 ) {
                   return
@@ -136,8 +136,8 @@ export default function ScenarioList({ scenarios, onToggleActive, onDelete, load
               onClick={() => {
                 const isGlobal = scenario.lineAccountId === null
                 const message = isGlobal
-                  ? `「${scenario.name}」は全アカウント共通のシナリオです。削除するとすべてのアカウントから消えます。本当に削除しますか?`
-                  : `「${scenario.name}」を削除してもよいですか？`
+                  ? `「${scenario.name}」${t('は全アカウント共通のシナリオです。削除するとすべてのアカウントから消えます。本当に削除しますか?')}`
+                  : `${t('「')}${scenario.name}${t('」を削除してもよいですか？')}`
                 if (confirm(message)) {
                   onDelete(scenario.id)
                 }
