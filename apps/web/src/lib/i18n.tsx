@@ -883,6 +883,7 @@ export const en: Record<string, string> = {
   "紹介文": "Bio",
   "「指名なし」枠（仮想スタッフ）": "“No preference” slot (virtual staff)",
   "イベント一覧": "Events",
+  "日時未設定": "Not scheduled",
   "日時を指定したイベントを作成し、LIFF 経由で友だちに予約してもらえます": "Create date-and-time events and let friends book them via LIFF",
   "新しいイベント": "New event",
   "イベントが作成されていません": "No events created yet",

@@ -11,7 +11,7 @@ import { useI18n } from '@/lib/i18n'
 
 export default function NewRichMenuPage() {
   const router = useRouter()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { selectedAccount } = useAccount()
   const [name, setName] = useState('')
   const [chatBarText, setChatBarText] = useState('メニュー')
@@ -40,7 +40,7 @@ export default function NewRichMenuPage() {
         chatBarText: chatBarText.trim(),
         size: tmpl.size,
         pages: [
-          { name: 'ページ 1', orderIndex: 0, areas: templateToAreas(tmpl) },
+          { name: locale === 'en' ? 'Page 1' : 'ページ 1', orderIndex: 0, areas: templateToAreas(tmpl) },
         ],
       })
       if (!res.success) throw new Error(res.error ?? t('作成失敗'))
