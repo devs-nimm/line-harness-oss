@@ -49,6 +49,44 @@ function askPayload(args: unknown, opts: { narration?: string; id?: string; rawA
   });
 }
 
+function bubble(text: string) {
+  return {
+    type: 'bubble',
+    body: { type: 'box', layout: 'vertical', contents: [{ type: 'text', text }] },
+  };
+}
+
+/** Responses payload with send_line_flex function_call(s), optional narration and ask. */
+function flexPayload(
+  calls: Array<{ alt_text?: unknown; contents?: unknown } | string>,
+  opts: { narration?: string; ask?: unknown; id?: string } = {},
+) {
+  const output: unknown[] = [];
+  if (opts.narration) {
+    output.push({ type: 'message', content: [{ type: 'output_text', text: opts.narration }] });
+  }
+  for (const [i, call] of calls.entries()) {
+    output.push({
+      type: 'function_call',
+      name: 'send_line_flex',
+      call_id: `chatcmpl-flex-${i}`,
+      arguments: typeof call === 'string' ? call : JSON.stringify(call),
+    });
+  }
+  if (opts.ask) {
+    output.push({
+      type: 'function_call',
+      name: 'ask_user_line',
+      call_id: 'chatcmpl-tool-1',
+      arguments: JSON.stringify(opts.ask),
+    });
+  }
+  return new Response(JSON.stringify({ id: opts.id ?? 'resp_flex', output }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
 function messageChip(label: string) {
   return { type: 'action', action: { type: 'message', label, text: label } };
 }
@@ -106,6 +144,7 @@ describe('generateOpenAIReply', () => {
     await expect(generateOpenAIReply(SETTINGS, 'hello', null)).resolves.toEqual({
       text: 'Hello from OpenAI',
       ask: null,
+      flex: [],
       responseId: 'resp_abc',
     });
     expect(fetchSpy).toHaveBeenCalledWith(
@@ -148,6 +187,7 @@ describe('generateOpenAIReply', () => {
     await expect(generateOpenAIReply(SETTINGS, 'hello', null)).resolves.toEqual({
       text: 'Hello world',
       ask: null,
+      flex: [],
       responseId: 'resp_1',
     });
   });
@@ -174,6 +214,7 @@ describe('generateOpenAIReply', () => {
     await expect(generateOpenAIReply(SETTINGS, 'deploy it', null)).resolves.toEqual({
       text: 'One quick question.',
       ask: { message: 'Which branch?', kind: 'choice', options: ['main', 'develop'] },
+      flex: [],
       responseId: 'resp_q',
     });
   });
@@ -225,6 +266,7 @@ describe('generateOpenAIReply', () => {
     await expect(generateOpenAIReply(SETTINGS, 'hi', null)).resolves.toEqual({
       text: 'Working on it.',
       ask: null,
+      flex: [],
       responseId: 'resp_ask',
     });
   });
@@ -473,7 +515,7 @@ describe('maybeSendOpenAIAutoReply', () => {
     // Logged as plain text with the question as durable content.
     const logs = runs.filter((r) => r.sql.includes('messages_log'));
     expect(logs).toHaveLength(1);
-    expect(logs[0].sql).toContain("'text'");
+    expect(logs[0].params).toContain('text');
     expect(logs[0].params).toContain('Proceed?');
   });
 
@@ -635,5 +677,109 @@ describe('maybeSendOpenAIAutoReply', () => {
     const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
     expect(body.input).toBe('develop');
     expect(body.previous_response_id).toBe('resp_ask');
+  });
+
+  test('flex bubble is delivered as a flex message and logged with the raw container JSON', async () => {
+    openAISettingsMocks.getEffectiveOpenAISettings.mockResolvedValue(SETTINGS);
+    const contents = bubble('Order #123');
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      flexPayload([{ alt_text: 'Order summary', contents }]),
+    );
+    const { db, runs } = makeDb(null);
+    const args = baseArgs(db);
+
+    await expect(maybeSendOpenAIAutoReply(args)).resolves.toEqual({
+      matched: true,
+      replyTokenConsumed: true,
+    });
+    expect(args.lineClient.replyMessage).toHaveBeenCalledWith('reply-token', [
+      { type: 'flex', altText: 'Order summary', contents },
+    ]);
+    const logs = runs.filter((r) => r.sql.includes('messages_log'));
+    expect(logs).toHaveLength(1);
+    expect(logs[0].params).toContain('flex');
+    expect(logs[0].params).toContain(JSON.stringify(contents));
+  });
+
+  test('narration + flex carousel + ask send in order: text, flex, question last', async () => {
+    openAISettingsMocks.getEffectiveOpenAISettings.mockResolvedValue(SETTINGS);
+    const carousel = { type: 'carousel', contents: [bubble('Plan A'), bubble('Plan B')] };
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      flexPayload([{ alt_text: 'Plans', contents: carousel }], {
+        narration: 'Here are your options.',
+        ask: { message: 'Which plan?', kind: 'choice', options: ['A', 'B'] },
+      }),
+    );
+    const { db } = makeDb(null);
+    const args = baseArgs(db);
+
+    await maybeSendOpenAIAutoReply(args);
+
+    const messages = (args.lineClient.replyMessage as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    expect(messages.map((m: { type: string }) => m.type)).toEqual(['text', 'flex', 'template']);
+    expect(messages[1].contents).toEqual(carousel);
+  });
+
+  test('carousel over 12 bubbles is clamped to 12; invalid flex calls are skipped', async () => {
+    openAISettingsMocks.getEffectiveOpenAISettings.mockResolvedValue(SETTINGS);
+    const bubbles = Array.from({ length: 15 }, (_, i) => bubble(`Item ${i}`));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      flexPayload([
+        '{not json',
+        { alt_text: 'Bad', contents: { type: 'video' } },
+        { alt_text: 'Catalog', contents: { type: 'carousel', contents: bubbles } },
+      ]),
+    );
+    const { db } = makeDb(null);
+    const args = baseArgs(db);
+
+    await maybeSendOpenAIAutoReply(args);
+
+    const messages = (args.lineClient.replyMessage as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    expect(messages).toHaveLength(1);
+    expect(messages[0].type).toBe('flex');
+    expect(messages[0].contents.contents).toHaveLength(12);
+  });
+
+  test('missing alt_text falls back to the first text found inside the flex contents', async () => {
+    openAISettingsMocks.getEffectiveOpenAISettings.mockResolvedValue(SETTINGS);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      flexPayload([{ contents: bubble('Fallback title') }]),
+    );
+    const { db } = makeDb(null);
+    const args = baseArgs(db);
+
+    await maybeSendOpenAIAutoReply(args);
+
+    const messages = (args.lineClient.replyMessage as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    expect(messages[0].altText).toBe('Fallback title');
+  });
+
+  test('excess flex is dropped to fit the per-send cap; the ask stays last', async () => {
+    openAISettingsMocks.getEffectiveOpenAISettings.mockResolvedValue(SETTINGS);
+    const calls = Array.from({ length: 5 }, (_, i) => ({
+      alt_text: `Card ${i}`,
+      contents: bubble(`Card ${i}`),
+    }));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      flexPayload(calls, {
+        narration: 'Here you go.',
+        ask: { message: 'More?', kind: 'confirm' },
+      }),
+    );
+    const { db } = makeDb(null);
+    const args = baseArgs(db);
+
+    await maybeSendOpenAIAutoReply(args);
+
+    // Cap is 4 AI messages: text + 2 flex + confirm template (3 flex dropped).
+    const messages = (args.lineClient.replyMessage as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    expect(messages.map((m: { type: string }) => m.type)).toEqual([
+      'text',
+      'flex',
+      'flex',
+      'template',
+    ]);
+    expect(messages[3].template.type).toBe('confirm');
   });
 });

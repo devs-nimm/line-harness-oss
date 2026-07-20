@@ -1,5 +1,6 @@
 import { jstNow } from '@line-crm/db';
-import type { TextMessage } from '@line-crm/line-sdk';
+import type { FlexContainer, FlexMessage, TextMessage } from '@line-crm/line-sdk';
+import { extractFlexAltText } from '../utils/flex-alt-text.js';
 import {
   getEffectiveOpenAISettings,
   type EffectiveOpenAISettings,
@@ -23,6 +24,14 @@ const TEMPLATE_MAX_ALT_TEXT_CHARS = 400;
 const BUTTONS_TEMPLATE_MAX_ACTIONS = 4;
 // v1: hardcoded confirm labels (localize later via settings if needed).
 const CONFIRM_LABELS = ['Yes', 'No'];
+// LINE Flex hard limits: altText 400 chars, carousel max 12 bubbles, flex
+// container JSON max 50KB.
+const FLEX_MAX_ALT_TEXT_CHARS = 400;
+const FLEX_CAROUSEL_MAX_BUBBLES = 12;
+const FLEX_MAX_JSON_BYTES = 50 * 1024;
+// LINE allows at most 5 messages per reply/push; keep 1 slot free for the
+// notePrefix deliverTextReply may prepend.
+const MAX_AI_MESSAGES_PER_SEND = 4;
 
 // Responses API session settings: the provider keeps conversation state
 // server-side; we only chain response ids. After AI_SESSION_MAX_TURNS user
@@ -132,11 +141,55 @@ function extractAskUserLine(payload: ResponsesApiResponse): AskUserLine | null {
   return null;
 }
 
+// Parse + re-validate one send_line_flex arguments string (same trust boundary
+// as parseAsk — the plugin validates, we clamp again server-side).
+function parseFlex(rawArguments: unknown): FlexMessage | null {
+  if (typeof rawArguments !== 'string') return null;
+  let args: unknown;
+  try {
+    args = JSON.parse(rawArguments);
+  } catch {
+    return null;
+  }
+  if (typeof args !== 'object' || args === null) return null;
+  const { alt_text: altRaw, contents } = args as Record<string, unknown>;
+  if (typeof contents !== 'object' || contents === null) return null;
+
+  const container = contents as { type?: unknown; contents?: unknown };
+  if (container.type === 'carousel') {
+    if (!Array.isArray(container.contents) || container.contents.length === 0) return null;
+    // Clamp rather than drop: deliver the first 12 bubbles.
+    container.contents = container.contents.slice(0, FLEX_CAROUSEL_MAX_BUBBLES);
+  } else if (container.type !== 'bubble') {
+    return null;
+  }
+  if (JSON.stringify(contents).length > FLEX_MAX_JSON_BYTES) return null;
+
+  const altSource =
+    typeof altRaw === 'string' && altRaw.trim() !== '' ? altRaw : extractFlexAltText(contents);
+  const altText = truncateSafe(altSource, FLEX_MAX_ALT_TEXT_CHARS);
+  if (altText === '') return null;
+  return { type: 'flex', altText, contents: contents as FlexContainer };
+}
+
+// Collect every valid send_line_flex function_call, in call order. Unlike the
+// ask (one question per turn), each flex call is its own outgoing message.
+function extractFlexMessages(payload: ResponsesApiResponse): FlexMessage[] {
+  if (!Array.isArray(payload.output)) return [];
+  const flex: FlexMessage[] = [];
+  for (const item of payload.output) {
+    if (item?.type !== 'function_call' || item.name !== 'send_line_flex') continue;
+    const parsed = parseFlex(item.arguments);
+    if (parsed) flex.push(parsed);
+  }
+  return flex;
+}
+
 export async function generateOpenAIReply(
   settings: Pick<EffectiveOpenAISettings, 'baseUrl' | 'apiKey' | 'model'>,
   incomingText: string,
   previousResponseId: string | null,
-): Promise<{ text: string | null; ask: AskUserLine | null; responseId: string | null } | null> {
+): Promise<{ text: string | null; ask: AskUserLine | null; flex: FlexMessage[]; responseId: string | null } | null> {
   if (!settings.baseUrl || !settings.model) return null;
 
   const headers: Record<string, string> = {
@@ -176,10 +229,12 @@ export async function generateOpenAIReply(
   // a short "waiting for your reply" message alongside the ask_user_line call).
   const text = extractOutputText(payload);
   const ask = extractAskUserLine(payload);
-  if (!text && !ask) return null;
+  const flex = extractFlexMessages(payload);
+  if (!text && !ask && flex.length === 0) return null;
   return {
     text: text ? text.slice(0, MAX_OUTPUT_CHARS) : null,
     ask,
+    flex,
     responseId: typeof payload.id === 'string' && payload.id !== '' ? payload.id : null,
   };
 }
@@ -200,7 +255,7 @@ type ButtonsTemplateMessage = {
   template: { type: 'buttons'; text: string; actions: MessageAction[] }; // 1–4
 };
 
-type OutgoingMessage = TextMessage | ConfirmTemplateMessage | ButtonsTemplateMessage;
+type OutgoingMessage = TextMessage | ConfirmTemplateMessage | ButtonsTemplateMessage | FlexMessage;
 
 interface ReplyCapableLineClient {
   replyMessage(replyToken: string, messages: OutgoingMessage[]): Promise<unknown>;
@@ -223,20 +278,13 @@ interface AutoReplyArgs {
   notePrefix?: string | null;
 }
 
-// Turn the AI result into the outgoing LINE messages (notePrefix excluded —
-// deliverTextReply prepends it). Rendering by kind: confirm → confirm
-// template; choice with ≤4 options → buttons template; choice with 5–13 →
-// quick-reply chips (buttons template caps at 4 actions); freetext → plain
-// text. The question is always LAST — only quickReply is last-message
-// sensitive, but templates keep the same ordering for consistency.
-function buildAiMessages(result: { text: string | null; ask: AskUserLine | null }): OutgoingMessage[] {
+// Render the ask by kind: confirm → confirm template; choice with ≤4 options
+// → buttons template; choice with 5–13 → quick-reply chips (buttons template
+// caps at 4 actions); freetext → plain text. The question is always LAST —
+// only quickReply is last-message sensitive, but templates keep the same
+// ordering for consistency.
+function buildAskMessages(ask: AskUserLine): OutgoingMessage[] {
   const messages: OutgoingMessage[] = [];
-  if (result.text) {
-    messages.push({ type: 'text', text: result.text });
-  }
-  const ask = result.ask;
-  if (!ask) return messages;
-
   const options = ask.options ?? [];
   if (ask.kind === 'confirm' || (ask.kind === 'choice' && options.length <= BUTTONS_TEMPLATE_MAX_ACTIONS)) {
     const textMax =
@@ -279,6 +327,23 @@ function buildAiMessages(result: { text: string | null; ask: AskUserLine | null 
   return messages;
 }
 
+function buildAiMessages(result: {
+  text: string | null;
+  ask: AskUserLine | null;
+  flex: FlexMessage[];
+}): OutgoingMessage[] {
+  const messages: OutgoingMessage[] = [];
+  if (result.text) {
+    messages.push({ type: 'text', text: result.text });
+  }
+  const askMessages = result.ask ? buildAskMessages(result.ask) : [];
+  // Flex cards sit between narration and the ask. Clamp flex (not the ask) to
+  // LINE's per-send message cap — the question must stay present and LAST.
+  const room = MAX_AI_MESSAGES_PER_SEND - messages.length - askMessages.length;
+  messages.push(...result.flex.slice(0, Math.max(0, room)), ...askMessages);
+  return messages;
+}
+
 async function deliverTextReply(args: AutoReplyArgs, aiMessages: OutgoingMessage[]): Promise<'reply' | 'push'> {
   let deliveryType: 'reply' | 'push' = 'reply';
   const messages = [
@@ -309,14 +374,30 @@ async function deliverTextReply(args: AutoReplyArgs, aiMessages: OutgoingMessage
   // chips/buttons are ephemeral UI, the question text is the durable content;
   // apps/web chats renders unknown message_type as an opaque placeholder, so
   // templates stay 'text' with altText — the clamped question — as content).
+  // Flex is logged as message_type 'flex' with the raw container JSON, same as
+  // manual flex sends from chats.ts.
   for (const message of aiMessages) {
-    const content = message.type === 'text' ? message.text : message.altText;
+    const isFlex = message.type === 'flex';
+    const content =
+      message.type === 'text'
+        ? message.text
+        : isFlex
+          ? JSON.stringify(message.contents)
+          : message.altText;
     await args.db
       .prepare(
         `INSERT INTO messages_log (id, friend_id, direction, message_type, content, broadcast_id, scenario_step_id, delivery_type, source, line_account_id, created_at)
-         VALUES (?, ?, 'outgoing', 'text', ?, NULL, NULL, ?, 'auto_reply', ?, ?)`,
+         VALUES (?, ?, 'outgoing', ?, ?, NULL, NULL, ?, 'auto_reply', ?, ?)`,
       )
-      .bind(crypto.randomUUID(), args.friendId, content, deliveryType, args.lineAccountId, jstNow())
+      .bind(
+        crypto.randomUUID(),
+        args.friendId,
+        isFlex ? 'flex' : 'text',
+        content,
+        deliveryType,
+        args.lineAccountId,
+        jstNow(),
+      )
       .run();
   }
 
