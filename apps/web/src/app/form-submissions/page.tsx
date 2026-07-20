@@ -226,7 +226,7 @@ export default function FormSubmissionsPage() {
             <div className="flex items-baseline gap-2">
               <h2 className="text-base font-semibold text-gray-900">{selectedForm.name}</h2>
               <span className="text-xs text-gray-400">
-                {subLoading ? t('読み込み中...') : `${submissions.length}件`}
+                {subLoading ? t('読み込み中...') : `${submissions.length}${t('件')}`}
               </span>
             </div>
             <button
