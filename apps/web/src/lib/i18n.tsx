@@ -1555,29 +1555,27 @@ export const en: Record<string, string> = {
   "オートメーション効果分析": "Automation effectiveness analysis",
   "現在のオートメーションルールの効果を分析してください。\n1. 各ルールの発火回数と成功率を確認\n2. イベントタイプ別の自動化カバレッジを評価\n3. 効果の低いルールの改善提案と新規ルールの推奨\n結果をレポートしてください。": "Please analyze the effectiveness of the current automation rules.\n1. Check the trigger count and success rate of each rule\n2. Evaluate automation coverage by event type\n3. Suggest improvements for low-performing rules and recommend new rules\nPlease report the results.",
 
-  // --- Remaining i18n gaps found during a follow-up audit: raw JP template
-  // literals in confirm()/alert() dialogs and a few standalone particles that
-  // never reached t() (English users would silently see Japanese here). ---
-  "」は LINE に登録されています。\n\n": "” is registered on LINE.\n\n",
-  "」を削除します。元には戻せません。": "” will be deleted. This cannot be undone.",
-  "LINE 上のリッチメニュー「": "This deletes the rich menu “",
-  "」(richMenuId: ": "” (richMenuId: ",
-  "...) を削除します。\n\n": "...) from LINE.\n\n",
-  "」を管理画面に取り込みます。\n\n": "”: import it into the admin panel?\n\n",
-  "は全アカウント共通のシナリオです。": " is a scenario shared across all accounts. ",
-  "は全アカウント共通のシナリオです。削除するとすべてのアカウントから消えます。本当に削除しますか?": " is a scenario shared across all accounts. Deleting it removes it from every account. Are you sure you want to delete it?",
-  "」を削除してもよいですか？": "”: delete it?",
-  "プール「": "Delete pool “",
-  "」を削除しますか?": "”?",
-  " のAPIキーを再生成しますか？\n現在のキーは無効になります。": " — regenerate API key? The current key will be invalidated.",
-  " を削除しますか？\nこの操作は元に戻せません。": " — delete? This action cannot be undone.",
-  "/通 換算": "/message (est.)",
+  // --- Remaining gaps found in an admin-page translation-coverage audit ---
+  "日時未設定": "Date/time not set",
+  "/通 換算": " per message",
   "他": "+",
   "項目": "more fields",
-  "〜": "–",
-  "（全 ": " (of ",
-  " 件中、選択中アカ）": " total, selected account)",
-  "日時未設定": "No date set",
+  "（全 ": "(out of ",
+  " 件中、選択中アカ）": " total, filtered to the selected account)",
+  "プール「": "Delete the pool “",
+  "」を削除しますか?": "”?",
+  "」は LINE に登録されています。": "” is registered on LINE.",
+  "」を削除します。元には戻せません。": "” will be deleted. This cannot be undone.",
+  "LINE 上のリッチメニュー「": "The rich menu “",
+  "」(richMenuId: ": "” (richMenuId: ",
+  "...) を削除します。": "...) will be deleted.",
+  "」を管理画面に取り込みます。": "” will be imported into the admin panel.",
+  " のAPIキーを再生成しますか？\n現在のキーは無効になります。": " — regenerate this API key?\nThe current key will be invalidated.",
+  " を削除しますか？\nこの操作は元に戻せません。": " — delete this staff member?\nThis action cannot be undone.",
+  " 名の友だちに適用しました (": " friends have had it applied (",
+  "は全アカウント共通のシナリオです。": " is a scenario shared across all accounts. ",
+  "は全アカウント共通のシナリオです。削除するとすべてのアカウントから消えます。本当に削除しますか?": " is a scenario shared across all accounts. Deleting it removes it from every account. Are you sure you want to delete it?",
+  "を削除してもよいですか？": " — delete this scenario?",
 }
 
 interface I18nValue {

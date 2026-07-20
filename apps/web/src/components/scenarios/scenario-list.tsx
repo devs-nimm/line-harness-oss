@@ -137,7 +137,7 @@ export default function ScenarioList({ scenarios, onToggleActive, onDelete, load
                 const isGlobal = scenario.lineAccountId === null
                 const message = isGlobal
                   ? `「${scenario.name}」${t('は全アカウント共通のシナリオです。削除するとすべてのアカウントから消えます。本当に削除しますか?')}`
-                  : `${t('「')}${scenario.name}${t('」を削除してもよいですか？')}`
+                  : `「${scenario.name}」${t('を削除してもよいですか？')}`
                 if (confirm(message)) {
                   onDelete(scenario.id)
                 }

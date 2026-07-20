@@ -108,7 +108,7 @@ export default function RichMenusListPage() {
   async function handleDelete(group: RichMenuGroupListItem) {
     if (group.status === 'published') {
       alert(
-        `${t('「')}${group.name}${t('」は LINE に登録されています。\n\n')}` +
+        `${t('「')}${group.name}${t('」は LINE に登録されています。')}\n\n` +
           t('編集画面の「危険な操作」から「LINE から取り下げ」を実行してから、改めて削除してください。'),
       )
       return
@@ -127,7 +127,7 @@ export default function RichMenusListPage() {
     if (!selectedAccount?.id) return
     if (
       !confirm(
-        `${t('LINE 上のリッチメニュー「')}${menu.name}${t('」(richMenuId: ')}${menu.richMenuId.slice(0, 14)}${t('...) を削除します。\n\n')}` +
+        `${t('LINE 上のリッチメニュー「')}${menu.name}${t('」(richMenuId: ')}${menu.richMenuId.slice(0, 14)}${t('...) を削除します。')}\n\n` +
           t('この管理画面外で作成されたメニューを LINE 公式アカウントから消します。元に戻せません。') +
           '\n\n' +
           t('続行しますか？'),
@@ -147,7 +147,7 @@ export default function RichMenusListPage() {
     if (!selectedAccount?.id) return
     if (
       !confirm(
-        `${t('「')}${menu.name}${t('」を管理画面に取り込みます。\n\n')}` +
+        `${t('「')}${menu.name}${t('」を管理画面に取り込みます。')}\n\n` +
           t('取り込み後は「管理画面で作成・編集するメニュー」セクションに表示され、編集や友だちへの再適用が可能になります。') +
           '\n\n' +
           t('続行しますか？'),
