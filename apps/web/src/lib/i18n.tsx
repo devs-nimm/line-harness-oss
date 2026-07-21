@@ -1575,6 +1575,15 @@ export const en: Record<string, string> = {
   "は全アカウント共通のシナリオです。": " is a scenario shared across all accounts. ",
   "は全アカウント共通のシナリオです。削除するとすべてのアカウントから消えます。本当に削除しますか?": " is a scenario shared across all accounts. Deleting it removes it from every account. Are you sure you want to delete it?",
   "を削除してもよいですか？": " — delete this scenario?",
+
+  // --- friend-table.tsx English coverage gap ---
+  "アイコン / 表示名": "Icon / Display name",
+  "タグ / 流入": "Tags / Inflow",
+  "登録日": "Registered",
+  "フォロー中": "Following",
+  "ブロック/退会": "Blocked/Unfollowed",
+  "流入元 Instagram": "Inflow source: Instagram",
+  "経由": "via",
 }
 
 interface I18nValue {
