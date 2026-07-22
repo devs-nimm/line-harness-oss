@@ -455,7 +455,10 @@ booking.post('/api/liff/booking/requests', async (c) => {
   if (menuRow.auto_tag_id) {
     const tagId = menuRow.auto_tag_id;
     c.executionCtx.waitUntil(
-      attachTagAndFireSideEffects(c.env.DB, friendId, tagId)
+      attachTagAndFireSideEffects(c.env.DB, friendId, tagId, {
+        defaultAccessToken: c.env.LINE_CHANNEL_ACCESS_TOKEN,
+        workerUrl: c.env.WORKER_URL,
+      })
         .then(() => undefined)
         .catch((err) => console.error('booking auto-tag failed:', err)),
     );

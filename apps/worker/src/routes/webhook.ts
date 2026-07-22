@@ -8,15 +8,9 @@ import {
   getFriendByLineUserId,
   getScenarios,
   enrollFriendInScenario,
-  getScenarioSteps,
-  advanceFriendScenario,
-  completeFriendScenario,
   upsertChatOnMessage,
   getLineAccounts,
   jstNow,
-  computeNextDeliveryAt,
-  resolveStepContent,
-  addTagToFriend,
   getEntryRouteByRefCode,
   getMessageTemplateById,
 } from '@line-crm/db';
@@ -24,6 +18,7 @@ import type { EntryRoute, Friend } from '@line-crm/db';
 import { fireEvent } from '../services/event-bus.js';
 import { maybeSendOpenAIAutoReply } from '../services/openai-auto-reply.js';
 import { buildMessage, expandVariables } from '../services/step-delivery.js';
+import { pushImmediateFirstStep } from '../services/immediate-first-step.js';
 import type { Env } from '../index.js';
 import { getImageStore, type ImageStore } from '../lib/storage.js';
 
@@ -259,77 +254,27 @@ async function handleEvent(
           const friendScenario = await enrollFriendInScenario(db, friend.id, scenario.id);
           if (!friendScenario) continue; // already enrolled
 
-            // Immediate delivery: scenario.delivery_mode を踏まえて step1 が「now 以前」に
-            // スケジュールされる場合のみ replyMessage で即時送信する。
-            // - relative + delay_minutes=0 → 即時
-            // - elapsed + offset_days=0 + offset_minutes=0 → 即時
-            // - absolute_time で過去時刻 → computeNextDeliveryAt が now に clamp するので即時
-            const steps = await getScenarioSteps(db, scenario.id);
-            const firstStep = steps[0];
-            const deliveryMode = scenario.delivery_mode ?? 'relative';
-            const enrolledAtJst = new Date(Date.now() + 9 * 60 * 60_000);
-            const firstScheduledAt = firstStep
-              ? computeNextDeliveryAt(
-                  { delivery_mode: deliveryMode },
-                  firstStep,
-                  { enrolledAt: enrolledAtJst, previousDeliveredAt: enrolledAtJst, now: enrolledAtJst },
-                )
-              : null;
-            const shouldSendImmediately =
-              firstStep &&
-              firstScheduledAt !== null &&
-              firstScheduledAt.getTime() <= enrolledAtJst.getTime() &&
-              friendScenario.status === 'active';
-            if (firstStep && shouldSendImmediately) {
-              try {
-                // Resolve template_id → templates table (参照型)
-                const resolved = await resolveStepContent(db, firstStep);
-                const { resolveMetadata } = await import('../services/step-delivery.js');
-                const resolvedMeta = await resolveMetadata(db, { user_id: (friend as unknown as Record<string, string | null>).user_id, metadata: (friend as unknown as Record<string, string | null>).metadata });
-                const expandedContent = expandVariables(resolved.messageContent, { ...friend, metadata: resolvedMeta } as Parameters<typeof expandVariables>[1], undefined, resolved.messageType);
-                const message = buildMessage(resolved.messageType, expandedContent);
-                await lineClient.replyMessage(event.replyToken, [message]);
-                console.log(`Immediate delivery: sent step ${firstStep.id} to ${userId}`);
-
-                // Log what was actually delivered (post buildMessage normalization)
-                // so the dashboard chat view mirrors LINE 1:1.
-                const logId = crypto.randomUUID();
-                const { messageToLogPayload: logPayload1 } = await import('../services/step-delivery.js');
-                const wbScenarioPayload = logPayload1(message);
-                await db
-                  .prepare(
-                    `INSERT INTO messages_log (id, friend_id, direction, message_type, content, broadcast_id, scenario_step_id, delivery_type, source, template_id_at_send, created_at)
-                     VALUES (?, ?, 'outgoing', ?, ?, NULL, ?, 'reply', 'scenario', ?, ?)`,
-                  )
-                  .bind(logId, friend.id, wbScenarioPayload.messageType, wbScenarioPayload.content, firstStep.id, resolved.templateIdAtSend, jstNow())
-                  .run();
-
-                // Advance or complete the friend_scenario — step 2 のスケジュールも
-                // computeNextDeliveryAt で計算する（elapsed/absolute_time で正しく動かすため）
-                const secondStep = steps[1] ?? null;
-                if (secondStep) {
-                  const nextDeliveryDate = computeNextDeliveryAt(
-                    { delivery_mode: deliveryMode },
-                    secondStep,
-                    { enrolledAt: enrolledAtJst, previousDeliveredAt: enrolledAtJst, now: enrolledAtJst },
-                  );
-                  await advanceFriendScenario(db, friendScenario.id, firstStep.step_order, nextDeliveryDate.toISOString().slice(0, -1) + '+09:00');
-                } else {
-                  await completeFriendScenario(db, friendScenario.id);
-                }
-
-                // 到達タグ付与 (advance / complete の後)
-                if (firstStep.on_reach_tag_id) {
-                  try {
-                    await addTagToFriend(db, friend.id, firstStep.on_reach_tag_id);
-                  } catch (err) {
-                    console.error(`[scenario] tag attach failed step=${firstStep.id}:`, err);
-                  }
-                }
-              } catch (err) {
-                console.error('Failed immediate delivery for scenario', scenario.id, err);
-              }
-            }
+          // Immediate delivery: step1 が「now 以前」にスケジュールされる場合のみ
+          // replyMessage で即時送信する (reply token は無料・push 枠を消費しない)。
+          // - relative + delay_minutes=0 → 即時
+          // - elapsed + offset_days=0 + offset_minutes=0 → 即時
+          // - absolute_time で過去時刻 → computeNextDeliveryAt が now に clamp するので即時
+          // reply 失敗時 (2つ目のシナリオで token 消費済み等) は claim が解放され
+          // cron が push で配信する。
+          // skipCooldown: 60秒以内の再フォロー (前の enrollment が completed 済み)
+          // でも必ず welcome を返す — 旧 webhook 実装のセマンティクスを維持。
+          const sent = await pushImmediateFirstStep(
+            db,
+            friend.id,
+            scenario.id,
+            { defaultAccessToken: lineAccessToken, workerUrl },
+            {
+              enrollment: friendScenario,
+              reply: { client: lineClient, replyToken: event.replyToken },
+              skipCooldown: true,
+            },
+          );
+          if (sent) console.log(`Immediate delivery: sent scenario ${scenario.id} step 1 to ${userId}`);
         } catch (err) {
           console.error('Failed to enroll friend in scenario', scenario.id, err);
         }
@@ -352,11 +297,25 @@ async function handleEvent(
         }
       }
 
-      // Dedicated scenario enrollment from referral link
+      // Dedicated scenario enrollment from referral link. A delay-0 first
+      // step is pushed immediately (same instant-welcome semantics as
+      // friend_add / tag_added enrollments — previously this path always
+      // waited for the next cron tick). pushMessage, not reply: the reply
+      // token may already be consumed by an account friend_add scenario
+      // above, and the intro push on this path uses pushMessage too.
       if (referralRoute.scenario_id) {
         try {
-          await enrollFriendInScenario(db, friend.id, referralRoute.scenario_id);
+          const enrollment = await enrollFriendInScenario(db, friend.id, referralRoute.scenario_id);
           console.log(`[follow] referral scenario enrolled scenario=${referralRoute.scenario_id}`);
+          if (enrollment) {
+            await pushImmediateFirstStep(
+              db,
+              friend.id,
+              referralRoute.scenario_id,
+              { defaultAccessToken: lineAccessToken, workerUrl },
+              { enrollment },
+            );
+          }
         } catch (err) {
           console.error('[follow] referral scenario enrollment failed', err);
         }

@@ -33,6 +33,11 @@ vi.mock('@line-crm/db', () => dbMocks);
 const notifyAffiliateFriendAdd = vi.fn().mockResolvedValue(undefined);
 vi.mock('../services/affiliate-notifier.js', () => ({ notifyAffiliateFriendAdd }));
 
+// Ref-attribution tag attach now goes through the guarded helper (fires
+// tag_added side effects only on first-time attach) — assert on this mock.
+const attachTagAndFireSideEffects = vi.fn().mockResolvedValue({ added: true });
+vi.mock('../services/friend-tag-attach.js', () => ({ attachTagAndFireSideEffects }));
+
 // Import after the mock so index.ts binds the mocked helpers.
 const worker = (await import('../index.js')).default;
 
@@ -123,10 +128,11 @@ describe('POST /api/liff/link — offer tag/scenario on affiliate-link friend ad
       expect.anything(),
       'OFF-1',
     );
-    expect(dbMocks.addTagToFriend).toHaveBeenCalledWith(
+    expect(attachTagAndFireSideEffects).toHaveBeenCalledWith(
       expect.anything(),
       'F-1',
       'TAG-offer',
+      expect.anything(),
     );
   });
 
@@ -142,7 +148,7 @@ describe('POST /api/liff/link — offer tag/scenario on affiliate-link friend ad
 
     // No offer lookup, no tag application — current behavior unchanged.
     expect(dbMocks.getAffiliateOfferById).not.toHaveBeenCalled();
-    expect(dbMocks.addTagToFriend).not.toHaveBeenCalled();
+    expect(attachTagAndFireSideEffects).not.toHaveBeenCalled();
   });
 
   it('skips tag application when the offer is inactive (is_active = 0)', async () => {
@@ -166,7 +172,7 @@ describe('POST /api/liff/link — offer tag/scenario on affiliate-link friend ad
       expect.anything(),
       'OFF-2',
     );
-    expect(dbMocks.addTagToFriend).not.toHaveBeenCalled();
+    expect(attachTagAndFireSideEffects).not.toHaveBeenCalled();
   });
 
   it('does NOT fire the friend-add notification on an existing-friend re-touch', async () => {
@@ -206,10 +212,11 @@ describe('POST /api/liff/link — offer tag/scenario on affiliate-link friend ad
     // entry_route wins: affiliate link / offer resolution is skipped entirely.
     expect(dbMocks.getAffiliateLinkByRefCode).not.toHaveBeenCalled();
     expect(dbMocks.getAffiliateOfferById).not.toHaveBeenCalled();
-    expect(dbMocks.addTagToFriend).toHaveBeenCalledWith(
+    expect(attachTagAndFireSideEffects).toHaveBeenCalledWith(
       expect.anything(),
       'F-1',
       'TAG-route',
+      expect.anything(),
     );
   });
 });
