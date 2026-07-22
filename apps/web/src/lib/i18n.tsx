@@ -1575,6 +1575,7 @@ export const en: Record<string, string> = {
   "は全アカウント共通のシナリオです。": " is a scenario shared across all accounts. ",
   "は全アカウント共通のシナリオです。削除するとすべてのアカウントから消えます。本当に削除しますか?": " is a scenario shared across all accounts. Deleting it removes it from every account. Are you sure you want to delete it?",
   "を削除してもよいですか？": " — delete this scenario?",
+  "〜": "–",
 }
 
 interface I18nValue {

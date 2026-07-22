@@ -744,7 +744,7 @@ function SlotsTab({
               {slots.map((s) => (
                 <tr key={s.id} className="border-t border-gray-200">
                   <td className="px-3 py-2 text-gray-800">
-                    {formatJpDateTime(s.starts_at)} 〜 {formatJpDateTime(s.ends_at).slice(-5)}
+                    {formatJpDateTime(s.starts_at)} {t('〜')} {formatJpDateTime(s.ends_at).slice(-5)}
                   </td>
                   <td className="px-3 py-2 text-gray-700">{s.capacity ?? t('無制限')}</td>
                   <td className="px-3 py-2 text-gray-700">{s.active_count ?? 0}</td>
@@ -994,7 +994,7 @@ function BulkSlotDialog({
                   onChange={(e) => setPatterns((ps) => ps.map((x, j) => (j === i ? { ...x, start: e.target.value } : x)))}
                   className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 />
-                <span className="text-gray-500">〜</span>
+                <span className="text-gray-500">{t('〜')}</span>
                 <input
                   type="time"
                   value={p.end}

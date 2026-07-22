@@ -183,7 +183,7 @@ export default function StaffShiftsPage() {
                           onChange={(e) => setTpl({ ...tpl, [d.key]: { ...cur, start: e.target.value } })}
                           className="border border-gray-300 rounded-lg px-2 py-1 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-green-500"
                         />
-                        <span className="text-gray-400">〜</span>
+                        <span className="text-gray-400">{t('〜')}</span>
                         <input
                           type="time"
                           value={cur.end}
