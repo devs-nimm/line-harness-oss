@@ -10,7 +10,8 @@ import {
   getLinkClicks,
   getFriendByLineUserId,
 } from '@line-crm/db';
-import { addTagToFriend, enrollFriendInScenario } from '@line-crm/db';
+import { enrollFriendInScenario } from '@line-crm/db';
+import { attachTagAndFireSideEffects } from '../services/friend-tag-attach.js';
 import type { TrackedLink } from '@line-crm/db';
 import type { Env } from '../index.js';
 import { isLinkPreviewBot } from '../lib/og-bot.js';
@@ -345,7 +346,14 @@ trackedLinks.get('/t/:linkId', async (c) => {
           const actions: Promise<unknown>[] = [];
 
           if (link.tag_id) {
-            actions.push(addTagToFriend(c.env.DB, friendId, link.tag_id));
+            // Guarded attach: fires tag_added scenario enrollment only when
+            // the tag is NEWLY applied — an in-app /t click must start a
+            // tag-triggered campaign exactly like the /auth/line ref path
+            // does, and stay silent on re-clicks.
+            actions.push(attachTagAndFireSideEffects(c.env.DB, friendId, link.tag_id, {
+              defaultAccessToken: c.env.LINE_CHANNEL_ACCESS_TOKEN,
+              workerUrl: c.env.WORKER_URL,
+            }));
           }
 
           if (link.scenario_id) {
