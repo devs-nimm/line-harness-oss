@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { Tag } from '@line-crm/shared'
 import type { FriendWithTags } from '@/lib/api'
 import { api } from '@/lib/api'
+import { useI18n } from '@/lib/i18n'
 import TagBadge from './tag-badge'
 
 interface FriendTableProps {
@@ -13,6 +14,7 @@ interface FriendTableProps {
 }
 
 export default function FriendTable({ friends, allTags, onRefresh }: FriendTableProps) {
+  const { t } = useI18n()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [addingTagForFriend, setAddingTagForFriend] = useState<string | null>(null)
   const [selectedTagId, setSelectedTagId] = useState('')
@@ -36,7 +38,7 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
       setSelectedTagId('')
       onRefresh()
     } catch {
-      setError('タグの追加に失敗しました')
+      setError(t('タグの追加に失敗しました'))
     } finally {
       setLoading(false)
     }
@@ -49,7 +51,7 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
       await api.friends.removeTag(friendId, tagId)
       onRefresh()
     } catch {
-      setError('タグの削除に失敗しました')
+      setError(t('タグの削除に失敗しました'))
     } finally {
       setLoading(false)
     }
@@ -66,7 +68,7 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
   if (friends.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-        <p className="text-gray-500">友だちが見つかりません</p>
+        <p className="text-gray-500">{t('友だちが見つかりません')}</p>
       </div>
     )
   }
@@ -83,16 +85,16 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
         <thead>
           <tr className="bg-gray-50 border-b border-gray-200">
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              アイコン / 表示名
+              {t('アイコン / 表示名')}
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              ステータス
+              {t('ステータス')}
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              タグ / 流入
+              {t('タグ / 流入')}
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              登録日
+              {t('登録日')}
             </th>
             <th className="px-4 py-3" />
           </tr>
@@ -139,11 +141,11 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                   <td className="px-4 py-3">
                     {friend.isFollowing ? (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                        フォロー中
+                        {t('フォロー中')}
                       </span>
                     ) : (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-                        ブロック/退会
+                        {t('ブロック/退会')}
                       </span>
                     )}
                   </td>
@@ -159,7 +161,7 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                       {friend.tags.length > 0 ? (
                         friend.tags.map((tag) => <TagBadge key={tag.id} tag={tag} />)
                       ) : !((friend as unknown as { refCode?: string }).refCode) ? (
-                        <span className="text-xs text-gray-400">なし</span>
+                        <span className="text-xs text-gray-400">{t('なし')}</span>
                       ) : null}
                     </div>
                   </td>
@@ -186,7 +188,7 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                     <td colSpan={5} className="px-6 py-4">
                       <div className="space-y-3">
                         <div>
-                          <p className="text-xs font-semibold text-gray-500 mb-1">LINE ユーザーID</p>
+                          <p className="text-xs font-semibold text-gray-500 mb-1">{t('LINE ユーザーID')}</p>
                           <p className="text-xs text-gray-600 font-mono">{friend.lineUserId}</p>
                         </div>
 
@@ -198,9 +200,9 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                           if (!igUsername && !igAccountId) return null
                           return (
                             <div>
-                              <p className="text-xs font-semibold text-gray-500 mb-1">流入元 Instagram</p>
+                              <p className="text-xs font-semibold text-gray-500 mb-1">{t('流入元 Instagram')}</p>
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-700">
-                                IG: {igUsername ? `@${igUsername}` : igAccountId} 経由
+                                IG: {igUsername ? `@${igUsername}` : igAccountId} {t('経由')}
                               </span>
                             </div>
                           )
@@ -208,7 +210,7 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
 
                         {/* Tag management */}
                         <div>
-                          <p className="text-xs font-semibold text-gray-500 mb-2">タグ管理</p>
+                          <p className="text-xs font-semibold text-gray-500 mb-2">{t('タグ管理')}</p>
                           <div className="flex flex-wrap gap-1.5 mb-2">
                             {friend.tags.map((tag) => (
                               <TagBadge
@@ -226,7 +228,7 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                                 value={selectedTagId}
                                 onChange={(e) => setSelectedTagId(e.target.value)}
                               >
-                                <option value="">タグを選択...</option>
+                                <option value="">{t('タグを選択...')}</option>
                                 {availableTags.map((tag) => (
                                   <option key={tag.id} value={tag.id}>{tag.name}</option>
                                 ))}
@@ -237,13 +239,13 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                                 className="px-3 py-1 text-xs font-medium rounded-md text-white disabled:opacity-50 transition-opacity"
                                 style={{ backgroundColor: '#06C755' }}
                               >
-                                追加
+                                {t('追加')}
                               </button>
                               <button
                                 onClick={() => { setAddingTagForFriend(null); setSelectedTagId('') }}
                                 className="px-3 py-1 text-xs font-medium rounded-md text-gray-600 bg-gray-200 hover:bg-gray-300 transition-colors"
                               >
-                                キャンセル
+                                {t('キャンセル')}
                               </button>
                             </div>
                           ) : (
@@ -255,7 +257,7 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                 </svg>
-                                タグを追加
+                                {t('タグを追加')}
                               </button>
                             )
                           )}
