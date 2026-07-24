@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/layout/header'
@@ -14,10 +14,21 @@ export default function NewRichMenuPage() {
   const { t, locale } = useI18n()
   const { selectedAccount } = useAccount()
   const [name, setName] = useState('')
-  const [chatBarText, setChatBarText] = useState('メニュー')
+  const [chatBarText, setChatBarText] = useState(locale === 'en' ? 'Menu' : 'メニュー')
   const [templateKey, setTemplateKey] = useState(TEMPLATES[0].key)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // The initial value above is computed once at mount, before the persisted
+  // locale (read from localStorage by I18nProvider) has settled on a fresh
+  // page load — so it can land on the wrong language. Re-sync it whenever
+  // locale changes, but only while the field still holds one of the two
+  // untouched defaults (never clobber a value the operator typed).
+  useEffect(() => {
+    setChatBarText((prev) =>
+      prev === 'メニュー' || prev === 'Menu' ? (locale === 'en' ? 'Menu' : 'メニュー') : prev,
+    )
+  }, [locale])
 
   const tmpl = TEMPLATES.find((tpl) => tpl.key === templateKey) ?? TEMPLATES[0]
 
